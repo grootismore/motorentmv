@@ -1,13 +1,30 @@
 name: iOS unsigned device IPA (sideload)
 
-# Manual only. Builds an UNSIGNED arm64 iOS *device* build (never a
-# Simulator build) for sideloading with Sideloadly, AltStore, or similar —
-# those tools re-sign the IPA at install time. This workflow deliberately
-# never touches Apple certificates, provisioning profiles, EAS signing, or
+# Builds an UNSIGNED arm64 iOS *device* build (never a Simulator build)
+# for sideloading with Sideloadly, AltStore, or similar — those tools
+# re-sign the IPA at install time. This workflow deliberately never
+# touches Apple certificates, provisioning profiles, EAS signing, or
 # registered device UDIDs; CODE_SIGNING_ALLOWED=NO makes signing
 # impossible, not just skipped.
+#
+# Runs manually (workflow_dispatch) or automatically on a push to the
+# working branch that touches app source — a macOS runner is expensive
+# and slow relative to Linux, so the push trigger is path-filtered to
+# skip docs-only/database-only commits that can't affect the IPA.
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - claude/motorent-mv-architecture-review-1cwexr
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'assets/**'
+      - 'app.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+      - '.github/workflows/ios-unsigned-ipa.yml'
 
 # No job needs to write anything back to the repo or call the GitHub API
 # beyond uploading its own artifacts, which the default token already
@@ -35,7 +52,12 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4.1.0
         with:
-          node-version: '20'
+          # 22, not 20: `.npmrc` sets engine-strict=true and
+          # @supabase/auth-js (pulled in transitively by
+          # @supabase/supabase-js) now declares "engines": { "node":
+          # ">=22.0.0" } — npm ci hard-fails (EBADENGINE) under Node 20.
+          # Confirmed by a real failed run of this workflow on Node 20.
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies (npm ci, committed lockfile)

@@ -22,7 +22,10 @@ for what was decided and why, and the PRD for what comes next.
 
 ## Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 22+ and npm (`.npmrc` sets `engine-strict=true`, and
+  `@supabase/auth-js`, pulled in transitively by `@supabase/supabase-js`,
+  declares `"engines": { "node": ">=22.0.0" }` — `npm ci`/`npm install`
+  hard-fail on Node 20)
 - Xcode (iOS simulator builds) and/or Android Studio (Android emulator builds) for local native runs
 - An Expo account + the [EAS CLI](https://docs.expo.dev/eas/) (`npm i -g eas-cli`) once you're building with EAS
 
