@@ -1,0 +1,314 @@
+name: iOS unsigned device IPA (sideload)
+
+# Manual only. Builds an UNSIGNED arm64 iOS *device* build (never a
+# Simulator build) for sideloading with Sideloadly, AltStore, or similar —
+# those tools re-sign the IPA at install time. This workflow deliberately
+# never touches Apple certificates, provisioning profiles, EAS signing, or
+# registered device UDIDs; CODE_SIGNING_ALLOWED=NO makes signing
+# impossible, not just skipped.
+on:
+  workflow_dispatch: {}
+
+# No job needs to write anything back to the repo or call the GitHub API
+# beyond uploading its own artifacts, which the default token already
+# permits — so this is the minimum useful grant.
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+  # The bundle id this build must report — kept in sync with app.config.ts
+  # by deriving it from that file (see "Resolve build metadata" below)
+  # rather than duplicating the literal string here.
+  APP_PRODUCT_DISPLAY_NAME: MotoRentMV
+
+jobs:
+  build-unsigned-ipa:
+    name: Build unsigned iOS device IPA
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies (npm ci, committed lockfile)
+        run: npm ci
+
+      - name: Format check, lint, typecheck and unit tests
+        run: npm run verify
+
+      - name: Validate Expo dependency versions
+        run: npx expo install --check
+
+      - name: Prepare log directory
+        run: mkdir -p build-logs
+
+      - name: Resolve build metadata (bundle id, build number)
+        id: meta
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="${{ github.run_number }}"
+          BUNDLE_ID="$(grep -oE "BUNDLE_ID = '[^']+'" app.config.ts | sed -E "s/BUNDLE_ID = '(.+)'/\1/")"
+          if [ -z "$BUNDLE_ID" ]; then
+            echo "::error::Could not resolve BUNDLE_ID from app.config.ts"
+            exit 1
+          fi
+          echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "bundle_id=${BUNDLE_ID}" >> "$GITHUB_OUTPUT"
+          echo "ipa_name=MotoRent-MV-unsigned-${BUILD_NUMBER}.ipa" >> "$GITHUB_OUTPUT"
+          echo "Resolved bundle id: ${BUNDLE_ID}"
+          echo "Build number: ${BUILD_NUMBER}"
+
+      - name: Generate native iOS project (expo prebuild)
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          npx expo prebuild --platform ios --clean 2>&1 | tee build-logs/prebuild.log
+
+      - name: Install iOS pods
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          pod install 2>&1 | tee ../build-logs/pod-install.log
+
+      - name: Locate Xcode workspace and scheme
+        id: xcode
+        run: |
+          set -euo pipefail
+          WORKSPACE="$(find ios -maxdepth 1 -name '*.xcworkspace' -print -quit)"
+          if [ -z "$WORKSPACE" ]; then
+            echo "::error::No .xcworkspace found under ios/ after prebuild"
+            exit 1
+          fi
+          SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          echo "workspace=${WORKSPACE}" >> "$GITHUB_OUTPUT"
+          echo "scheme=${SCHEME}" >> "$GITHUB_OUTPUT"
+          echo "Workspace: ${WORKSPACE}"
+          echo "Scheme: ${SCHEME}"
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build Release for a physical iOS device (arm64, unsigned)
+        id: build
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          xcodebuild clean build \
+            -workspace "${{ steps.xcode.outputs.workspace }}" \
+            -scheme "${{ steps.xcode.outputs.scheme }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            ARCHS=arm64 \
+            VALID_ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            2>&1 | tee build-logs/xcodebuild.log
+
+      - name: Locate and verify the built .app bundle
+        id: verify
+        run: |
+          set -euo pipefail
+
+          PRODUCTS_DIR="build/Build/Products"
+          echo "Build products directory contents:"
+          ls -la "$PRODUCTS_DIR" || true
+
+          # Fail closed: a Simulator build lands in a `*-iphonesimulator`
+          # products directory, never `*-iphoneos`. If that's what we
+          # find, this is the wrong build entirely — stop immediately
+          # rather than inspecting it further.
+          if [ -d "$PRODUCTS_DIR/Release-iphonesimulator" ]; then
+            echo "::error::Found a Release-iphonesimulator build output — this workflow must only produce a physical-device (iphoneos) build."
+            exit 1
+          fi
+
+          APP_PATH="$(find "$PRODUCTS_DIR/Release-iphoneos" -maxdepth 1 -name '*.app' -print -quit 2>/dev/null || true)"
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "::error::Could not find a .app bundle under $PRODUCTS_DIR/Release-iphoneos"
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+
+          INFO_PLIST="$APP_PATH/Info.plist"
+          if [ ! -f "$INFO_PLIST" ]; then
+            echo "::error::$APP_PATH has no Info.plist"
+            exit 1
+          fi
+
+          EXECUTABLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST")"
+          EXECUTABLE_PATH="$APP_PATH/$EXECUTABLE_NAME"
+          if [ ! -f "$EXECUTABLE_PATH" ]; then
+            echo "::error::Executable $EXECUTABLE_PATH not found inside the app bundle"
+            exit 1
+          fi
+
+          ACTUAL_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+          EXPECTED_BUNDLE_ID="${{ steps.meta.outputs.bundle_id }}"
+          if [ "$ACTUAL_BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+            echo "::error::Bundle identifier mismatch: expected '$EXPECTED_BUNDLE_ID', got '$ACTUAL_BUNDLE_ID'"
+            exit 1
+          fi
+
+          # --- Architecture: must be arm64, and must NOT contain a
+          # simulator-only slice (x86_64, or arm64 simulator variants). ---
+          ARCH_INFO="$(lipo -archs "$EXECUTABLE_PATH")"
+          echo "Executable architectures: $ARCH_INFO"
+          if ! echo "$ARCH_INFO" | tr ' ' '\n' | grep -qx 'arm64'; then
+            echo "::error::Executable does not contain an arm64 slice (found: $ARCH_INFO)"
+            exit 1
+          fi
+          if echo "$ARCH_INFO" | grep -qw 'x86_64'; then
+            echo "::error::Executable contains an x86_64 slice — this looks like a Simulator build, not a device build"
+            exit 1
+          fi
+
+          # --- Platform: the Mach-O load command must say IOS, never
+          # IOSSIMULATOR. This is the definitive "not a simulator app"
+          # check (arch alone isn't enough on Apple Silicon, where
+          # arm64 simulator builds also exist). ---
+          PLATFORM_INFO="$(otool -l "$EXECUTABLE_PATH" | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_IPHONEOS' || true)"
+          echo "Mach-O platform load command:"
+          echo "$PLATFORM_INFO"
+          if echo "$PLATFORM_INFO" | grep -qi 'IOSSIMULATOR'; then
+            echo "::error::Executable is built for the iOS Simulator platform, not a physical device"
+            exit 1
+          fi
+          if [ -z "$PLATFORM_INFO" ]; then
+            echo "::error::Could not determine the Mach-O target platform for $EXECUTABLE_PATH"
+            exit 1
+          fi
+
+          # --- Supported platforms declared in Info.plist must be device
+          # (iPhoneOS), never simulator. ---
+          SUPPORTED_PLATFORMS="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms' "$INFO_PLIST" 2>/dev/null || true)"
+          echo "CFBundleSupportedPlatforms: $SUPPORTED_PLATFORMS"
+          if echo "$SUPPORTED_PLATFORMS" | grep -qi 'Simulator'; then
+            echo "::error::Info.plist declares a Simulator-supported platform"
+            exit 1
+          fi
+          if ! echo "$SUPPORTED_PLATFORMS" | grep -q 'iPhoneOS'; then
+            echo "::error::Info.plist does not declare iPhoneOS as a supported platform"
+            exit 1
+          fi
+
+          # --- Required native modules/frameworks are actually embedded. ---
+          FRAMEWORKS_DIR="$APP_PATH/Frameworks"
+          if [ ! -d "$FRAMEWORKS_DIR" ]; then
+            echo "::error::No Frameworks/ directory found inside the app bundle"
+            exit 1
+          fi
+          echo "Embedded frameworks:"
+          ls -la "$FRAMEWORKS_DIR"
+          if ! find "$FRAMEWORKS_DIR" -iname 'hermes*.framework' -maxdepth 1 | grep -q .; then
+            echo "::error::hermes.framework (the JS engine) is not embedded in Frameworks/ — this build is incomplete"
+            exit 1
+          fi
+          if ! strings "$EXECUTABLE_PATH" | grep -q 'ExpoModulesCore'; then
+            echo "::error::ExpoModulesCore does not appear to be linked into the executable — required Expo native modules are missing"
+            exit 1
+          fi
+
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          echo "executable_name=$EXECUTABLE_NAME" >> "$GITHUB_OUTPUT"
+          echo "actual_bundle_id=$ACTUAL_BUNDLE_ID" >> "$GITHUB_OUTPUT"
+          echo "arch_info=$ARCH_INFO" >> "$GITHUB_OUTPUT"
+          echo "All verification checks passed."
+
+      - name: Package unsigned IPA
+        id: package
+        run: |
+          set -euo pipefail
+          APP_PATH="${{ steps.verify.outputs.app_path }}"
+          IPA_NAME="${{ steps.meta.outputs.ipa_name }}"
+
+          rm -rf Payload
+          mkdir -p "Payload/${APP_PRODUCT_DISPLAY_NAME}.app"
+          cp -R "$APP_PATH"/. "Payload/${APP_PRODUCT_DISPLAY_NAME}.app"
+
+          zip -qr -X "$IPA_NAME" Payload
+          rm -rf Payload
+
+          if [ ! -f "$IPA_NAME" ]; then
+            echo "::error::IPA packaging failed — $IPA_NAME was not created"
+            exit 1
+          fi
+
+          IPA_SIZE_BYTES="$(stat -f%z "$IPA_NAME")"
+          echo "ipa_path=$IPA_NAME" >> "$GITHUB_OUTPUT"
+          echo "ipa_size_bytes=$IPA_SIZE_BYTES" >> "$GITHUB_OUTPUT"
+          echo "Packaged $IPA_NAME ($IPA_SIZE_BYTES bytes)"
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: ${{ steps.meta.outputs.ipa_name }}
+          path: ${{ steps.package.outputs.ipa_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write job summary
+        if: success()
+        run: |
+          {
+            echo "## iOS unsigned device IPA"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Artifact name | \`${{ steps.meta.outputs.ipa_name }}\` |"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Build number | \`${{ steps.meta.outputs.build_number }}\` |"
+            echo "| Bundle identifier | \`${{ steps.verify.outputs.actual_bundle_id }}\` |"
+            echo "| Architecture | \`${{ steps.verify.outputs.arch_info }}\` |"
+            echo "| IPA size | \`${{ steps.package.outputs.ipa_size_bytes }}\` bytes |"
+            echo
+            echo "### Verification results"
+            echo "- ✅ Not a Simulator build (Mach-O platform, Info.plist, and products-directory checks all confirm \`iphoneos\`)"
+            echo "- ✅ Executable contains an \`arm64\` slice, no \`x86_64\` slice"
+            echo "- ✅ Bundle identifier matches \`app.config.ts\`"
+            echo "- ✅ \`hermes.framework\` embedded and \`ExpoModulesCore\` linked"
+            echo
+            echo "**This IPA is unsigned.** It cannot be installed directly — re-sign and"
+            echo "install it with Sideloadly, AltStore, or a similar sideloading tool."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: ios-build-logs-${{ github.run_number }}
+          path: build-logs/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Write failure summary
+        if: failure()
+        run: |
+          {
+            echo "## iOS unsigned device IPA — build failed"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Build number | \`${{ github.run_number }}\` |"
+            echo
+            echo "No IPA artifact was produced. See the \`ios-build-logs-${{ github.run_number }}\`"
+            echo "artifact and the failed step's log output above for details."
+          } >> "$GITHUB_STEP_SUMMARY"
