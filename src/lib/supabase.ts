@@ -2,15 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { env } from './env';
+import type { Database } from './database.types';
 
-/**
- * Placeholder database shape — replace with the generated types from
- * `supabase gen types typescript` once the schema exists (Phase 1). Keeping
- * this typed (even as `unknown`-ish) means every table access below will
- * start getting real autocomplete/type-checking the moment that file lands,
- * with no call-site changes required.
- */
-export type Database = Record<string, never>;
+export type { Database } from './database.types';
 
 /**
  * `null` until `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` are
