@@ -79,6 +79,22 @@ begin
 end;
 $$;
 
+-- Runs p_sql expecting it to raise, and returns the error message instead
+-- of just asserting one was thrown — for tests that need to check the
+-- message's exact content (e.g. that a conflict explanation doesn't leak
+-- another customer's data), not merely that an error occurred.
+create or replace function test.capture_error_message(p_sql text)
+returns text
+language plpgsql
+as $$
+begin
+  execute p_sql;
+  return null;
+exception when others then
+  return sqlerrm;
+end;
+$$;
+
 -- The `test` schema is a local harness convenience, never exposed via the
 -- real Data API (it isn't in api.schemas on a real project) — so granting
 -- anon/authenticated access to it here doesn't weaken anything a real

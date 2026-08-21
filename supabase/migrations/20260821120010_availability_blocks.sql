@@ -12,9 +12,11 @@ create table public.availability_blocks (
   created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   check (ends_at > starts_at),
+  -- Half-open '[)' bounds, matching bookings: a block ending at 09:00 and
+  -- one starting at 09:00 don't truly overlap and must both be allowed.
   exclude using gist (
     vehicle_id with =,
-    tstzrange(starts_at, ends_at, '[]') with &&
+    tstzrange(starts_at, ends_at, '[)') with &&
   )
 );
 

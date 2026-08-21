@@ -798,10 +798,78 @@ export type Database = {
         Args: {
           p_booking_id: string;
           p_new_status: Database['public']['Enums']['booking_status'];
-          p_quote_snapshot?: Json | null;
-          p_policy_snapshot?: Json | null;
-          p_total_amount_laari?: number | null;
           p_note?: string | null;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      compute_booking_quote: {
+        Args: {
+          p_vehicle_id: string;
+          p_starts_at: string;
+          p_ends_at: string;
+        };
+        Returns: Json;
+      };
+      compute_booking_policy_snapshot: {
+        Args: {
+          p_organization_id: string;
+        };
+        Returns: Json;
+      };
+      request_booking: {
+        Args: {
+          p_booking_id?: string | null;
+          p_organization_id?: string | null;
+          p_vehicle_id?: string | null;
+          p_customer_id?: string | null;
+          p_starts_at?: string | null;
+          p_ends_at?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      accept_booking: {
+        Args: {
+          p_booking_id: string;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      decline_booking: {
+        Args: {
+          p_booking_id: string;
+          p_reason?: string | null;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      mark_booking_needs_info: {
+        Args: {
+          p_booking_id: string;
+          p_note?: string | null;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      ready_booking: {
+        Args: {
+          p_booking_id: string;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      activate_booking: {
+        Args: {
+          p_booking_id: string;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      complete_booking: {
+        Args: {
+          p_booking_id: string;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
+      cancel_booking: {
+        Args: {
+          p_booking_id: string;
+          p_reason?: string | null;
         };
         Returns: Database['public']['Tables']['bookings']['Row'];
       };

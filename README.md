@@ -110,7 +110,7 @@ src/
 No EAS project is linked yet (`extra.eas.projectId` is unset) — run `eas init`
 when ready to build.
 
-## Auth, routing and fleet
+## Auth, routing, fleet and bookings
 
 - **Auth**: email OTP (a 6-digit code, not a magic link — see
   `src/features/auth/session.ts` for why) via Supabase Auth. `AuthProvider`
@@ -147,20 +147,32 @@ when ready to build.
   `meta: { persist: false }` — a cached signed URL would just be expired.
 - **Enforce authorization on server/database, treat client checks as UX
   only**: every table-level grant is scoped and column-restricted (see
-  Database below), and both RPCs re-implement their own authorization check
+  Database below), and every RPC re-implements its own authorization check
   rather than relying on the caller having done the right thing — a
   screen's disabled button or hidden section is a courtesy, not a boundary.
+- **Booking engine**: `(renter)/today.tsx` (pickups/returns/active/overdue
+  stats plus fleet status — deliberately no unpaid-amount stat, payments
+  aren't built yet), `(renter)/calendar.tsx` (a lightweight agenda grouped
+  by pickup date, not a calendar-grid library — see Known issues), and
+  `(renter)/bookings/` (inbox list with a needs-action/upcoming/active/history
+  filter, plus a detail screen). The detail screen shows a live quote
+  preview (`compute_booking_quote`, same server-side rounding rule the
+  eventual `accept_booking` call uses) before acceptance, the frozen
+  `quote_snapshot` after, a conflict warning sourced only from
+  `vehicle_busy_ranges`/`availability_blocks` (never another customer's
+  booking row), and the eight state-machine actions
+  (`src/features/bookings/ActionPanel.tsx`) wired straight to their RPCs —
+  no client-side status field is ever written directly.
 
 ## Database
 
-Schema lives in `supabase/migrations/` (21 ordered files) — profiles,
+Schema lives in `supabase/migrations/` (25 ordered files) — profiles,
 organizations, organization_members, vehicles, vehicle_rates,
 availability_blocks, bookings, booking_events, inspections, transactions,
 expenses, documents, notifications, a private `vehicle-photos` Storage
 bucket + its `storage.objects` policies, and the helper functions/RPCs
-(including `invite_org_member_by_email` and `set_vehicle_rate`, added
-alongside the auth/fleet UI that needed them) that enforce the rules below
-at the database level, not just in application code.
+that enforce the rules below at the database level, not just in
+application code.
 
 - **Money**: every amount is an integer `*_laari` column (1 MVR = 100 laari),
   never floating point.
@@ -169,20 +181,60 @@ at the database level, not just in application code.
 - **Overlap protection**: a GiST exclusion constraint makes two
   accepted/ready/active bookings for the same vehicle over overlapping ranges
   impossible to commit — enforced by Postgres itself, not application logic.
+  Bounds are half-open (`'[)'`, matching `vehicle_rates`'s existing
+  convention) so a booking ending at 14:00 and one starting at 14:00 for the
+  same vehicle are correctly treated as back-to-back, not overlapping — an
+  earlier closed-bound (`'[]'`) version of this constraint would have
+  falsely rejected that case (see `supabase/tests/05_booking_engine.sql`).
   A paired trigger + advisory lock closes the one gap a single-table
   exclusion constraint can't cover: a booking vs. a maintenance
   (`availability_blocks`) entry.
+- **Pricing**: `compute_booking_quote()` picks hourly vs. daily by duration
+  (24h+ bills daily, rounding any partial day up to a full day; shorter
+  bills hourly, rounding any partial hour up to a full hour) from the
+  vehicle's live `vehicle_rates`, never a client-supplied number.
+  `compute_booking_policy_snapshot()` reads the organization's current
+  `policies` jsonb. Both are called only from inside `accept_booking()` —
+  see Idempotency below for why they're not parameters.
+- **Idempotency**: `transition_booking_status()` (called only through the
+  eight named wrappers — `request_booking`, `accept_booking`,
+  `decline_booking`, `mark_booking_needs_info`, `ready_booking`,
+  `activate_booking`, `complete_booking`, `cancel_booking`) short-circuits
+  to a no-op when a booking is already at the target status, so a retried
+  network call never double-writes an audit event or errors as an "invalid
+  transition." `accept_booking` no longer takes quote/policy/total
+  parameters at all (a Prompt 2 gap: whoever could call the RPC controlled
+  the accepted price) — they're computed server-side, from the vehicle's
+  actual rates, at the instant of acceptance. Booking creation is
+  idempotent too: a partial unique index plus a check-then-insert-or-return
+  in `request_booking()` means a retried "request" tap returns the existing
+  open request instead of creating a duplicate.
 - **Immutability**: a booking's `quote_snapshot`/`policy_snapshot` can never
-  change once set (trigger-enforced) — corrections are new `transactions`
-  rows, not edits.
-- **Audit trail**: `booking_events` is insert-only, and only ever written by
-  `transition_booking_status()` (the sole path for changing a booking's
-  status) — no client has a direct write grant to it.
+  change once set (trigger-enforced), and neither can its `starts_at`/
+  `ends_at` once it's left draft/requested — a direct client UPDATE that
+  changed dates on a confirmed booking could otherwise hit the exclusion
+  constraint and surface Postgres's own conflict detail, which names the
+  other booking's exact date range. Corrections are new `transactions`
+  rows, not snapshot edits.
+- **Non-leaking conflict errors**: the one case that really could expose
+  another customer's booking window — the bookings table's own GiST
+  exclusion constraint rejecting an accept/ready/activate — is caught in
+  `transition_booking_status()` and replaced with a fixed, non-leaking
+  message (PRD §6.4); verified in `05_booking_engine.sql` by asserting on
+  the exact message text, not just that an error was raised.
+- **Audit trail**: `booking_events` is insert-only, written by
+  `transition_booking_status()` for every status change and by a
+  dedicated `AFTER INSERT` trigger for a booking's own creation (a Prompt 2
+  gap — a fresh INSERT previously left the timeline starting mid-story) —
+  no client has a direct write grant to it either way.
 - **RLS**: every table has row-level security enabled, keyed off
   `auth.uid()` via `is_org_member()`/`has_org_role()`, never a client-supplied
   organization id. Financial tables (`transactions`, `expenses`) default to
   owner/manager visibility only, matching the PRD's "staff permissions must
-  be explicit."
+  be explicit." A narrow `profiles` policy lets an org member see the
+  profile (name/phone/email) of a customer who has a booking with their
+  organization — needed for the booking inbox — without granting any
+  broader cross-user visibility.
 
 ### Running it locally
 
@@ -201,10 +253,14 @@ bash supabase/local-dev/generate-types.sh     # regenerate src/lib/database.type
 `run-tests.sh` proves, with real assertions (not just "it compiles"): tenant
 isolation, customer ownership, owner/manager-vs-staff financial visibility
 and role-escalation restrictions, vehicle-photo storage scoping (draft vs.
-available vehicles) plus both RPCs' authorization checks, and — via two
-genuinely concurrent psql sessions — that exactly one of two simultaneous
-accept attempts on overlapping bookings ever succeeds. The storage half of
-that runs against `supabase/local-dev/storage-shim.sql`, a minimal
+available vehicles) plus every RPC's authorization checks, the booking
+engine (`05_booking_engine.sql` — half-open boundary adjacency, time-zone
+equivalence, hourly/daily rounding at exact and partial-unit boundaries,
+idempotent cancel/accept, and that a genuine overlap is rejected with a
+non-leaking message), and — via two genuinely concurrent psql sessions —
+that exactly one of two simultaneous accept attempts on overlapping
+bookings ever succeeds. The storage half of that runs against
+`supabase/local-dev/storage-shim.sql`, a minimal
 `storage.buckets`/`storage.objects` stand-in — same reasoning as the auth
 shim, see that file's header comment.
 
@@ -232,8 +288,9 @@ shim, see that file's header comment.
   every environment. `src/lib/database.types.ts` is instead generated by
   `supabase/local-dev/generate-types.sh`, a small introspection query + Node
   script — functionally equivalent for this schema, but not byte-identical
-  to the CLI's own output (no `Relationships` array, and `Functions` is
-  hand-written for the one RPC rather than introspected).
+  to the CLI's own output (`Functions` is hand-written rather than
+  introspected, though it does now include a real `Relationships` array per
+  table).
 - Real Supabase Auth (email OTP delivery, a live session round-trip) can't be
   exercised end-to-end without a live Supabase project, which doesn't exist
   in this sandbox. `src/features/auth/session.ts` is written against the
@@ -252,18 +309,32 @@ shim, see that file's header comment.
   mirrored `__tests__/app/` tree instead — see Project structure above.
 - No iOS Simulator or Android Emulator is available in this sandbox (no
   Xcode/Android SDK). Verification here is `expo export --platform ios`
-  and `--platform android` (both bundle cleanly, 1368/1456 modules) plus
+  and `--platform android` (both bundle cleanly, 1378/1466 modules) plus
   the full unit/component/RLS test suites — not an on-device or
   in-simulator run. Real device/simulator verification is still needed
   before treating this as done.
+- `(renter)/calendar.tsx` is a lightweight agenda (bookings grouped by
+  pickup date), not a calendar-grid view — no date/calendar library was
+  added for it, per the same "prefer Expo-supported packages, avoid
+  unnecessary native dependencies" constraint as Prompt 0. A grid view can
+  replace it later without changing the data underneath.
+- `overdue` is a real `booking_status` enum value but nothing writes it:
+  there's no scheduled-job runner in this sandbox to flip an `active`
+  booking automatically once its return time passes. The UI computes
+  "overdue" for display (an active booking whose `ends_at` is in the past)
+  without changing the stored status; wiring an actual scheduled transition
+  (e.g. `pg_cron` or an Edge Function on a timer) is future-phase work.
+- An org member can decline or cancel a `needs_info` booking but not accept
+  it directly — the state machine only allows `needs_info → requested` (the
+  customer resubmitting), and there's no customer app yet to do that from
+  (PRD Prompt 5). The RPC (`request_booking`) and the transition itself
+  already support it; only the customer-facing UI is missing.
 
 ## What's next
 
-The availability calendar and booking engine (Prompt 4 — the state
-machine, overlap protection and `transition_booking_status` RPC already
-exist from the database-foundation work; Prompt 4 adds the UI and
-remaining business rules like pricing/quote computation), customer
-discovery (Prompt 5), handover/payments/notifications (Prompt 6),
-finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the
-release-candidate/pilot handoff (Prompt 9) — see the PRD for full scope
-per phase.
+Customer discovery and the customer-side booking flow (Prompt 5 — the
+`request_booking` RPC and customer-facing RLS policies already exist from
+this and earlier prompts; Prompt 5 adds the customer app screens),
+handover/payments/notifications (Prompt 6), finance/reports (Prompt 7),
+CI/EAS automation (Prompt 8), and the release-candidate/pilot handoff
+(Prompt 9) — see the PRD for full scope per phase.

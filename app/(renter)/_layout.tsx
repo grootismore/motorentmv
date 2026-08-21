@@ -34,6 +34,7 @@ export default function RenterLayout() {
         <Tabs.Screen name="today" options={{ title: 'Today' }} />
         <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
         <Tabs.Screen name="bookings/index" options={{ title: 'Bookings' }} />
+        <Tabs.Screen name="bookings/[bookingId]" options={{ href: null }} />
         <Tabs.Screen name="fleet/index" options={{ title: 'Fleet' }} />
         <Tabs.Screen name="more/index" options={{ title: 'More' }} />
         <Tabs.Screen name="fleet/[vehicleId]/index" options={{ href: null }} />

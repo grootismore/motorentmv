@@ -125,7 +125,7 @@ begin
     select ab.id, ab.reason into v_conflict
     from public.availability_blocks ab
     where ab.vehicle_id = new.vehicle_id
-      and tstzrange(ab.starts_at, ab.ends_at, '[]') && tstzrange(new.starts_at, new.ends_at, '[]')
+      and tstzrange(ab.starts_at, ab.ends_at, '[)') && tstzrange(new.starts_at, new.ends_at, '[)')
     limit 1;
 
     if found then
@@ -161,7 +161,7 @@ begin
   from public.bookings b
   where b.vehicle_id = new.vehicle_id
     and b.status in ('accepted', 'ready', 'active')
-    and tstzrange(b.starts_at, b.ends_at, '[]') && tstzrange(new.starts_at, new.ends_at, '[]')
+    and tstzrange(b.starts_at, b.ends_at, '[)') && tstzrange(new.starts_at, new.ends_at, '[)')
   limit 1;
 
   if found then

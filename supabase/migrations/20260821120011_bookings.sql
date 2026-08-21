@@ -34,10 +34,12 @@ create table public.bookings (
   -- is atomic and concurrency-safe at the index level — no advisory lock
   -- needed for this same-table case (unlike the cross-table check against
   -- availability_blocks, which does need one; see the overlap-protection
-  -- migration).
+  -- migration). Half-open '[)' bounds: a booking ending at 14:00 and one
+  -- starting at 14:00 for the same vehicle share only a single instant,
+  -- not a real overlap, and must both be bookable back-to-back.
   exclude using gist (
     vehicle_id with =,
-    tstzrange(starts_at, ends_at, '[]') with &&
+    tstzrange(starts_at, ends_at, '[)') with &&
   ) where (status in ('accepted', 'ready', 'active'))
 );
 

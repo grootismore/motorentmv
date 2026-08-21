@@ -36,6 +36,12 @@ VEHICLE_ID=$("${PSQL_T[@]}" -c "
   insert into public.vehicles (organization_id, registration_number, status) values ('$ORG_ID', 'RACE-001', 'available') returning id;
 " | tail -1)
 
+"${PSQL_SUPER[@]}" -c "
+  select set_config('request.jwt.claims', json_build_object('sub','$OWNER_ID','role','authenticated')::text, false);
+  set role authenticated;
+  insert into public.vehicle_rates (vehicle_id, rate_type, amount_laari) values ('$VEHICLE_ID', 'daily', 10000);
+" > /dev/null
+
 BOOKING_1=$("${PSQL_T[@]}" -c "
   select set_config('request.jwt.claims', json_build_object('sub','$CUSTOMER_ID','role','authenticated')::text, false);
   set role authenticated;
@@ -61,7 +67,7 @@ run_accept() {
 select set_config('request.jwt.claims', json_build_object('sub','$OWNER_ID','role','authenticated')::text, false);
 set role authenticated;
 begin;
-select (public.transition_booking_status('$booking_id', 'accepted', '{"total_laari": 10000}'::jsonb, '{}'::jsonb, 10000)).status;
+select (public.accept_booking('$booking_id')).status;
 select pg_sleep(1.5);
 commit;
 SQL

@@ -20,6 +20,7 @@ insert into auth.users (id, email) values
 select test.as_user('10000000-0000-0000-0000-000000000001');
 insert into public.organizations (name, slug) values ('Org G', 'org-g-role-test') returning id \gset org_
 insert into public.vehicles (organization_id, registration_number, status) values (:'org_id', 'G-001', 'available') returning id \gset veh_
+insert into public.vehicle_rates (vehicle_id, rate_type, amount_laari) values (:'veh_id', 'daily', 100000);
 
 insert into public.organization_members (organization_id, user_id, role, status)
 values (:'org_id', '20000000-0000-0000-0000-000000000002', 'manager', 'active');
@@ -32,7 +33,10 @@ values (:'org_id', :'veh_id', '40000000-0000-0000-0000-000000000004', 'requested
 returning id \gset bk_
 
 select test.as_user('10000000-0000-0000-0000-000000000001');
-select (public.transition_booking_status(:'bk_id', 'accepted', '{"total_laari": 100000}'::jsonb, '{}'::jsonb, 100000)).status;
+select test.assert(
+  (public.accept_booking(:'bk_id')).total_amount_laari = 100000,
+  'Owner accepting the booking computes total_amount_laari server-side from the vehicle''s daily rate'
+);
 
 -- Staff records a payment (a normal front-desk task) and an expense
 -- (which staff should NOT be able to do — expenses have no
