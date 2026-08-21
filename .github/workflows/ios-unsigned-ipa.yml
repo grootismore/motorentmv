@@ -49,6 +49,57 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4.2.2
 
+      # Confirmed by a real failed run: macos-14's default active Xcode is
+      # 15.4, but React Native 0.86 requires >= 16.1 ("React Native
+      # requires XCode >= 16.1. Found 15.4." / "Invalid Podfile file:
+      # Please upgrade XCode."), which broke both expo prebuild's own
+      # internal pod-install attempt and the explicit one below. Rather
+      # than hardcode a specific Xcode path/version (which GitHub's runner
+      # images change over time), this finds every Xcode actually
+      # installed on the runner and switches to the newest one, failing
+      # clearly if even that one is too old.
+      - name: Select a compatible Xcode version (React Native 0.86 needs >= 16.1)
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          version_key() {
+            awk -F. '{ printf "%03d%03d%03d\n", $1, ($2==""?0:$2), ($3==""?0:$3) }' <<< "$1"
+          }
+
+          echo "Xcode installations on this runner:"
+          CANDIDATES=(/Applications/Xcode*.app)
+          if [ ${#CANDIDATES[@]} -eq 0 ]; then
+            echo "::error::No Xcode installations found under /Applications"
+            exit 1
+          fi
+
+          BEST_PATH=""
+          BEST_VERSION="0"
+          BEST_KEY="000000000"
+          for app in "${CANDIDATES[@]}"; do
+            VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" 2>/dev/null || echo "0")"
+            KEY="$(version_key "$VERSION")"
+            echo "  $app -> $VERSION"
+            if [[ "$KEY" > "$BEST_KEY" ]]; then
+              BEST_KEY="$KEY"
+              BEST_VERSION="$VERSION"
+              BEST_PATH="$app"
+            fi
+          done
+
+          echo "Newest installed Xcode: $BEST_PATH ($BEST_VERSION)"
+
+          REQUIRED_KEY="$(version_key '16.1')"
+          if [[ "$BEST_KEY" < "$REQUIRED_KEY" ]]; then
+            echo "::error::Newest installed Xcode is $BEST_VERSION, but React Native 0.86 requires >= 16.1. This runner image may need to change (e.g. runs-on: macos-15)."
+            exit 1
+          fi
+
+          sudo xcode-select -s "$BEST_PATH/Contents/Developer"
+          echo "Selected Xcode:"
+          xcodebuild -version
+
       - name: Set up Node.js
         uses: actions/setup-node@v4.1.0
         with:
