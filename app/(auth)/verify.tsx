@@ -1,58 +1,91 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
+import { Text, View } from 'react-native';
 
+import { Button } from '../../src/components/Button';
 import { Screen } from '../../src/components/Screen';
-import { minTouchTarget } from '../../src/design-system/tokens';
+import { TextField } from '../../src/components/TextField';
 import { useTheme } from '../../src/design-system/ThemeProvider';
-import { useAppShell, type Experience } from '../../src/lib/app-shell';
+import { useExperienceIntent, type ExperienceIntent } from '../../src/features/auth/experience-intent';
+import { requestEmailOtp, verifyEmailOtp } from '../../src/features/auth/session';
 
-/**
- * Navigable shell only — no real OTP verification yet. On "Confirm" this
- * simulates a completed sign-in by selecting the chosen experience, purely
- * so the rest of the shell (customer/renter tabs) is reachable for QA.
- */
 export default function Verify() {
   const theme = useTheme();
-  const router = useRouter();
-  const { selectExperience } = useAppShell();
-  const { role } = useLocalSearchParams<{ role?: string }>();
+  const { setIntent } = useExperienceIntent();
+  const { role, email } = useLocalSearchParams<{ role?: string; email?: string }>();
+  const [code, setCode] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [resendMessage, setResendMessage] = useState<string | undefined>();
 
-  const handleConfirm = () => {
-    const experience: Experience = role === 'renter' ? 'renter' : 'customer';
-    selectExperience(experience);
-    router.replace('/');
+  const handleConfirm = async () => {
+    if (!email) {
+      setErrorMessage('Missing email — go back and try again.');
+      return;
+    }
+    if (!code.trim()) {
+      setErrorMessage('Enter the 6-digit code from your email.');
+      return;
+    }
+    setErrorMessage(undefined);
+    setIsSubmitting(true);
+    const result = await verifyEmailOtp(email, code.trim());
+    setIsSubmitting(false);
+    if (!result.ok) {
+      setErrorMessage(result.error.message);
+      return;
+    }
+    // AuthProvider's onAuthStateChange picks up the new session and
+    // useAppGate re-derives the route automatically — this screen doesn't
+    // navigate itself. Setting intent here is what lets a signed-in
+    // renter-with-no-org-yet land on onboarding instead of the customer
+    // shell (see useAppGate.ts).
+    setIntent((role === 'renter' ? 'renter' : 'customer') satisfies ExperienceIntent);
+  };
+
+  const handleResend = async () => {
+    if (!email) return;
+    setIsResending(true);
+    setResendMessage(undefined);
+    const result = await requestEmailOtp(email);
+    setIsResending(false);
+    setResendMessage(result.ok ? 'Code resent.' : result.error.message);
   };
 
   return (
-    <Screen title="Enter code" description="Placeholder OTP confirmation — no code is sent yet.">
-      <Pressable
-        onPress={handleConfirm}
-        accessibilityRole="button"
-        accessibilityLabel="Confirm"
-        style={({ pressed }) => [
-          styles.button,
-          {
-            backgroundColor: theme.colors.primary,
-            borderRadius: theme.radii.md,
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.buttonLabel, { color: theme.colors.primaryText }]}>Confirm</Text>
-      </Pressable>
+    <Screen title="Enter code" description={email ? `We sent a code to ${email}.` : 'Enter your code.'}>
+      <View style={{ gap: theme.spacing.lg }}>
+        <TextField
+          testID="verify-code"
+          label="6-digit code"
+          value={code}
+          onChangeText={setCode}
+          errorMessage={errorMessage}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoComplete="one-time-code"
+          placeholder="123456"
+          editable={!isSubmitting}
+        />
+        <Button testID="verify-confirm" label="Confirm" onPress={handleConfirm} loading={isSubmitting} />
+        <Button
+          testID="verify-resend"
+          label="Resend code"
+          variant="secondary"
+          onPress={handleResend}
+          loading={isResending}
+        />
+        {resendMessage ? (
+          <Text
+            testID="verify-resend-message"
+            accessibilityRole="alert"
+            style={{ color: theme.colors.textSecondary }}
+          >
+            {resendMessage}
+          </Text>
+        ) : null}
+      </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    minHeight: minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

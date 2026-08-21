@@ -59,6 +59,23 @@ function buildUpdate(table, enums) {
   return table.columns.map((c) => `          ${c.name}?: ${tsType(c, enums)}`).join('\n');
 }
 
+function buildRelationships(table) {
+  const rels = table.relationships ?? [];
+  if (rels.length === 0) return '        Relationships: []';
+  const entries = rels
+    .map(
+      (r) => `          {
+            foreignKeyName: '${r.foreignKeyName}'
+            columns: [${r.columns.map((c) => `'${c}'`).join(', ')}]
+            isOneToOne: false
+            referencedRelation: '${r.referencedRelation}'
+            referencedColumns: [${r.referencedColumns.map((c) => `'${c}'`).join(', ')}]
+          }`,
+    )
+    .join(',\n');
+  return `        Relationships: [\n${entries}\n        ]`;
+}
+
 const enums = schema.enums;
 const tables = schema.tables.filter((t) => t.kind === 'table');
 const views = schema.tables.filter((t) => t.kind === 'view');
@@ -87,6 +104,7 @@ ${buildInsert(table, enums)}
         Update: {
 ${buildUpdate(table, enums)}
         }
+${buildRelationships(table)}
       }
 `;
 }
@@ -100,6 +118,7 @@ for (const view of views) {
         Row: {
 ${buildRow(view, enums)}
         }
+${buildRelationships(view)}
       }
 `;
 }
@@ -116,6 +135,22 @@ out += `    }
           p_note?: string | null
         }
         Returns: Database['public']['Tables']['bookings']['Row']
+      }
+      invite_org_member_by_email: {
+        Args: {
+          p_organization_id: string
+          p_email: string
+          p_role: Database['public']['Enums']['org_role']
+        }
+        Returns: Database['public']['Tables']['organization_members']['Row']
+      }
+      set_vehicle_rate: {
+        Args: {
+          p_vehicle_id: string
+          p_rate_type: Database['public']['Enums']['rate_type']
+          p_amount_laari: number | null
+        }
+        Returns: Database['public']['Tables']['vehicle_rates']['Row'] | null
       }
     }
     Enums: {

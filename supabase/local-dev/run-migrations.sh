@@ -16,6 +16,9 @@ sudo -u postgres createdb "$DB_NAME"
 echo "==> Applying auth shim"
 "${PSQL[@]}" -d "$DB_NAME" -f "$SCRIPT_DIR/auth-shim.sql"
 
+echo "==> Applying storage shim"
+"${PSQL[@]}" -d "$DB_NAME" -f "$SCRIPT_DIR/storage-shim.sql"
+
 echo "==> Applying migrations"
 for f in "$MIGRATIONS_DIR"/*.sql; do
   echo "  -- $(basename "$f")"

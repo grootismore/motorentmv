@@ -35,7 +35,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: {
     favicon: './assets/favicon.png',
   },
-  plugins: ['expo-router'],
+  plugins: [
+    'expo-router',
+    'expo-secure-store',
+    'expo-image',
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'Allow MotoRent MV to access your photos to add vehicle listing pictures.',
+        cameraPermission: 'Allow MotoRent MV to access your camera to take vehicle listing pictures.',
+        microphonePermission: false,
+      },
+    ],
+  ],
   experiments: {
     typedRoutes: true,
   },

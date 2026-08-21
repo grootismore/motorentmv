@@ -24,6 +24,29 @@ select jsonb_pretty(jsonb_build_object(
           join pg_type ty on ty.oid = a.atttypid
           left join pg_type et on et.oid = ty.typelem
           where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+        ),
+        -- Real Supabase types include this per table so
+        -- @supabase/postgrest-js's generics (GenericTable requires
+        -- Relationships) resolve correctly, and so nested
+        -- `.select('*, other_table(*)')` joins type-check.
+        'relationships', (
+          select coalesce(jsonb_agg(jsonb_build_object(
+            'foreignKeyName', con.conname,
+            'columns', (
+              select jsonb_agg(a.attname order by ord)
+              from unnest(con.conkey) with ordinality as k(attnum, ord)
+              join pg_attribute a on a.attrelid = con.conrelid and a.attnum = k.attnum
+            ),
+            'referencedRelation', rc.relname,
+            'referencedColumns', (
+              select jsonb_agg(a.attname order by ord)
+              from unnest(con.confkey) with ordinality as k(attnum, ord)
+              join pg_attribute a on a.attrelid = con.confrelid and a.attnum = k.attnum
+            )
+          )), '[]'::jsonb)
+          from pg_constraint con
+          join pg_class rc on rc.oid = con.confrelid
+          where con.conrelid = c.oid and con.contype = 'f'
         )
       ) as t
       from pg_class c

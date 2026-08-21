@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../src/components/Screen';
 import { minTouchTarget } from '../../src/design-system/tokens';
 import { useTheme } from '../../src/design-system/ThemeProvider';
+import { useExperienceIntent } from '../../src/features/auth/experience-intent';
 
 type Role = 'customer' | 'renter';
 
@@ -23,6 +24,7 @@ const OPTIONS: { role: Role; title: string; description: string }[] = [
 export default function RoleSelect() {
   const theme = useTheme();
   const router = useRouter();
+  const { setIntent } = useExperienceIntent();
 
   return (
     <Screen
@@ -33,7 +35,11 @@ export default function RoleSelect() {
         {OPTIONS.map((option) => (
           <Pressable
             key={option.role}
-            onPress={() => router.push({ pathname: '/sign-in', params: { role: option.role } })}
+            testID={`role-select-${option.role}`}
+            onPress={() => {
+              setIntent(option.role);
+              router.push({ pathname: '/sign-in', params: { role: option.role } });
+            }}
             accessibilityRole="button"
             accessibilityLabel={option.title}
             style={({ pressed }) => [

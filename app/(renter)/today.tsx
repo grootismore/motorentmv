@@ -5,8 +5,8 @@ export default function Today() {
   return (
     <Screen title="Today">
       <EmptyState
-        title="No organization yet"
-        message="Pickups, returns, overdue items and fleet status land once org onboarding and the booking engine exist (Phase 1, Prompts 3-4)."
+        title="Dashboard coming with the booking engine"
+        message="Pickups, returns, overdue items and fleet status land with the availability calendar and booking engine (Prompt 4)."
       />
     </Screen>
   );

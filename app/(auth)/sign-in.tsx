@@ -1,52 +1,60 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 
+import { Button } from '../../src/components/Button';
 import { Screen } from '../../src/components/Screen';
-import { minTouchTarget } from '../../src/design-system/tokens';
+import { TextField } from '../../src/components/TextField';
 import { useTheme } from '../../src/design-system/ThemeProvider';
+import { requestEmailOtp } from '../../src/features/auth/session';
 
 /**
- * Navigable shell only — no real magic-link/OTP request yet. That lands with
- * Supabase Auth in Phase 1 (Prompt 3).
+ * PRD §6.1: email OTP (a 6-digit code — see session.ts for why not a
+ * magic link). Phone OTP is deferred until an SMS provider is confirmed.
  */
 export default function SignIn() {
   const theme = useTheme();
   const router = useRouter();
   const { role } = useLocalSearchParams<{ role?: string }>();
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
+
+  const handleContinue = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setErrorMessage('Enter your email address.');
+      return;
+    }
+    setErrorMessage(undefined);
+    setIsSubmitting(true);
+    const result = await requestEmailOtp(trimmed);
+    setIsSubmitting(false);
+    if (!result.ok) {
+      setErrorMessage(result.error.message);
+      return;
+    }
+    router.push({ pathname: '/verify', params: { role, email: trimmed } });
+  };
 
   return (
-    <Screen
-      title="Sign in"
-      description="Email magic link or OTP, or phone OTP where available. Not yet wired to a backend."
-    >
-      <Pressable
-        onPress={() => router.push({ pathname: '/verify', params: { role } })}
-        accessibilityRole="button"
-        accessibilityLabel="Continue"
-        style={({ pressed }) => [
-          styles.button,
-          {
-            backgroundColor: theme.colors.primary,
-            borderRadius: theme.radii.md,
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <Text style={[styles.buttonLabel, { color: theme.colors.primaryText }]}>Continue</Text>
-      </Pressable>
+    <Screen title="Sign in" description="Enter your email — we'll send you a 6-digit code.">
+      <View style={{ gap: theme.spacing.lg }}>
+        <TextField
+          testID="sign-in-email"
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          errorMessage={errorMessage}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          placeholder="you@example.com"
+          editable={!isSubmitting}
+        />
+        <Button testID="sign-in-continue" label="Send code" onPress={handleContinue} loading={isSubmitting} />
+      </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    minHeight: minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

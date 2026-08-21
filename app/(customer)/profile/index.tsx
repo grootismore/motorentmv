@@ -1,45 +1,35 @@
-import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { View } from 'react-native';
 
+import { Button } from '../../../src/components/Button';
 import { Screen } from '../../../src/components/Screen';
-import { minTouchTarget } from '../../../src/design-system/tokens';
-import { useTheme } from '../../../src/design-system/ThemeProvider';
-import { useAppShell } from '../../../src/lib/app-shell';
+import { useExperienceIntent } from '../../../src/features/auth/experience-intent';
+import { signOut } from '../../../src/features/auth/session';
 
 export default function CustomerProfile() {
-  const theme = useTheme();
-  const router = useRouter();
-  const { selectExperience } = useAppShell();
+  const { setIntent } = useExperienceIntent();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    await signOut();
+    setIntent(null);
+    // No manual navigation: AuthProvider's onAuthStateChange flips
+    // session to null, useAppGate recomputes to 'auth', and the root
+    // Stack.Protected swap handles the rest.
+  };
 
   return (
     <Screen title="Profile" description="Documents and profile management land in later phases.">
-      <View style={{ gap: theme.spacing.md }}>
-        <Pressable
-          onPress={() => {
-            selectExperience(null);
-            router.replace('/');
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-          style={({ pressed }) => [
-            styles.button,
-            { borderColor: theme.colors.border, borderRadius: theme.radii.md, opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>Sign out</Text>
-        </Pressable>
+      <View style={{ gap: 12 }}>
+        <Button
+          testID="customer-sign-out"
+          label="Sign out"
+          variant="secondary"
+          onPress={handleSignOut}
+          loading={isSigningOut}
+        />
       </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    minHeight: minTouchTarget,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-  },
-});

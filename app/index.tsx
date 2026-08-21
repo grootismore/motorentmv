@@ -1,19 +1,23 @@
 import { Redirect } from 'expo-router';
 
-import { useAppShell } from '../src/lib/app-shell';
+import { LoadingState } from '../src/components/states/LoadingState';
+import { useAppGate } from '../src/features/auth/useAppGate';
 
 /**
  * Ungrouped root route — always mounted, so it's a safe single place to
- * redirect into whichever experience is active. Real logic (session
- * restoration → role) replaces `useAppShell` in Phase 1.
+ * redirect into whichever gate is active. See useAppGate for how that's
+ * derived from real session + organization membership state.
  */
 export default function Index() {
-  const { experience } = useAppShell();
+  const gate = useAppGate();
 
-  if (experience === 'customer') {
+  if (gate === 'loading') {
+    return <LoadingState label="Loading your account…" />;
+  }
+  if (gate === 'customer') {
     return <Redirect href="/explore" />;
   }
-  if (experience === 'renter') {
+  if (gate === 'renter') {
     return <Redirect href="/today" />;
   }
   return <Redirect href="/role-select" />;
