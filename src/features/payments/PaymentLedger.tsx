@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { ChipSelect } from '../../components/ChipSelect';
+import { GlassSurface } from '../../components/GlassSurface';
 import { TextField } from '../../components/TextField';
+import { Body, Caption, SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMvr } from '../../lib/money';
 import { useBooking } from '../bookings/queries';
@@ -100,39 +102,33 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
 
   return (
     <View style={{ gap: theme.spacing.md }} testID="payment-ledger">
-      <Text style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: 16 }}>Payments</Text>
+      <SectionTitle>Payments</SectionTitle>
 
-      <View style={{ gap: theme.spacing.xs }} testID="payment-ledger-summary">
-        <Text style={{ color: theme.colors.textSecondary }}>Paid: {formatMvr(totalPaid)}</Text>
-        {totalRefunded > 0 ? (
-          <Text style={{ color: theme.colors.textSecondary }}>Refunded: {formatMvr(totalRefunded)}</Text>
-        ) : null}
-        {balanceDue != null ? (
-          <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>
-            Balance due: {formatMvr(Math.max(balanceDue, 0))}
-          </Text>
-        ) : null}
-      </View>
+      <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.xs }}>
+        <View testID="payment-ledger-summary" style={{ gap: theme.spacing.xs }}>
+          <Caption>Paid: {formatMvr(totalPaid)}</Caption>
+          {totalRefunded > 0 ? <Caption>Refunded: {formatMvr(totalRefunded)}</Caption> : null}
+          {balanceDue != null ? (
+            <Body style={{ fontWeight: '600' }}>Balance due: {formatMvr(Math.max(balanceDue, 0))}</Body>
+          ) : null}
+        </View>
+      </GlassSurface>
 
       {transactions.data.length > 0 ? (
         <View style={{ gap: theme.spacing.xs }} testID="payment-ledger-list">
           {transactions.data.map((t) => (
             <View key={t.id}>
-              <Text style={{ color: theme.colors.textPrimary }}>
+              <Body>
                 {TYPE_LABEL[t.type]}: {formatMvr(t.amount_laari)}
                 {t.method ? ` (${METHOD_LABEL[t.method]})` : ''}
-              </Text>
-              {t.reference ? (
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Ref: {t.reference}</Text>
-              ) : null}
-              {t.note ? (
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>{t.note}</Text>
-              ) : null}
+              </Body>
+              {t.reference ? <Caption>Ref: {t.reference}</Caption> : null}
+              {t.note ? <Caption>{t.note}</Caption> : null}
             </View>
           ))}
         </View>
       ) : (
-        <Text style={{ color: theme.colors.textSecondary }}>No payments recorded yet.</Text>
+        <Caption>No payments recorded yet.</Caption>
       )}
 
       {viewerRole === 'renter' ? (
@@ -168,18 +164,14 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
           />
           <TextField testID="payment-note" label="Note (optional)" value={note} onChangeText={setNote} />
 
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }} testID="payment-no-card-notice">
+          <Caption testID="payment-no-card-notice">
             Cash, bank transfer or an external reference only — no card details are collected here.
-          </Text>
+          </Caption>
 
           {errorMessage ? (
-            <Text
-              style={{ color: theme.colors.danger }}
-              accessibilityRole="alert"
-              testID="payment-ledger-error"
-            >
+            <Caption color={theme.colors.destructive} accessibilityRole="alert" testID="payment-ledger-error">
               {errorMessage}
-            </Text>
+            </Caption>
           ) : null}
 
           <Button

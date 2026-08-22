@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 
 import { Button } from '../../src/components/Button';
+import { GlassSurface } from '../../src/components/GlassSurface';
 import { Screen } from '../../src/components/Screen';
 import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
 import { LoadingState } from '../../src/components/states/LoadingState';
+import { Body } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { FilterBar, type FilterValues } from '../../src/features/discovery/FilterBar';
 import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
@@ -55,24 +57,28 @@ export default function Search() {
             onSubmit={handleSearchSubmit}
           />
         ) : (
-          <View style={{ gap: theme.spacing.sm }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text
-                style={{ color: theme.colors.textPrimary, fontWeight: '600' }}
-                testID="search-current-range"
-              >
+          <View style={{ gap: theme.spacing.md }}>
+            <GlassSurface
+              style={{
+                padding: theme.spacing.md,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Body testID="search-current-range" style={{ flex: 1 }}>
                 {params.startsAt && params.endsAt
                   ? `${formatMaldivesDateTime(params.startsAt)} → ${formatMaldivesDateTime(params.endsAt)}`
                   : 'No dates set'}
                 {params.location ? ` · ${params.location}` : ''}
-              </Text>
+              </Body>
               <Button
                 testID="search-edit"
                 label="Edit"
                 variant="secondary"
                 onPress={() => setIsEditing(true)}
               />
-            </View>
+            </GlassSurface>
             <FilterBar values={filters} onChange={setFilters} />
           </View>
         )}

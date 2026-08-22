@@ -11,7 +11,11 @@ describe('displayBookingStatus', () => {
   it('shows an active booking whose return time has passed as overdue', () => {
     expect(displayBookingStatus({ status: 'active', ends_at: '2000-01-01T00:00:00Z' })).toEqual({
       label: 'Overdue',
-      tone: 'danger',
+      // Ocean Glass gives overdue its own distinct tone/color (separate
+      // from other 'danger' states like a declined booking) so staff can
+      // tell them apart at a glance, matching the reference's distinct
+      // overdue-red KPI tile.
+      tone: 'overdue',
     });
   });
 

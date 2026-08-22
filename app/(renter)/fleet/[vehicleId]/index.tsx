@@ -1,10 +1,12 @@
 import { Link, useLocalSearchParams } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../../../src/components/Button';
+import { GroupedSection } from '../../../../src/components/GroupedSection';
 import { Screen } from '../../../../src/components/Screen';
 import { ErrorState } from '../../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../../src/components/states/LoadingState';
+import { SecondaryBody, SectionTitle } from '../../../../src/components/Typography';
 import { useTheme } from '../../../../src/design-system/ThemeProvider';
 import { AvailabilityBlocksSection } from '../../../../src/features/fleet/AvailabilityBlocksSection';
 import { PhotosSection } from '../../../../src/features/fleet/PhotosSection';
@@ -42,33 +44,29 @@ export default function VehicleDetail() {
           <Button testID="vehicle-edit" label="Edit details" variant="secondary" />
         </Link>
 
-        <View style={{ gap: theme.spacing.xs }}>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Status: {v.status}</Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            Deposit: MVR {(v.deposit_amount_laari / 100).toFixed(2)}
-          </Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            Odometer: {v.odometer_km.toLocaleString()} km
-          </Text>
-        </View>
+        <GroupedSection title="Vehicle">
+          <View style={{ gap: theme.spacing.xs }}>
+            <SecondaryBody>Status: {v.status}</SecondaryBody>
+            <SecondaryBody>Deposit: MVR {(v.deposit_amount_laari / 100).toFixed(2)}</SecondaryBody>
+            <SecondaryBody>Odometer: {v.odometer_km.toLocaleString()} km</SecondaryBody>
+          </View>
+        </GroupedSection>
 
         <View style={{ gap: theme.spacing.md }}>
-          <Text style={[sectionTitle, { color: theme.colors.textPrimary }]}>Photos</Text>
+          <SectionTitle>Photos</SectionTitle>
           <PhotosSection vehicleId={v.id} organizationId={v.organization_id} />
         </View>
 
         <View style={{ gap: theme.spacing.md }}>
-          <Text style={[sectionTitle, { color: theme.colors.textPrimary }]}>Pricing</Text>
+          <SectionTitle>Pricing</SectionTitle>
           <RatesSection vehicleId={v.id} />
         </View>
 
         <View style={{ gap: theme.spacing.md }}>
-          <Text style={[sectionTitle, { color: theme.colors.textPrimary }]}>Availability blocks</Text>
+          <SectionTitle>Availability blocks</SectionTitle>
           <AvailabilityBlocksSection vehicleId={v.id} />
         </View>
       </View>
     </Screen>
   );
 }
-
-const sectionTitle = { fontSize: 18, fontWeight: '700' as const };

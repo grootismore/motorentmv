@@ -36,6 +36,7 @@ export default function RenterBookings() {
   return (
     <Screen
       title="Bookings"
+      titleStyle="large"
       description="Inbox with conflict warnings and customer information."
       scroll={false}
     >
@@ -67,6 +68,7 @@ export default function RenterBookings() {
           onRefresh={() => bookings.refetch()}
           refreshing={bookings.isRefetching}
           renderItem={({ item }) => <BookingListItem booking={item} />}
+          ItemSeparatorComponent={() => <View style={{ height: theme.spacing.sm }} />}
         />
       ) : null}
     </Screen>

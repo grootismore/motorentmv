@@ -1,7 +1,7 @@
 import { isPast } from '../../lib/datetime';
 import type { Booking, BookingStatus } from './queries';
 
-export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger';
+export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'overdue';
 
 export const STATUS_LABEL: Record<BookingStatus, string> = {
   draft: 'Draft',
@@ -26,7 +26,7 @@ const STATUS_TONE: Record<BookingStatus, StatusTone> = {
   active: 'success',
   completed: 'neutral',
   cancelled: 'neutral',
-  overdue: 'danger',
+  overdue: 'overdue',
 };
 
 /**

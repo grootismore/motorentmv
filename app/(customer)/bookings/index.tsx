@@ -19,7 +19,7 @@ export default function CustomerBookings() {
 
   if (session === null) {
     return (
-      <Screen title="My bookings" scroll>
+      <Screen title="My bookings" titleStyle="large" scroll>
         <InlineAuthGate
           title="Sign in to see your bookings"
           description="Enter your email — we'll send you a 6-digit code."
@@ -29,7 +29,7 @@ export default function CustomerBookings() {
   }
 
   return (
-    <Screen title="My bookings" scroll={false}>
+    <Screen title="My bookings" titleStyle="large" scroll={false}>
       {bookings.isLoading ? <LoadingState label="Loading your bookings…" /> : null}
       {bookings.isError ? (
         <ErrorState message={bookings.error.message} onRetry={() => bookings.refetch()} />

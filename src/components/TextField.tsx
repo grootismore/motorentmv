@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { minTouchTarget } from '../design-system/tokens';
@@ -10,16 +10,30 @@ interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   testID?: string;
 }
 
+/** Flat Ocean Glass input: a translucent field, a thin border that turns
+ * lagoon-teal on focus and destructive-red on error, never a raised or
+ * embossed frame. */
 export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
-  { label, errorMessage, testID, ...inputProps },
+  { label, errorMessage, testID, onFocus, onBlur, editable, ...inputProps },
   ref,
 ) {
   const theme = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+  const isDisabled = editable === false;
+
+  const borderColor = errorMessage
+    ? theme.colors.destructive
+    : isFocused
+      ? theme.colors.lagoonPrimary
+      : theme.colors.glassBorder;
 
   return (
     <View testID={testID ? `${testID}-container` : undefined}>
       <Text
-        style={[styles.label, { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs }]}
+        style={[
+          theme.typography.variant.label,
+          { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs },
+        ]}
         nativeID={testID ? `${testID}-label` : undefined}
       >
         {label}
@@ -29,21 +43,36 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
         testID={testID}
         accessibilityLabel={label}
         accessibilityLabelledBy={testID ? `${testID}-label` : undefined}
-        placeholderTextColor={theme.colors.textSecondary}
+        accessibilityState={{ disabled: isDisabled }}
+        placeholderTextColor={theme.colors.textTertiary}
+        editable={editable}
+        onFocus={(event) => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
         style={[
           styles.input,
           {
-            borderColor: errorMessage ? theme.colors.danger : theme.colors.border,
-            borderRadius: theme.radii.md,
+            borderColor,
+            borderWidth: isFocused || errorMessage ? 1.5 : StyleSheet.hairlineWidth,
+            borderRadius: theme.radii.control,
             color: theme.colors.textPrimary,
-            backgroundColor: theme.colors.surface,
+            backgroundColor: isDisabled ? theme.colors.glassSurface : theme.colors.glassSurfaceStrong,
+            opacity: isDisabled ? 0.6 : 1,
           },
         ]}
         {...inputProps}
       />
       {errorMessage ? (
         <Text
-          style={[styles.error, { color: theme.colors.danger, marginTop: theme.spacing.xs }]}
+          style={[
+            theme.typography.variant.caption,
+            { color: theme.colors.destructive, marginTop: theme.spacing.xs },
+          ]}
           accessibilityRole="alert"
           testID={testID ? `${testID}-error` : undefined}
         >
@@ -55,17 +84,9 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
 });
 
 const styles = StyleSheet.create({
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   input: {
     minHeight: minTouchTarget,
-    borderWidth: 1,
     paddingHorizontal: 12,
     fontSize: 16,
-  },
-  error: {
-    fontSize: 13,
   },
 });

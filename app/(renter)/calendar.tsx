@@ -1,9 +1,10 @@
-import { SectionList, Text, View } from 'react-native';
+import { SectionList, View } from 'react-native';
 
 import { Screen } from '../../src/components/Screen';
 import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
 import { LoadingState } from '../../src/components/states/LoadingState';
+import { SectionTitle } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { BookingListItem } from '../../src/features/bookings/BookingListItem';
 import {
@@ -36,7 +37,7 @@ export default function Calendar() {
 
   if (!bookings.data || bookings.data.length === 0) {
     return (
-      <Screen title="Calendar">
+      <Screen title="Calendar" titleStyle="large">
         <EmptyState
           title="Nothing scheduled"
           message="Accepted, ready and active bookings will appear here grouped by pickup date."
@@ -61,16 +62,14 @@ export default function Calendar() {
     }));
 
   return (
-    <Screen title="Calendar" scroll={false}>
+    <Screen title="Calendar" titleStyle="large" scroll={false}>
       <SectionList
         testID="calendar-agenda"
         sections={sections}
         keyExtractor={(item) => item.id}
         renderSectionHeader={({ section }) => (
-          <View style={{ backgroundColor: theme.colors.background, paddingVertical: theme.spacing.sm }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: theme.colors.textPrimary }}>
-              {section.title}
-            </Text>
+          <View style={{ backgroundColor: theme.colors.pearlBackground, paddingVertical: theme.spacing.sm }}>
+            <SectionTitle>{section.title}</SectionTitle>
           </View>
         )}
         renderItem={({ item }) => <BookingListItem booking={item} />}

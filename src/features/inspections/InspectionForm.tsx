@@ -1,9 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
+import { Caption, Label, SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { requestImagePermission } from '../../lib/uploads';
 import { useRecordInspection, type InspectionPhotoInput, type InspectionType } from './queries';
@@ -75,9 +76,7 @@ export function InspectionForm({ bookingId, organizationId, inspectionType }: In
 
   return (
     <View style={{ gap: theme.spacing.md }} testID={`inspection-form-${inspectionType}`}>
-      <Text style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: 16 }}>
-        {label} inspection
-      </Text>
+      <SectionTitle>{label} inspection</SectionTitle>
 
       <TextField
         testID={`inspection-odometer-${inspectionType}`}
@@ -102,11 +101,7 @@ export function InspectionForm({ bookingId, organizationId, inspectionType }: In
       />
 
       <View>
-        <Text
-          style={{ color: theme.colors.textSecondary, fontWeight: '600', marginBottom: theme.spacing.xs }}
-        >
-          Accessories present
-        </Text>
+        <Label style={{ marginBottom: theme.spacing.xs }}>Accessories present</Label>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing.sm }}>
           {ACCESSORIES.map((item) => (
             <Button
@@ -135,22 +130,19 @@ export function InspectionForm({ bookingId, organizationId, inspectionType }: In
         />
       </View>
       {photos.length > 0 ? (
-        <Text
-          style={{ color: theme.colors.textSecondary }}
-          testID={`inspection-photo-count-${inspectionType}`}
-        >
+        <Caption testID={`inspection-photo-count-${inspectionType}`}>
           {photos.length} photo{photos.length === 1 ? '' : 's'} attached
-        </Text>
+        </Caption>
       ) : null}
 
       {errorMessage ? (
-        <Text
-          style={{ color: theme.colors.danger }}
+        <Caption
+          color={theme.colors.destructive}
           accessibilityRole="alert"
           testID={`inspection-error-${inspectionType}`}
         >
           {errorMessage}
-        </Text>
+        </Caption>
       ) : null}
 
       <Button

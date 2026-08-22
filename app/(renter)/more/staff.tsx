@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
+import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
 import { TextField } from '../../../src/components/TextField';
 import { ChipSelect } from '../../../src/components/ChipSelect';
+import { Body, Caption } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import type { Database } from '../../../src/lib/database.types';
 import { useCurrentOrganization } from '../../../src/features/organizations/CurrentOrganizationContext';
@@ -82,22 +84,14 @@ export default function StaffInvitation() {
               onChange={setRole}
             />
             {errorMessage ? (
-              <Text
-                testID="staff-invite-error"
-                accessibilityRole="alert"
-                style={{ color: theme.colors.danger }}
-              >
+              <Caption testID="staff-invite-error" accessibilityRole="alert" color={theme.colors.destructive}>
                 {errorMessage}
-              </Text>
+              </Caption>
             ) : null}
             {successMessage ? (
-              <Text
-                testID="staff-invite-success"
-                accessibilityRole="alert"
-                style={{ color: theme.colors.success }}
-              >
+              <Caption testID="staff-invite-success" accessibilityRole="alert" color={theme.colors.success}>
                 {successMessage}
-              </Text>
+              </Caption>
             ) : null}
             <Button
               testID="staff-invite-submit"
@@ -113,33 +107,36 @@ export default function StaffInvitation() {
           {members.isError ? (
             <ErrorState message={members.error.message} onRetry={() => members.refetch()} />
           ) : null}
-          <FlatList
-            testID="staff-list"
-            data={members.data ?? []}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <View
-                testID={`staff-member-${item.id}`}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingVertical: theme.spacing.sm,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border,
-                }}
-              >
-                <Text style={{ color: theme.colors.textPrimary }}>
-                  {(item.profiles as { full_name?: string; email?: string } | null)?.full_name ??
-                    (item.profiles as { full_name?: string; email?: string } | null)?.email ??
-                    'Unknown'}
-                </Text>
-                <Text style={{ color: theme.colors.textSecondary }}>
-                  {item.role} · {item.status}
-                </Text>
-              </View>
-            )}
-          />
+          <GroupedSection title="Team">
+            <FlatList
+              testID="staff-list"
+              data={members.data ?? []}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              ItemSeparatorComponent={() => (
+                <View style={{ height: 1, backgroundColor: theme.colors.divider }} />
+              )}
+              renderItem={({ item }) => (
+                <View
+                  testID={`staff-member-${item.id}`}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    paddingVertical: theme.spacing.sm,
+                  }}
+                >
+                  <Body>
+                    {(item.profiles as { full_name?: string; email?: string } | null)?.full_name ??
+                      (item.profiles as { full_name?: string; email?: string } | null)?.email ??
+                      'Unknown'}
+                  </Body>
+                  <Caption>
+                    {item.role} · {item.status}
+                  </Caption>
+                </View>
+              )}
+            />
+          </GroupedSection>
         </View>
       </View>
     </Screen>

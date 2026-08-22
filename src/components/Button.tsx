@@ -1,15 +1,25 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, type PressableProps } from 'react-native';
 
 import { minTouchTarget } from '../design-system/tokens';
 import { useTheme } from '../design-system/ThemeProvider';
+import { ButtonLabel } from './Typography';
 
 interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
-  variant?: 'primary' | 'secondary' | 'danger';
+  /** 'danger' name kept for backward compatibility with existing call
+   * sites (ActionPanel, cancel-booking, etc.) — visually it's the Ocean
+   * Glass "destructive" treatment. 'tertiary' is new: a plain-text/icon
+   * action with a generous touch target and no visible container. */
+  variant?: 'primary' | 'secondary' | 'danger' | 'tertiary';
   loading?: boolean;
   testID?: string;
 }
 
+/**
+ * Ocean Glass button treatment: flat rounded rectangles, no embossed
+ * border, no convex highlight, no glow — pressed/disabled/loading states
+ * are conveyed by color and opacity only, never a shadow or bevel.
+ */
 export function Button({
   label,
   variant = 'primary',
@@ -22,9 +32,30 @@ export function Button({
   const isDisabled = disabled || loading;
 
   const palette = {
-    primary: { bg: theme.colors.primary, fg: theme.colors.primaryText, border: theme.colors.primary },
-    secondary: { bg: theme.colors.surface, fg: theme.colors.textPrimary, border: theme.colors.border },
-    danger: { bg: theme.colors.danger, fg: theme.colors.textInverse, border: theme.colors.danger },
+    primary: {
+      bg: theme.colors.lagoonPrimary,
+      bgPressed: theme.colors.lagoonPressed,
+      fg: theme.colors.textInverse,
+      border: 'transparent',
+    },
+    secondary: {
+      bg: theme.colors.glassSurface,
+      bgPressed: theme.colors.glassSurfaceStrong,
+      fg: theme.colors.textPrimary,
+      border: theme.colors.glassBorder,
+    },
+    danger: {
+      bg: theme.colors.destructive,
+      bgPressed: theme.colors.destructive,
+      fg: theme.colors.textInverse,
+      border: 'transparent',
+    },
+    tertiary: {
+      bg: 'transparent',
+      bgPressed: 'transparent',
+      fg: theme.colors.lagoonPrimary,
+      border: 'transparent',
+    },
   }[variant];
 
   return (
@@ -36,11 +67,12 @@ export function Button({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
+        variant === 'tertiary' ? styles.tertiaryButton : styles.containedButton,
         {
-          backgroundColor: palette.bg,
+          backgroundColor: pressed && !isDisabled ? palette.bgPressed : palette.bg,
           borderColor: palette.border,
-          borderRadius: theme.radii.md,
-          opacity: isDisabled ? 0.6 : pressed ? 0.85 : 1,
+          borderRadius: theme.radii.control,
+          opacity: isDisabled ? 0.5 : pressed && variant === 'tertiary' ? 0.6 : 1,
         },
       ]}
       {...pressableProps}
@@ -48,7 +80,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={palette.fg} />
       ) : (
-        <Text style={[styles.label, { color: palette.fg }]}>{label}</Text>
+        <ButtonLabel color={palette.fg}>{label}</ButtonLabel>
       )}
     </Pressable>
   );
@@ -58,13 +90,15 @@ const styles = StyleSheet.create({
   button: {
     minHeight: minTouchTarget,
     minWidth: minTouchTarget,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  containedButton: {
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 20,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
+  tertiaryButton: {
+    borderWidth: 0,
+    paddingHorizontal: 12,
   },
 });

@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import { minTouchTarget } from '../../design-system/tokens';
 import { useTheme } from '../../design-system/ThemeProvider';
+import { Body, SectionTitle } from '../Typography';
+import { Button } from '../Button';
 
 interface EmptyStateProps {
   title: string;
@@ -14,60 +15,22 @@ export function EmptyState({ title, message, actionLabel, onAction }: EmptyState
   const theme = useTheme();
 
   return (
-    <View style={styles.container} accessible accessibilityRole="text">
-      <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{title}</Text>
+    <View
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: theme.spacing.xxl }}
+      accessible
+      accessibilityRole="text"
+    >
+      <SectionTitle style={{ textAlign: 'center' }}>{title}</SectionTitle>
       {message ? (
-        <Text style={[styles.message, { color: theme.colors.textSecondary, marginTop: theme.spacing.xs }]}>
+        <Body color={theme.colors.textSecondary} style={{ textAlign: 'center', marginTop: theme.spacing.xs }}>
           {message}
-        </Text>
+        </Body>
       ) : null}
       {actionLabel && onAction ? (
-        <Pressable
-          onPress={onAction}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          style={({ pressed }) => [
-            styles.action,
-            {
-              backgroundColor: theme.colors.primary,
-              borderRadius: theme.radii.md,
-              marginTop: theme.spacing.lg,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}
-        >
-          <Text style={[styles.actionLabel, { color: theme.colors.primaryText }]}>{actionLabel}</Text>
-        </Pressable>
+        <View style={{ marginTop: theme.spacing.lg }}>
+          <Button variant="secondary" label={actionLabel} onPress={onAction} />
+        </View>
       ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  action: {
-    minHeight: minTouchTarget,
-    minWidth: minTouchTarget,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
+import { Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import {
   useAcceptBooking,
@@ -99,9 +100,9 @@ export function ActionPanel({ booking }: { booking: Booking }) {
   return (
     <View style={{ gap: theme.spacing.md }} testID="booking-action-panel">
       {errorMessage ? (
-        <Text style={{ color: theme.colors.danger }} accessibilityRole="alert" testID="booking-action-error">
+        <Caption color={theme.colors.destructive} accessibilityRole="alert" testID="booking-action-error">
           {errorMessage}
-        </Text>
+        </Caption>
       ) : null}
 
       {notedAction ? (

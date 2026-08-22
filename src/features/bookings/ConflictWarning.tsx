@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { useTheme } from '../../design-system/ThemeProvider';
+import { Label, SecondaryBody } from '../../components/Typography';
 import { formatMaldivesDateTime } from '../../lib/datetime';
 import type { ConflictWindow } from './queries';
 
@@ -19,24 +20,24 @@ export function ConflictWarning({ conflicts }: { conflicts: ConflictWindow[] }) 
       style={[
         styles.container,
         {
-          borderColor: theme.colors.danger,
-          borderRadius: theme.radii.md,
-          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.destructive,
+          borderRadius: theme.radii.card,
+          backgroundColor: theme.colors.glassSurfaceStrong,
         },
       ]}
       accessible
       accessibilityRole="alert"
       testID="booking-conflict-warning"
     >
-      <Text style={[styles.title, { color: theme.colors.danger }]}>⚠ Scheduling conflict</Text>
-      <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
+      <Label color={theme.colors.destructive}>⚠ Scheduling conflict</Label>
+      <SecondaryBody style={{ marginTop: theme.spacing.xs }}>
         This vehicle is already unavailable for part of the requested period:
-      </Text>
+      </SecondaryBody>
       {conflicts.map((conflict, index) => (
-        <Text key={index} style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
+        <SecondaryBody key={index} style={{ marginTop: theme.spacing.xs }}>
           • {conflict.reason}: {formatMaldivesDateTime(conflict.starts_at)} →{' '}
           {formatMaldivesDateTime(conflict.ends_at)}
-        </Text>
+        </SecondaryBody>
       ))}
     </View>
   );
@@ -44,11 +45,7 @@ export function ConflictWarning({ conflicts }: { conflicts: ConflictWindow[] }) 
 
 const styles = StyleSheet.create({
   container: {
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

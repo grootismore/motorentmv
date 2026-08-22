@@ -1,10 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../src/components/Button';
 import { Screen } from '../../src/components/Screen';
 import { TextField } from '../../src/components/TextField';
+import { SecondaryBody } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { useExperienceIntent, type ExperienceIntent } from '../../src/features/auth/experience-intent';
 import { requestEmailOtp, verifyEmailOtp } from '../../src/features/auth/session';
@@ -77,13 +78,9 @@ export default function Verify() {
           loading={isResending}
         />
         {resendMessage ? (
-          <Text
-            testID="verify-resend-message"
-            accessibilityRole="alert"
-            style={{ color: theme.colors.textSecondary }}
-          >
+          <SecondaryBody testID="verify-resend-message" accessibilityRole="alert">
             {resendMessage}
-          </Text>
+          </SecondaryBody>
         ) : null}
       </View>
     </Screen>

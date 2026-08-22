@@ -1,11 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
+import { GlassSurface } from '../../../src/components/GlassSurface';
+import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
+import { Caption, SecondaryBody } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { InlineAuthGate } from '../../../src/features/auth/InlineAuthGate';
@@ -98,26 +102,32 @@ function CheckoutForm({
 
   return (
     <View style={{ gap: theme.spacing.xl }}>
-      <View style={{ gap: theme.spacing.xs }}>
-        <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>Dates</Text>
-        <Text style={{ color: theme.colors.textSecondary }}>
+      <GroupedSection title="Dates">
+        <SecondaryBody>
           {formatMaldivesDateTime(startsAt)} → {formatMaldivesDateTime(endsAt)}
-        </Text>
-      </View>
+        </SecondaryBody>
+      </GroupedSection>
 
       <RiderDetailsForm values={riderDetails} onChange={setRiderDetails} />
 
-      {quote ? <QuotePanel quote={quote} frozen={false} /> : null}
+      {quote ? (
+        <GroupedSection title="Price breakdown" tone="strong">
+          <QuotePanel quote={quote} frozen={false} />
+        </GroupedSection>
+      ) : null}
 
-      <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} testID="checkout-payment-notice">
-        This submits a request only — you won&apos;t be charged now. The renter reviews it and either accepts
-        or declines; payment is handled separately later, outside this submission.
-      </Text>
+      <GlassSurface style={{ padding: theme.spacing.md, flexDirection: 'row', gap: theme.spacing.sm }}>
+        <Ionicons name="information-circle-outline" size={18} color={theme.colors.information} />
+        <Caption testID="checkout-payment-notice" style={{ flex: 1 }}>
+          This submits a request only — you won&apos;t be charged now. The renter reviews it and either
+          accepts or declines; payment is handled separately later, outside this submission.
+        </Caption>
+      </GlassSurface>
 
       {submitError ? (
-        <Text style={{ color: theme.colors.danger }} accessibilityRole="alert" testID="checkout-error">
+        <Caption testID="checkout-error" accessibilityRole="alert" color={theme.colors.destructive}>
           {submitError}
-        </Text>
+        </Caption>
       ) : null}
 
       <Button

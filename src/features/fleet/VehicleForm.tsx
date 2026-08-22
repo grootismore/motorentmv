@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { ChipSelect } from '../../components/ChipSelect';
 import { TextField } from '../../components/TextField';
+import { Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import type { Database } from '../../lib/database.types';
 
@@ -145,13 +146,9 @@ export function VehicleForm({
         editable={!isSubmitting}
       />
       {errorMessage ? (
-        <Text
-          testID={`${testIDPrefix}-error`}
-          accessibilityRole="alert"
-          style={{ color: theme.colors.danger }}
-        >
+        <Caption testID={`${testIDPrefix}-error`} accessibilityRole="alert" color={theme.colors.destructive}>
           {errorMessage}
-        </Text>
+        </Caption>
       ) : null}
       <Button
         testID={`${testIDPrefix}-submit`}

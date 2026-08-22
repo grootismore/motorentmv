@@ -3,14 +3,17 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
+import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { LoadingState } from '../../../src/components/states/LoadingState';
+import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { useExperienceIntent } from '../../../src/features/auth/experience-intent';
 import { InlineAuthGate } from '../../../src/features/auth/InlineAuthGate';
 import { signOut } from '../../../src/features/auth/session';
 
 export default function CustomerProfile() {
+  const theme = useTheme();
   const { session } = useAuth();
   const { setIntent } = useExperienceIntent();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -32,7 +35,7 @@ export default function CustomerProfile() {
 
   if (session === null) {
     return (
-      <Screen title="Profile" scroll>
+      <Screen title="Profile" titleStyle="large" scroll>
         <InlineAuthGate
           title="Sign in"
           description="Sign in to manage your profile and see your booking history."
@@ -42,19 +45,25 @@ export default function CustomerProfile() {
   }
 
   return (
-    <Screen title="Profile" description="Documents and profile management land in later phases.">
-      <View style={{ gap: 12 }}>
-        <Link href="/notifications" asChild>
-          <Button testID="customer-link-notifications" label="Notifications" variant="secondary" />
-        </Link>
-        <Button
-          testID="customer-sign-out"
-          label="Sign out"
-          variant="secondary"
-          onPress={handleSignOut}
-          loading={isSigningOut}
-        />
-      </View>
+    <Screen
+      title="Profile"
+      titleStyle="large"
+      description="Documents and profile management land in later phases."
+    >
+      <GroupedSection>
+        <View style={{ gap: theme.spacing.md }}>
+          <Link href="/notifications" asChild>
+            <Button testID="customer-link-notifications" label="Notifications" variant="secondary" />
+          </Link>
+          <Button
+            testID="customer-sign-out"
+            label="Sign out"
+            variant="secondary"
+            onPress={handleSignOut}
+            loading={isSigningOut}
+          />
+        </View>
+      </GroupedSection>
     </Screen>
   );
 }

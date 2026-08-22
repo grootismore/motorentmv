@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
+import { Body } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import type { Database } from '../../lib/database.types';
 import { useSetVehicleRate, useVehicleRates } from './queries';
@@ -30,10 +31,10 @@ function RateRow({
   if (!isEditing) {
     return (
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ color: theme.colors.textPrimary }}>
+        <Body>
           {RATE_LABELS[rateType]}:{' '}
           {amountLaari === null ? 'Not set' : `MVR ${(amountLaari / 100).toFixed(2)}`}
-        </Text>
+        </Body>
         <Button
           testID={`rate-${rateType}-edit`}
           label="Edit"

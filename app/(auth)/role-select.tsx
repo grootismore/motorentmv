@@ -1,7 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { GlassSurface } from '../../src/components/GlassSurface';
 import { Screen } from '../../src/components/Screen';
+import { CardTitle, SecondaryBody } from '../../src/components/Typography';
 import { minTouchTarget } from '../../src/design-system/tokens';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { useExperienceIntent } from '../../src/features/auth/experience-intent';
@@ -50,37 +52,12 @@ export default function RoleSelect() {
             }}
             accessibilityRole="button"
             accessibilityLabel={option.title}
-            style={({ pressed }) => [
-              styles.card,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radii.lg,
-                padding: theme.spacing.lg,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
+            style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
           >
-            <Text
-              style={[
-                styles.cardTitle,
-                { color: theme.colors.textPrimary, fontSize: theme.typography.size.lg },
-              ]}
-            >
-              {option.title}
-            </Text>
-            <Text
-              style={[
-                styles.cardDescription,
-                {
-                  color: theme.colors.textSecondary,
-                  marginTop: theme.spacing.xs,
-                  fontSize: theme.typography.size.sm,
-                },
-              ]}
-            >
-              {option.description}
-            </Text>
+            <GlassSurface tone="strong" style={{ padding: theme.spacing.lg }}>
+              <CardTitle>{option.title}</CardTitle>
+              <SecondaryBody style={{ marginTop: theme.spacing.xs }}>{option.description}</SecondaryBody>
+            </GlassSurface>
           </Pressable>
         ))}
       </View>
@@ -90,13 +67,6 @@ export default function RoleSelect() {
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
     minHeight: minTouchTarget,
-  },
-  cardTitle: {
-    fontWeight: '700',
-  },
-  cardDescription: {
-    lineHeight: 20,
   },
 });

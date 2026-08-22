@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 
 import { Button } from '../../src/components/Button';
 import { Screen } from '../../src/components/Screen';
 import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
 import { LoadingState } from '../../src/components/states/LoadingState';
+import { Body, Caption } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { useAuth } from '../../src/features/auth/AuthProvider';
 import { InlineAuthGate } from '../../src/features/auth/InlineAuthGate';
@@ -51,17 +52,15 @@ function NotificationRowItem({
       style={({ pressed }) => ({
         paddingVertical: theme.spacing.sm,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        borderBottomColor: theme.colors.divider,
         opacity: pressed ? 0.85 : 1,
       })}
     >
-      <Text style={{ color: theme.colors.textPrimary, fontWeight: isUnread ? '700' : '400' }}>
+      <Body style={{ fontWeight: isUnread ? '700' : '400' }}>
         {TYPE_LABEL[notification.type] ?? notification.type}
         {isUnread ? ' •' : ''}
-      </Text>
-      <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-        {formatMaldivesDateTime(notification.created_at)}
-      </Text>
+      </Body>
+      <Caption>{formatMaldivesDateTime(notification.created_at)}</Caption>
     </Pressable>
   );
 }
@@ -120,9 +119,7 @@ export default function Notifications() {
           onPress={handleSendTest}
         />
         {testNotificationMessage ? (
-          <Text style={{ color: theme.colors.textSecondary }} testID="notifications-test-message">
-            {testNotificationMessage}
-          </Text>
+          <Caption testID="notifications-test-message">{testNotificationMessage}</Caption>
         ) : null}
 
         {notifications.isLoading ? <LoadingState label="Loading notifications…" /> : null}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
+import { Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { useCreateOrganization } from './queries';
 
@@ -67,9 +68,9 @@ export function CreateOrganizationScreen() {
           editable={!createOrganization.isPending}
         />
         {errorMessage ? (
-          <Text testID="create-org-error" accessibilityRole="alert" style={{ color: theme.colors.danger }}>
+          <Caption testID="create-org-error" accessibilityRole="alert" color={theme.colors.destructive}>
             {errorMessage}
-          </Text>
+          </Caption>
         ) : null}
         <Button
           testID="create-org-submit"

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
+import { GlassSurface } from '../../components/GlassSurface';
 import { EmptyState } from '../../components/states/EmptyState';
 import { ErrorState } from '../../components/states/ErrorState';
 import { LoadingState } from '../../components/states/LoadingState';
 import { TextField } from '../../components/TextField';
+import { Body, Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { useAvailabilityBlocks, useCreateAvailabilityBlock, useDeleteAvailabilityBlock } from './queries';
 
@@ -83,16 +85,19 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
       ) : null}
 
       {blocks.data?.map((block) => (
-        <View
+        <GlassSurface
           key={block.id}
           testID={`availability-block-${block.id}`}
-          style={[styles.row, { borderColor: theme.colors.border, borderRadius: theme.radii.md }]}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: theme.spacing.md,
+            gap: theme.spacing.md,
+          }}
         >
           <View style={{ flex: 1 }}>
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>{block.reason}</Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-              {formatRange(block.starts_at, block.ends_at)}
-            </Text>
+            <Body style={{ fontWeight: '600' }}>{block.reason}</Body>
+            <Caption>{formatRange(block.starts_at, block.ends_at)}</Caption>
           </View>
           <Button
             testID={`availability-block-${block.id}-delete`}
@@ -101,7 +106,7 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
             onPress={() => deleteBlock.mutate(block.id)}
             loading={deleteBlock.isPending}
           />
-        </View>
+        </GlassSurface>
       ))}
 
       {isAdding ? (
@@ -128,13 +133,13 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
             placeholder="Brake service"
           />
           {errorMessage ? (
-            <Text
+            <Caption
               testID="availability-block-error"
               accessibilityRole="alert"
-              style={{ color: theme.colors.danger }}
+              color={theme.colors.destructive}
             >
               {errorMessage}
-            </Text>
+            </Caption>
           ) : null}
           <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
             <Button
@@ -162,13 +167,3 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    padding: 12,
-    gap: 12,
-  },
-});

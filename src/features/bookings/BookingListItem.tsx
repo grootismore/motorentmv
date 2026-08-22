@@ -1,6 +1,8 @@
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
+import { GlassSurface } from '../../components/GlassSurface';
+import { CardTitle, Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMaldivesDateTime } from '../../lib/datetime';
 import { formatMvr } from '../../lib/money';
@@ -28,50 +30,30 @@ export function BookingListItem({ booking }: { booking: BookingWithDetails }) {
         testID={`booking-item-${booking.id}`}
         accessibilityRole="button"
         accessibilityLabel={`${vehicleLabel(booking.vehicle)}, ${customerLabel(booking.customer)}, ${status.label}`}
-        style={({ pressed }) => [
-          styles.row,
-          {
-            borderColor: theme.colors.border,
-            borderRadius: theme.radii.md,
-            backgroundColor: theme.colors.surface,
-            marginBottom: theme.spacing.sm,
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
+        style={({ pressed }) => ({ marginBottom: theme.spacing.sm, opacity: pressed ? 0.85 : 1 })}
       >
-        <View style={{ flex: 1, gap: theme.spacing.xs }}>
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-            {vehicleLabel(booking.vehicle)}
-          </Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            {customerLabel(booking.customer)}
-          </Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            {formatMaldivesDateTime(booking.starts_at)} → {formatMaldivesDateTime(booking.ends_at)}
-          </Text>
-          {booking.total_amount_laari !== null ? (
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-              {formatMvr(booking.total_amount_laari)}
-            </Text>
-          ) : null}
-        </View>
-        <StatusBadge label={status.label} tone={status.tone} />
+        <GlassSurface
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+          }}
+        >
+          <View style={{ flex: 1, gap: theme.spacing.xs }}>
+            <CardTitle>{vehicleLabel(booking.vehicle)}</CardTitle>
+            <Caption>{customerLabel(booking.customer)}</Caption>
+            <Caption>
+              {formatMaldivesDateTime(booking.starts_at)} → {formatMaldivesDateTime(booking.ends_at)}
+            </Caption>
+            {booking.total_amount_laari !== null ? (
+              <Caption>{formatMvr(booking.total_amount_laari)}</Caption>
+            ) : null}
+          </View>
+          <StatusBadge label={status.label} tone={status.tone} />
+        </GlassSurface>
       </Pressable>
     </Link>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

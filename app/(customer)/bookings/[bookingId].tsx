@@ -1,11 +1,13 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
+import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
+import { Caption, SecondaryBody } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { BookingTimeline } from '../../../src/features/bookings/BookingTimeline';
 import { useBooking, useCancelBooking, type BookingQuote } from '../../../src/features/bookings/queries';
@@ -51,25 +53,31 @@ export default function CustomerBookingDetail() {
       <View style={{ gap: theme.spacing.xl }}>
         <StatusBadge label={status.label} tone={status.tone} />
 
-        <View style={{ gap: theme.spacing.xs }} testID="booking-summary">
-          <Text style={{ color: theme.colors.textSecondary }}>
-            {formatMaldivesDateTime(b.starts_at)} → {formatMaldivesDateTime(b.ends_at)}
-          </Text>
-          {b.notes ? <Text style={{ color: theme.colors.textSecondary }}>Notes: {b.notes}</Text> : null}
-        </View>
+        <GroupedSection title="Booking">
+          <View style={{ gap: theme.spacing.xs }} testID="booking-summary">
+            <SecondaryBody>
+              {formatMaldivesDateTime(b.starts_at)} → {formatMaldivesDateTime(b.ends_at)}
+            </SecondaryBody>
+            {b.notes ? <SecondaryBody>Notes: {b.notes}</SecondaryBody> : null}
+          </View>
+        </GroupedSection>
 
-        {frozenQuote ? <QuotePanel quote={frozenQuote} frozen /> : null}
+        {frozenQuote ? (
+          <GroupedSection title="Price breakdown" tone="strong">
+            <QuotePanel quote={frozenQuote} frozen />
+          </GroupedSection>
+        ) : null}
 
         {canCancel ? (
           <View style={{ gap: theme.spacing.sm }}>
             {errorMessage ? (
-              <Text
-                style={{ color: theme.colors.danger }}
+              <Caption
                 accessibilityRole="alert"
                 testID="cancel-booking-error"
+                color={theme.colors.destructive}
               >
                 {errorMessage}
-              </Text>
+              </Caption>
             ) : null}
             <Button
               testID="cancel-booking"

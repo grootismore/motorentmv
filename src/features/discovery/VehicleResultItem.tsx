@@ -1,6 +1,8 @@
 import { Link } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
+import { GlassSurface } from '../../components/GlassSurface';
+import { CardTitle, Caption, PriceText } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMvr } from '../../lib/money';
 import type { VehicleSearchResult } from './queries';
@@ -33,55 +35,37 @@ export function VehicleResultItem({
         testID={`vehicle-result-${vehicle.vehicle_id}`}
         accessibilityRole="button"
         accessibilityLabel={`${vehicleLabel(vehicle)}, ${vehicle.organization_name}`}
-        style={({ pressed }) => [
-          styles.row,
-          {
-            borderColor: theme.colors.border,
-            borderRadius: theme.radii.md,
-            backgroundColor: theme.colors.surface,
-            marginBottom: theme.spacing.sm,
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
+        style={({ pressed }) => ({ marginBottom: theme.spacing.sm, opacity: pressed ? 0.85 : 1 })}
       >
-        <View style={{ flex: 1, gap: theme.spacing.xs }}>
-          <Text style={[styles.title, { color: theme.colors.textPrimary }]}>{vehicleLabel(vehicle)}</Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            {vehicle.organization_name}
-            {vehicle.location ? ` · ${vehicle.location}` : ''}
-          </Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
-            {vehicle.transmission === 'automatic' ? 'Automatic' : 'Manual'}
-            {vehicle.category ? ` · ${vehicle.category}` : ''}
-          </Text>
-        </View>
-        <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>
-          {vehicle.daily_rate_laari !== null ? (
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: '700' }}>
-              {formatMvr(vehicle.daily_rate_laari)}/day
-            </Text>
-          ) : vehicle.hourly_rate_laari !== null ? (
-            <Text style={{ color: theme.colors.textPrimary, fontWeight: '700' }}>
-              {formatMvr(vehicle.hourly_rate_laari)}/hr
-            </Text>
-          ) : null}
-        </View>
+        <GlassSurface
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+          }}
+        >
+          <View style={{ flex: 1, gap: theme.spacing.xs }}>
+            <CardTitle>{vehicleLabel(vehicle)}</CardTitle>
+            <Caption>
+              {vehicle.organization_name}
+              {vehicle.location ? ` · ${vehicle.location}` : ''}
+            </Caption>
+            <Caption>
+              {vehicle.transmission === 'automatic' ? 'Automatic' : 'Manual'}
+              {vehicle.category ? ` · ${vehicle.category}` : ''}
+            </Caption>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>
+            {vehicle.daily_rate_laari !== null ? (
+              <PriceText>{formatMvr(vehicle.daily_rate_laari)}/day</PriceText>
+            ) : vehicle.hourly_rate_laari !== null ? (
+              <PriceText>{formatMvr(vehicle.hourly_rate_laari)}/hr</PriceText>
+            ) : null}
+          </View>
+        </GlassSurface>
       </Pressable>
     </Link>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    padding: 16,
-    gap: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

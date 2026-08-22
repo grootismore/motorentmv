@@ -1,6 +1,8 @@
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { GlassSurface } from '../../components/GlassSurface';
 import { TextField } from '../../components/TextField';
+import { Caption, SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 
 export interface RiderDetailsValues {
@@ -29,11 +31,7 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
 
   return (
     <View style={{ gap: theme.spacing.md }} testID="rider-details-form">
-      <Text
-        style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: theme.typography.size.lg }}
-      >
-        Rider details
-      </Text>
+      <SectionTitle>Rider details</SectionTitle>
       <TextField
         testID="rider-details-full-name"
         label="Full name"
@@ -52,21 +50,12 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
         autoComplete="tel"
         textContentType="telephoneNumber"
       />
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: theme.colors.border,
-          borderRadius: theme.radii.md,
-          backgroundColor: theme.colors.surface,
-          padding: theme.spacing.md,
-        }}
-        testID="rider-details-document-placeholder"
-      >
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>
+      <GlassSurface style={{ padding: theme.spacing.md }} testID="rider-details-document-placeholder">
+        <Caption>
           Driver&apos;s license / ID upload isn&apos;t built yet — please bring a valid license and ID with
           you at pickup. The renter may ask to see them before handing over the vehicle.
-        </Text>
-      </View>
+        </Caption>
+      </GlassSurface>
     </View>
   );
 }

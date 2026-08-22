@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
+import { LargeTitle, SecondaryBody } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { requestEmailOtp, verifyEmailOtp } from './session';
 
@@ -79,14 +80,8 @@ export function InlineAuthGate({
   return (
     <View style={{ gap: theme.spacing.lg }} testID="inline-auth-gate">
       <View style={{ gap: theme.spacing.xs }}>
-        <Text
-          style={{ color: theme.colors.textPrimary, fontWeight: '700', fontSize: theme.typography.size.lg }}
-        >
-          {title}
-        </Text>
-        <Text style={{ color: theme.colors.textSecondary }}>
-          {step === 'email' ? description : `We sent a code to ${email.trim()}.`}
-        </Text>
+        <LargeTitle style={{ fontSize: 22, lineHeight: 28 }}>{title}</LargeTitle>
+        <SecondaryBody>{step === 'email' ? description : `We sent a code to ${email.trim()}.`}</SecondaryBody>
       </View>
 
       {step === 'email' ? (
@@ -141,7 +136,7 @@ export function InlineAuthGate({
           <Button
             testID="inline-auth-change-email"
             label="Use a different email"
-            variant="secondary"
+            variant="tertiary"
             onPress={() => {
               setStep('email');
               setCode('');
@@ -150,13 +145,9 @@ export function InlineAuthGate({
             }}
           />
           {resendMessage ? (
-            <Text
-              testID="inline-auth-resend-message"
-              accessibilityRole="alert"
-              style={{ color: theme.colors.textSecondary }}
-            >
+            <SecondaryBody testID="inline-auth-resend-message" accessibilityRole="alert">
               {resendMessage}
-            </Text>
+            </SecondaryBody>
           ) : null}
         </View>
       )}

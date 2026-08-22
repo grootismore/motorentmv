@@ -1,7 +1,8 @@
 import { Image } from 'expo-image';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { Button } from '../../components/Button';
+import { Caption, SecondaryBody, SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMaldivesDateTime } from '../../lib/datetime';
 import { useAcknowledgeInspection, useInspectionPhotos, type Inspection } from './queries';
@@ -28,19 +29,17 @@ export function InspectionSummary({ inspection, bookingId, canAcknowledge }: Ins
 
   return (
     <View style={{ gap: theme.spacing.sm }} testID={`inspection-summary-${inspection.inspection_type}`}>
-      <Text style={{ color: theme.colors.textPrimary, fontWeight: '700' }}>{label} inspection</Text>
-      <Text style={{ color: theme.colors.textSecondary }}>
+      <SectionTitle>{label} inspection</SectionTitle>
+      <SecondaryBody>
         {inspection.odometer_km != null ? `${inspection.odometer_km} km` : 'Odometer not recorded'}
         {inspection.fuel_battery_percent != null ? ` · ${inspection.fuel_battery_percent}% fuel/battery` : ''}
-      </Text>
+      </SecondaryBody>
       {accessories.length > 0 ? (
-        <Text style={{ color: theme.colors.textSecondary }}>
+        <SecondaryBody>
           Accessories: {accessories.map(([key]) => key.replace('_', ' ')).join(', ')}
-        </Text>
+        </SecondaryBody>
       ) : null}
-      {inspection.condition_notes ? (
-        <Text style={{ color: theme.colors.textSecondary }}>{inspection.condition_notes}</Text>
-      ) : null}
+      {inspection.condition_notes ? <SecondaryBody>{inspection.condition_notes}</SecondaryBody> : null}
 
       {photos.data && photos.data.length > 0 ? (
         <ScrollView
@@ -53,7 +52,7 @@ export function InspectionSummary({ inspection, bookingId, canAcknowledge }: Ins
               <Image
                 key={photo.id}
                 source={{ uri: photo.signedUrl }}
-                style={{ width: 100, height: 100, borderRadius: 8, marginRight: theme.spacing.sm }}
+                style={{ width: 100, height: 100, borderRadius: 8, marginEnd: theme.spacing.sm }}
                 contentFit="cover"
                 accessibilityLabel={`${label} inspection photo`}
               />
@@ -63,12 +62,12 @@ export function InspectionSummary({ inspection, bookingId, canAcknowledge }: Ins
       ) : null}
 
       {inspection.acknowledged_at ? (
-        <Text
-          style={{ color: theme.colors.success }}
+        <Caption
+          color={theme.colors.success}
           testID={`inspection-acknowledged-${inspection.inspection_type}`}
         >
           Acknowledged {formatMaldivesDateTime(inspection.acknowledged_at)}
-        </Text>
+        </Caption>
       ) : canAcknowledge ? (
         <Button
           testID={`inspection-acknowledge-${inspection.inspection_type}`}
@@ -77,7 +76,7 @@ export function InspectionSummary({ inspection, bookingId, canAcknowledge }: Ins
           loading={acknowledge.isPending}
         />
       ) : (
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>Not yet acknowledged</Text>
+        <Caption>Not yet acknowledged</Caption>
       )}
     </View>
   );

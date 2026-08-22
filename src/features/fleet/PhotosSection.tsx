@@ -1,12 +1,13 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/states/EmptyState';
 import { ErrorState } from '../../components/states/ErrorState';
 import { LoadingState } from '../../components/states/LoadingState';
+import { Caption } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { useDeleteVehiclePhoto, useUploadVehiclePhoto, useVehiclePhotos, type VehiclePhoto } from './photos';
 
@@ -67,9 +68,9 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
       </View>
 
       {errorMessage ? (
-        <Text testID="photos-error" accessibilityRole="alert" style={{ color: theme.colors.danger }}>
+        <Caption testID="photos-error" accessibilityRole="alert" color={theme.colors.destructive}>
           {errorMessage}
-        </Text>
+        </Caption>
       ) : null}
 
       {photos.isLoading ? <LoadingState label="Loading photos…" /> : null}
@@ -79,7 +80,7 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
       {photos.data && photos.data.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} testID="photos-list">
           {photos.data.map((photo: VehiclePhoto) => (
-            <View key={photo.id} style={[styles.photoWrap, { marginRight: theme.spacing.sm }]}>
+            <View key={photo.id} style={[styles.photoWrap, { marginEnd: theme.spacing.sm }]}>
               {photo.signedUrl ? (
                 <Image
                   source={{ uri: photo.signedUrl }}
@@ -88,7 +89,7 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
                   accessibilityLabel="Vehicle photo"
                 />
               ) : (
-                <View style={[styles.photo, { backgroundColor: theme.colors.surface }]} />
+                <View style={[styles.photo, { backgroundColor: theme.colors.glassSurfaceStrong }]} />
               )}
               <Button
                 testID={`photo-delete-${photo.id}`}
@@ -113,6 +114,6 @@ const styles = StyleSheet.create({
   photo: {
     width: 140,
     height: 140,
-    borderRadius: 8,
+    borderRadius: 16,
   },
 });

@@ -5,9 +5,12 @@ Motorcycle rental operations and booking for Malé and Hulhumalé — Expo/React
 **Phase 0** (engineering scaffold), the **database foundation** (Supabase
 schema/RLS/migrations), **auth + renter onboarding + fleet management**, the
 **customer experience** (anonymous search, listing, request-to-book,
-My Bookings — Prompt 5), and **handover, payments and notifications**
+My Bookings — Prompt 5), **handover, payments and notifications**
 (pickup/return inspections, a manual cash/bank/reference payment ledger, and
-in-app + push notifications — Prompt 6) are done.
+in-app + push notifications — Prompt 6), and a visual-only **"Ocean Glass"
+UI/UX redesign** of every screen above (see
+[Ocean Glass design system](#ocean-glass-design-system-uiux-redesign) below)
+are done.
 See [`docs/architecture/0001-foundation-decisions.md`](./docs/architecture/0001-foundation-decisions.md)
 for what was decided and why, and the PRD for what comes next.
 
@@ -300,6 +303,100 @@ service.ts` defines a `NotificationService` interface around
   signed URL this app requests is fetched fresh (60 min TTL) rather than
   cached, since a cached one would just be an expired one.
 
+## Ocean Glass design system (UI/UX redesign)
+
+A visual-only redesign of every implemented screen (Prompt 1–6 functionality
+unchanged — see [Known, accepted issues](#known-accepted-issues) for the one
+tone-mapping exception) to a flat, translucent "glass" iOS-style system:
+deep-ocean gradient headers, one saturated teal "lagoon" accent, inset
+grouped lists, capsule status chips, KPI tiles — never embossed, bevelled,
+or neumorphic.
+
+- **Tokens** (`src/design-system/tokens.ts`): a full semantic palette (`ocean
+background`/`ocean deep`, `lagoon primary`/`pressed`, `pearl background`,
+  `glass surface`/`glass surface strong`, `glass border`, text
+  primary/secondary/tertiary, `divider`, `success`/`warning`/`destructive`/
+  `information`/`overdue`/`disabled`), an 11-step typography hierarchy
+  (`largeTitle` → `buttonLabel`), a spacing scale, per-component-class radii,
+  minimal elevation, and Reduce-Motion-aware motion durations. Every
+  pre-redesign token name (`background`, `primary`, `danger`, `radii.md`,
+  etc.) is kept as an alias onto the new palette, so nothing not yet
+  migrated silently breaks — new code should read the semantic names, not
+  the aliases.
+- **`GlassSurface`** (`src/components/GlassSurface.tsx`): the one place that
+  renders a blurred/translucent panel. iOS: a real `expo-blur` `BlurView`
+  plus a thin token-tint layer. Android **always** renders the flat
+  opaque/semi-opaque fallback instead of blurring — `expo-blur`'s native
+  blur methods on Android are off by default and its own types document
+  "decreased performance" for the opt-in ones, so this app never opts in;
+  the fallback preserves the same spacing/radius/border/color, just without
+  the blur. The same fallback also serves iOS when the user has Reduce
+  Transparency on (`useReduceTransparency()`), satisfying the Increased
+  Contrast requirement with one code path instead of two.
+- **Shared primitives added**: `Typography` (variant components:
+  `LargeTitle`, `NavigationTitle`, `SectionTitle`, `CardTitle`, `Body`,
+  `SecondaryBody`, `Label`, `Caption`, `KPIText`, `PriceText`,
+  `ButtonLabel`), `GroupedSection`/`GroupedRow` (inset grouped-list card),
+  `KPITile` (flat frosted stat tile), `Skeleton` (shimmer placeholder,
+  respects Reduce Motion), `oceanTabBar.tsx` (the floating translucent tab
+  bar, via Expo Router's public `tabBarBackground` option — not a custom
+  `tabBar` render prop, so it stays off `expo-router`'s unvendored
+  react-navigation internals).
+- **Screens**: every customer screen (Explore, Search, Listing detail,
+  Checkout, My Bookings, Booking detail, Profile, role-select/sign-in/verify)
+  and every renter screen (Today, Calendar, Bookings inbox/detail, Fleet
+  list/detail/edit/new, More/Staff) now render through these primitives.
+  Four screens got full bespoke layouts matching the reference image
+  (Customer Explore, Customer Vehicle Detail, Renter Today, Renter Booking
+  Detail); every other screen got the same primitives and tokens applied to
+  its existing structure (a "cascade" pass) rather than a from-scratch
+  bespoke layout — this is a deliberate scope split given the size of the
+  screen inventory, not an inconsistency to be fixed silently later.
+- **Intentionally changed visual behavior** (flagged per the "stop and
+  report a visual change that needs a functional change" instruction,
+  rather than silently altering anything underneath):
+  - `StatusTone` gained a new `'overdue'` member; `displayBookingStatus`'s
+    overdue case now maps to it instead of reusing `'danger'`
+    (`src/features/bookings/status.ts`, test updated to match). This is a
+    color/tone-only change — the underlying `booking_status` enum, the
+    "overdue is computed for display, never stored" behavior, and every
+    status transition rule are all unchanged.
+  - The vehicle listing screen's reference-image star rating and
+    share/favorite hero buttons are **not** implemented — there is no
+    reviews/ratings or sharing/favoriting feature anywhere in the schema or
+    app, and fabricating the UI for a feature that doesn't exist would
+    misrepresent what the app does. Likewise, the reference's vehicle
+    attribute chips only render fields that are real in `VehicleListing`
+    (transmission, category, color, year) — no invented "160cc"/"seats"/
+    "fuel" chips.
+  - **Not built this pass, by explicit choice**: a dual-role mode switcher
+    UI. Today, `computeAppGate()` still derives customer-vs-renter purely
+    from `experience-intent` + organization membership, exactly as it did
+    before this redesign — a signed-in user who is both a customer and org
+    member has no in-app control to switch modes; they'd need to sign out
+    and re-choose at role-select. Building that switcher is real, scoped
+    product/nav work (where does it live, what does it do to `intent` and
+    routing) and was deferred rather than bolted on as a purely visual
+    afterthought. `useAppGate`/`computeAppGate` were not touched.
+- **Accessibility pass**: every interactive control keeps its 44×44pt
+  minimum touch target (`minTouchTarget`, already enforced by `Button`,
+  `ChipSelect`, and the tab bar); `Typography` leaves `allowFontScaling` at
+  RN's default (`true`) so every variant respects Dynamic Type; status is
+  still conveyed by label text plus an icon/tone, never color alone;
+  `useReduceMotion()`/`useReduceTransparency()` gate all animation and
+  blur; the two horizontal photo-carousel layouts
+  (`PhotosSection`, `InspectionSummary`) use logical `marginEnd` rather than
+  `marginRight` for RTL/Dhivehi readiness. Not independently machine-audited
+  for contrast ratio on every glass-surface/text-color combination — flagged
+  here rather than asserted as verified.
+- **What "screenshots for every principal screen" means here**: this
+  sandbox has no iOS Simulator, Android Emulator, or physical device (see
+  [Known, accepted issues](#known-accepted-issues)), so no screenshots were
+  generated — the same limitation that already applies to Maestro/on-device
+  verification for Prompts 5–6. Verification here is static code review,
+  `expo export --platform ios`/`--platform android` (both bundle cleanly),
+  and the full `npm run verify` (format, lint, typecheck, all 94 tests).
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,
@@ -445,10 +542,10 @@ shim, see that file's header comment.
   mirrored `__tests__/app/` tree instead — see Project structure above.
 - No iOS Simulator or Android Emulator is available in this sandbox (no
   Xcode/Android SDK). Verification here is `expo export --platform ios`
-  and `--platform android` (both bundle cleanly, 1462/1552 modules) plus
-  the full unit/component/RLS test suites — not an on-device or
-  in-simulator run. Real device/simulator verification is still needed
-  before treating this as done.
+  and `--platform android` (both bundle cleanly, 1548 modules as of the
+  Ocean Glass redesign) plus the full unit/component/RLS test suites — not
+  an on-device or in-simulator run. Real device/simulator verification is
+  still needed before treating this as done.
 - The `.maestro/` flow files are written and reviewed but **not run** in
   this sandbox for the same reason — `maestro test` needs a booted
   simulator/emulator or connected device, neither available here. They're
@@ -514,4 +611,7 @@ producing an artifact if any check does not hold.
 
 Finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the
 release-candidate/pilot handoff (Prompt 9) — see the PRD for full scope per
-phase.
+phase. A dual-role mode switcher (see
+[Ocean Glass design system](#ocean-glass-design-system-uiux-redesign) above)
+remains unbuilt and is a candidate for whichever future phase takes on
+multi-role navigation.

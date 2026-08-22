@@ -1,9 +1,11 @@
 import { useLocalSearchParams } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 
+import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
+import { Body, Caption, CardTitle, SecondaryBody } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { ActionPanel } from '../../../src/features/bookings/ActionPanel';
 import { BookingTimeline } from '../../../src/features/bookings/BookingTimeline';
@@ -63,32 +65,34 @@ export default function BookingDetail() {
       <View style={{ gap: theme.spacing.xl }}>
         <StatusBadge label={status.label} tone={status.tone} />
 
-        <View style={{ gap: theme.spacing.xs }} testID="booking-summary">
-          <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>
-            {b.customer?.full_name || b.customer?.email || b.customer?.phone || 'Customer'}
-          </Text>
-          {b.customer?.phone ? (
-            <Text style={{ color: theme.colors.textSecondary }}>{b.customer.phone}</Text>
-          ) : null}
-          {b.customer?.email ? (
-            <Text style={{ color: theme.colors.textSecondary }}>{b.customer.email}</Text>
-          ) : null}
-          <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.xs }}>
-            {formatMaldivesDateTime(b.starts_at)} → {formatMaldivesDateTime(b.ends_at)}
-          </Text>
-          {b.notes ? <Text style={{ color: theme.colors.textSecondary }}>Notes: {b.notes}</Text> : null}
-        </View>
+        <GroupedSection title="Customer">
+          <View style={{ gap: theme.spacing.xs }} testID="booking-summary">
+            <CardTitle>
+              {b.customer?.full_name || b.customer?.email || b.customer?.phone || 'Customer'}
+            </CardTitle>
+            {b.customer?.phone ? <SecondaryBody>{b.customer.phone}</SecondaryBody> : null}
+            {b.customer?.email ? <SecondaryBody>{b.customer.email}</SecondaryBody> : null}
+            <Body style={{ marginTop: theme.spacing.xs }}>
+              {formatMaldivesDateTime(b.starts_at)} → {formatMaldivesDateTime(b.ends_at)}
+            </Body>
+            {b.notes ? <SecondaryBody>Notes: {b.notes}</SecondaryBody> : null}
+          </View>
+        </GroupedSection>
 
         {isPending && conflicts.data ? <ConflictWarning conflicts={conflicts.data} /> : null}
 
         {frozenQuote ? (
-          <QuotePanel quote={frozenQuote} frozen />
+          <GroupedSection title="Price breakdown" tone="strong">
+            <QuotePanel quote={frozenQuote} frozen />
+          </GroupedSection>
         ) : isPending && quotePreview.data ? (
-          <QuotePanel quote={quotePreview.data} frozen={false} />
+          <GroupedSection title="Price breakdown" tone="strong">
+            <QuotePanel quote={quotePreview.data} frozen={false} />
+          </GroupedSection>
         ) : isPending && quotePreview.isError ? (
-          <Text style={{ color: theme.colors.warning }} testID="booking-quote-error">
+          <Caption testID="booking-quote-error" color={theme.colors.warning}>
             Can&apos;t estimate a quote yet: {quotePreview.error.message}
-          </Text>
+          </Caption>
         ) : null}
 
         <ActionPanel booking={b} />

@@ -1,8 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
+import { GlassSurface } from '../../../src/components/GlassSurface';
 import { Screen } from '../../../src/components/Screen';
+import { Body, Caption } from '../../../src/components/Typography';
 import { minTouchTarget } from '../../../src/design-system/tokens';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { signOut } from '../../../src/features/auth/session';
@@ -17,7 +20,7 @@ export default function More() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   return (
-    <Screen title="More" description="Customers, finances, reports, staff and settings.">
+    <Screen title="More" titleStyle="large" description="Customers, finances, reports, staff and settings.">
       <View style={{ gap: theme.spacing.sm }}>
         {LINKS.map((link) => (
           <Link key={link.href} href={link.href} asChild>
@@ -25,23 +28,27 @@ export default function More() {
               testID={link.testID}
               accessibilityRole="button"
               accessibilityLabel={link.label}
-              style={({ pressed }) => [
-                styles.row,
-                {
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.radii.md,
-                  opacity: pressed ? 0.85 : 1,
-                },
-              ]}
+              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
             >
-              <Text style={{ color: theme.colors.textPrimary, fontWeight: '600' }}>{link.label}</Text>
+              <GlassSurface
+                style={{
+                  minHeight: minTouchTarget,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingHorizontal: theme.spacing.lg,
+                }}
+              >
+                <Body style={{ fontWeight: '600' }}>{link.label}</Body>
+                <Ionicons name="chevron-forward" size={18} color={theme.colors.textTertiary} />
+              </GlassSurface>
             </Pressable>
           </Link>
         ))}
 
-        <Text style={{ color: theme.colors.textSecondary, marginTop: theme.spacing.md }}>
+        <Caption style={{ marginTop: theme.spacing.md }}>
           Customers, finances and reports arrive in later phases.
-        </Text>
+        </Caption>
 
         <Pressable
           testID="more-sign-out"
@@ -52,28 +59,19 @@ export default function More() {
             setIsSigningOut(true);
             await signOut();
           }}
-          style={({ pressed }) => [
-            styles.row,
-            {
-              borderColor: theme.colors.border,
-              borderRadius: theme.radii.md,
-              marginTop: theme.spacing.lg,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}
+          style={({ pressed }) => ({ marginTop: theme.spacing.lg, opacity: pressed ? 0.85 : 1 })}
         >
-          <Text style={{ color: theme.colors.danger, fontWeight: '600' }}>Sign out</Text>
+          <GlassSurface
+            style={{
+              minHeight: minTouchTarget,
+              justifyContent: 'center',
+              paddingHorizontal: theme.spacing.lg,
+            }}
+          >
+            <Body style={{ fontWeight: '600', color: theme.colors.destructive }}>Sign out</Body>
+          </GlassSurface>
         </Pressable>
       </View>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    minHeight: minTouchTarget,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderWidth: 1,
-  },
-});

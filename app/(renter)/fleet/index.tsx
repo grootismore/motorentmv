@@ -1,12 +1,16 @@
 import { Link, useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
+import { GlassSurface } from '../../../src/components/GlassSurface';
 import { Screen } from '../../../src/components/Screen';
 import { EmptyState } from '../../../src/components/states/EmptyState';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
+import { CardTitle, Caption } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { StatusBadge } from '../../../src/features/bookings/StatusBadge';
+import type { StatusTone } from '../../../src/features/bookings/status';
 import { useCurrentOrganization } from '../../../src/features/organizations/CurrentOrganizationContext';
 import { useVehicles, type Vehicle } from '../../../src/features/fleet/queries';
 
@@ -19,6 +23,15 @@ const STATUS_LABEL: Record<Vehicle['status'], string> = {
   inactive: 'Inactive',
 };
 
+const STATUS_TONE: Record<Vehicle['status'], StatusTone> = {
+  draft: 'neutral',
+  available: 'success',
+  reserved: 'info',
+  rented: 'info',
+  maintenance: 'warning',
+  inactive: 'neutral',
+};
+
 export default function Fleet() {
   const theme = useTheme();
   const router = useRouter();
@@ -26,7 +39,7 @@ export default function Fleet() {
   const vehicles = useVehicles(organizationId);
 
   return (
-    <Screen title="Fleet" scroll={false}>
+    <Screen title="Fleet" titleStyle="large" scroll={false}>
       <View style={{ marginBottom: theme.spacing.md }}>
         <Button testID="fleet-add-vehicle" label="Add vehicle" onPress={() => router.push('/fleet/new')} />
       </View>
@@ -59,30 +72,27 @@ export default function Fleet() {
                 testID={`fleet-item-${item.id}`}
                 accessibilityRole="button"
                 accessibilityLabel={`${item.make ?? ''} ${item.model ?? item.registration_number}`.trim()}
-                style={({ pressed }) => [
-                  styles.row,
-                  {
-                    borderColor: theme.colors.border,
-                    borderRadius: theme.radii.md,
-                    backgroundColor: theme.colors.surface,
-                    marginBottom: theme.spacing.sm,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
+                style={({ pressed }) => ({ marginBottom: theme.spacing.sm, opacity: pressed ? 0.85 : 1 })}
               >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-                    {item.make || item.model
-                      ? `${item.make ?? ''} ${item.model ?? ''}`.trim()
-                      : item.registration_number}
-                  </Text>
-                  <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-                    {item.registration_number}
-                  </Text>
-                </View>
-                <Text style={[styles.status, { color: theme.colors.textSecondary }]}>
-                  {STATUS_LABEL[item.status]}
-                </Text>
+                <GlassSurface
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: theme.spacing.lg,
+                    gap: theme.spacing.md,
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <CardTitle>
+                      {item.make || item.model
+                        ? `${item.make ?? ''} ${item.model ?? ''}`.trim()
+                        : item.registration_number}
+                    </CardTitle>
+                    <Caption>{item.registration_number}</Caption>
+                  </View>
+                  <StatusBadge label={STATUS_LABEL[item.status]} tone={STATUS_TONE[item.status]} />
+                </GlassSurface>
               </Pressable>
             </Link>
           )}
@@ -91,24 +101,3 @@ export default function Fleet() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    padding: 16,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  subtitle: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  status: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-});

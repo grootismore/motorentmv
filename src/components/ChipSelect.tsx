@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { minTouchTarget } from '../design-system/tokens';
 import { useTheme } from '../design-system/ThemeProvider';
+import { Caption } from './Typography';
 
 interface ChipSelectProps<T extends string> {
   label: string;
@@ -22,9 +23,7 @@ export function ChipSelect<T extends string>({
 
   return (
     <View>
-      <Text style={[styles.label, { color: theme.colors.textSecondary, marginBottom: theme.spacing.xs }]}>
-        {label}
-      </Text>
+      <Caption style={{ marginBottom: theme.spacing.xs }}>{label}</Caption>
       <View style={[styles.row, { gap: theme.spacing.sm }]}>
         {options.map((option) => {
           const selected = option.value === value;
@@ -39,21 +38,19 @@ export function ChipSelect<T extends string>({
               style={({ pressed }) => [
                 styles.chip,
                 {
-                  backgroundColor: selected ? theme.colors.primary : theme.colors.surface,
-                  borderColor: selected ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: selected ? theme.colors.lagoonPrimary : theme.colors.glassSurface,
+                  borderColor: selected ? theme.colors.lagoonPrimary : theme.colors.glassBorder,
                   borderRadius: theme.radii.full,
                   opacity: pressed ? 0.85 : 1,
                 },
               ]}
             >
-              <Text
-                style={{
-                  color: selected ? theme.colors.primaryText : theme.colors.textPrimary,
-                  fontWeight: '600',
-                }}
+              <Caption
+                style={{ fontWeight: '600' }}
+                color={selected ? theme.colors.textInverse : theme.colors.textPrimary}
               >
                 {option.label}
-              </Text>
+              </Caption>
             </Pressable>
           );
         })}
@@ -63,10 +60,6 @@ export function ChipSelect<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   row: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -76,6 +69,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });
