@@ -27,13 +27,14 @@ export function useOceanTabBarScreenOptions() {
     tabBarActiveTintColor: theme.colors.lagoonPrimary,
     tabBarInactiveTintColor: theme.colors.textTertiary,
     tabBarShowLabel: true,
-    tabBarLabelStyle: { fontSize: 11, fontWeight: '600' as const },
+    tabBarLabelStyle: { fontSize: 10, fontWeight: '600' as const, marginTop: 0 },
+    tabBarItemStyle: { paddingVertical: 2 },
     tabBarStyle: {
       position: 'absolute' as const,
       left: theme.spacing.lg,
       right: theme.spacing.lg,
       bottom: insets.bottom + theme.spacing.xs,
-      height: 60,
+      height: 52,
       borderRadius: theme.radii.full,
       borderTopWidth: 0,
       backgroundColor: 'transparent',
@@ -48,11 +49,17 @@ export function useOceanTabBarScreenOptions() {
 
 export type OceanTabIconName = keyof typeof Ionicons.glyphMap;
 
+/** Compact icon size for the floating tab bar — deliberately smaller than
+ * React Navigation's own default (~25pt), per the Ocean Glass "compact
+ * icons, reduced height" tab bar spec; the `size` React Navigation passes
+ * in is ignored on purpose. */
+const TAB_ICON_SIZE = 22;
+
 /** Renders the thin-line/filled Ionicon pair Ocean Glass uses for the
  * inactive/active tab states — call from each Tabs.Screen's tabBarIcon. */
 export function oceanTabBarIcon(outline: OceanTabIconName, filled: OceanTabIconName) {
-  function TabIcon({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
-    return <Ionicons name={focused ? filled : outline} color={color as string} size={size} />;
+  function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+    return <Ionicons name={focused ? filled : outline} color={color as string} size={TAB_ICON_SIZE} />;
   }
   return TabIcon;
 }

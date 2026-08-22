@@ -35,6 +35,34 @@ export function formatMaldivesTime(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Compact weekday + day + month for a picker-style summary (e.g. "Sat, 23
+ * Aug") -- used by DateRangeSelector, distinct from formatMaldivesDate
+ * (which includes the year, for booking/receipt contexts) so existing
+ * call sites of that one are unaffected. Built from two Intl calls rather
+ * than one combined format because Intl's own weekday+day+month output
+ * has no comma between the weekday and the date. */
+export function formatMaldivesDateShort(iso: string): string {
+  const date = new Date(iso);
+  const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: MALDIVES_TZ, weekday: 'short' }).format(date);
+  const dayMonth = new Intl.DateTimeFormat('en-GB', {
+    timeZone: MALDIVES_TZ,
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
+  return `${weekday}, ${dayMonth}`;
+}
+
+/** 12-hour time for a picker-style summary (e.g. "7:00 PM") -- distinct
+ * from formatMaldivesTime (24-hour, used in booking/timeline contexts). */
+export function formatMaldivesTime12h(iso: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: MALDIVES_TZ,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(iso));
+}
+
 /** "YYYY-MM-DD" for the given instant, as a Maldives calendar day. */
 export function maldivesDateKey(iso: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: MALDIVES_TZ }).format(new Date(iso));

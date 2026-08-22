@@ -139,6 +139,13 @@ export const lightColors = {
   overdue: '#D64B3A',
   disabled: '#B7C2CB',
   textInverse: '#FFFFFF',
+  /** Always light, in both schemes — for text/icons sitting directly on
+   * the ocean-navy gradient/tab-bar tint, which never lightens with
+   * scheme. `textInverse` is NOT this: it's the inverse of body text for
+   * scheme-adaptive accent surfaces (e.g. a button label on lagoonPrimary)
+   * and flips to near-black in dark mode, which produced unreadable
+   * near-invisible text when used on the (always-dark) ocean gradient. */
+  oceanForeground: '#F4F9FC',
   overlay: 'rgba(15, 37, 64, 0.5)',
 
   // Back-compat aliases (pre-Ocean-Glass names) — mapped onto the palette
@@ -173,6 +180,7 @@ export const darkColors: ColorTokens = {
   overdue: '#F0715F',
   disabled: '#3C4C58',
   textInverse: '#0B1826',
+  oceanForeground: '#F4F9FC',
   overlay: 'rgba(0, 0, 0, 0.6)',
 
   background: '#0E1A24',

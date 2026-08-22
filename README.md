@@ -395,7 +395,83 @@ background`/`ocean deep`, `lagoon primary`/`pressed`, `pearl background`,
   generated — the same limitation that already applies to Maestro/on-device
   verification for Prompts 5–6. Verification here is static code review,
   `expo export --platform ios`/`--platform android` (both bundle cleanly),
-  and the full `npm run verify` (format, lint, typecheck, all 94 tests).
+  and the full `npm run verify` (format, lint, typecheck, all tests — see
+  the corrective pass below for what changed since).
+
+### Ocean Glass corrective pass (post physical-device review)
+
+A round of real physical-device screenshots (dark mode) surfaced several
+concrete bugs and gaps the first Ocean Glass pass missed. Each was
+root-caused against the actual code, not guessed at, before fixing:
+
+- **Explore's title was nearly invisible in dark mode** — `LargeTitle` on
+  the ocean-gradient hero used `theme.colors.textInverse`, which is the
+  _scheme-adaptive_ inverse of body text (white in light mode, near-black
+  in dark mode — correct for e.g. a button label on `lagoonPrimary`, which
+  itself lightens in dark mode). The ocean gradient never lightens with
+  scheme, so in dark mode this resolved to near-black text on a near-black
+  background. Fixed by adding `oceanForeground` (`src/design-system/
+tokens.ts`) — always light, in both schemes — for anything sitting
+  directly on the ocean gradient (Explore's hero, `role-select`'s hero).
+  `textInverse` itself was left alone; it's correctly used elsewhere (e.g.
+  an icon on the `lagoonPrimary` circle in `role-select`).
+- **Raw truncated date/time text** — the pickup/return fields were free-text
+  `TextField`s bound to a `"YYYY-MM-DD HH:mm"` string, two side-by-side at
+  half width; the string visibly truncated on a physical device. Replaced
+  with `DateRangeSelector` (`src/components/DateRangeSelector.tsx`), backed
+  by `@react-native-community/datetimepicker@9.1.0` (the exact version
+  Expo SDK 57 pins in `bundledNativeModules.json`), showing readable,
+  non-truncated text (`Sat, 23 Aug` / `7:00 PM`). The Maldives-local
+  conversion this replaces (`maldivesInputToUtcIso`/`utcIsoToMaldivesInput`)
+  is completely unchanged — the picker's wall-clock digits are read back
+  and re-interpreted as Maldives-local exactly as the free-text field
+  already did, regardless of the device's own time zone.
+- **Explore and Search rendered near-identically** — both showed the same
+  `SearchForm` with nothing else. Explore now also has a discovery section
+  below the hero (`Available near you`, real `useSearchVehicles` results
+  rendered as `VehicleResultItem variant="hero"` cards, with loading
+  skeletons and an honest empty state); Search's default state is the
+  compact criteria bar (already how it behaved once dates existed) rather
+  than the full form.
+- **No vehicle imagery anywhere** — `VehicleResultItem` had no image slot
+  at all. It now renders a flat vector illustration tile (a motorcycle
+  `Ionicon` on an ocean-gradient tile), not a fabricated photo. **Hard
+  constraint found during this pass**: `vehicle_photos_select`
+  (`20260821130001_vehicle_photo_storage.sql`) is `to authenticated` only
+  — an anonymous customer's signed-URL fetch for a real vehicle photo would
+  fail today regardless of any client-side change, and changing that RLS
+  policy was explicitly out of scope. The illustration tile is the honest
+  answer to "no real photo is available here, and no fabricated one will
+  stand in for it."
+- **Deterministic demo-preview content** (`EXPO_PUBLIC_DEMO_MODE=true`,
+  validated in `src/lib/env.ts`, off by default): if Explore's real search
+  genuinely returns zero vehicles (e.g. an empty/unseeded database) _and_
+  this flag is set, a small fixed set of clearly-labeled "Demo" cards
+  (`src/features/discovery/demoData.ts`) renders instead of an empty
+  section, so the screen can be reviewed with realistic content. These
+  cards never navigate anywhere (`VehicleResultItem`'s `demo` prop swaps
+  the `Link` wrapper for a plain non-interactive `View`, since a demo
+  `vehicle_id` has no real listing behind it) and never appear when real
+  data exists or the flag is unset.
+- **Role-select redesigned**, not just recolored: the same ocean-gradient
+  hero treatment as Explore (bypassing the shared `Screen` shell), a
+  per-role icon in a `lagoonPrimary` circle, and a forward chevron, instead
+  of two plain text rectangles.
+- **`AuthPrompt`** (`src/features/auth/AuthPrompt.tsx`): Bookings and
+  Profile's signed-out states were never literally duplicated code — both
+  already routed into the one shared `InlineAuthGate` — but that component
+  always rendered its full email field immediately, so both screens read as
+  "a giant form and nothing else." `AuthPrompt` wraps it with progressive
+  disclosure: an icon, a short heading, one "Sign in" button; the real form
+  only appears once that's pressed.
+- **Tab bar tightened**: height 60→52, label 11px→10px, icon size fixed at
+  22pt (down from React Navigation's own ~25pt default) — `src/components/
+oceanTabBar.tsx`.
+- Every change above kept its existing test coverage passing and, where the
+  interaction model itself changed (`SearchForm`'s date fields), the test
+  was rewritten to exercise the new interaction rather than deleted —
+  `SearchForm.test.tsx` now drives the real `@react-native-community/
+datetimepicker` component the same way a physical device would fire it.
 
 ## Database
 

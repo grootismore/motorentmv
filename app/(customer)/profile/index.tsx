@@ -7,9 +7,9 @@ import { GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { LoadingState } from '../../../src/components/states/LoadingState';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { AuthPrompt } from '../../../src/features/auth/AuthPrompt';
 import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { useExperienceIntent } from '../../../src/features/auth/experience-intent';
-import { InlineAuthGate } from '../../../src/features/auth/InlineAuthGate';
 import { signOut } from '../../../src/features/auth/session';
 
 export default function CustomerProfile() {
@@ -36,9 +36,13 @@ export default function CustomerProfile() {
   if (session === null) {
     return (
       <Screen title="Profile" titleStyle="large" scroll>
-        <InlineAuthGate
-          title="Sign in"
-          description="Sign in to manage your profile and see your booking history."
+        <AuthPrompt
+          testID="profile-auth-prompt"
+          icon="person-circle-outline"
+          heading="Sign in to manage your profile"
+          message="Your details, documents and booking history live here once you're signed in."
+          gateTitle="Sign in"
+          gateDescription="Sign in to manage your profile and see your booking history."
         />
       </Screen>
     );

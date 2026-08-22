@@ -1,8 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
 import { GlassSurface } from '../../components/GlassSurface';
-import { CardTitle, Caption, PriceText } from '../../components/Typography';
+import { CardTitle, Caption, Label, LargeTitle, PriceText } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMvr } from '../../lib/money';
 import type { VehicleSearchResult } from './queries';
@@ -12,16 +14,150 @@ function vehicleLabel(vehicle: VehicleSearchResult): string {
   return name || vehicle.registration_number;
 }
 
+/**
+ * Anonymous browsing can't show a vehicle's real uploaded photo:
+ * vehicle_photos_select (20260821130001_vehicle_photo_storage.sql) is
+ * `to authenticated` only, so an anon customer's signed-URL fetch would
+ * simply fail. Rather than touch that RLS policy (out of scope) or fetch
+ * a random/remote stock photo (never in production code), every card
+ * shows this flat vector illustration tile instead of a fabricated photo
+ * -- honest about what it is, never pretending to be the specific
+ * vehicle's real image.
+ */
+function VehicleIllustration({ size }: { size: 'row' | 'hero' }) {
+  const theme = useTheme();
+  const height = size === 'hero' ? 140 : 56;
+
+  return (
+    <LinearGradient
+      colors={[theme.colors.lagoonPrimary, theme.colors.oceanDeep]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={{
+        height,
+        width: size === 'hero' ? '100%' : 56,
+        borderRadius: size === 'hero' ? theme.radii.card : theme.radii.control,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name="bicycle" size={size === 'hero' ? 48 : 26} color={theme.colors.oceanForeground} />
+    </LinearGradient>
+  );
+}
+
+interface VehicleResultItemProps {
+  vehicle: VehicleSearchResult;
+  startsAt: string;
+  endsAt: string;
+  /** 'row' (default) for the Search results list; 'hero' for Explore's
+   * discovery section — same data, same destination, a bigger card. */
+  variant?: 'row' | 'hero';
+  /** EXPO_PUBLIC_DEMO_MODE preview content only (src/lib/env.ts,
+   * src/features/discovery/demoData.ts) — renders a "Demo" badge and
+   * never navigates, since a demo vehicle_id has no real listing behind
+   * it. Never set for real search results. */
+  demo?: boolean;
+}
+
 export function VehicleResultItem({
   vehicle,
   startsAt,
   endsAt,
-}: {
-  vehicle: VehicleSearchResult;
-  startsAt: string;
-  endsAt: string;
-}) {
+  variant = 'row',
+  demo = false,
+}: VehicleResultItemProps) {
   const theme = useTheme();
+
+  const details = (
+    <>
+      <Caption>
+        {vehicle.organization_name}
+        {vehicle.location ? ` · ${vehicle.location}` : ''}
+      </Caption>
+      <Caption>
+        {vehicle.transmission === 'automatic' ? 'Automatic' : 'Manual'}
+        {vehicle.category ? ` · ${vehicle.category}` : ''}
+      </Caption>
+    </>
+  );
+
+  const price =
+    vehicle.daily_rate_laari !== null ? (
+      <PriceText>{formatMvr(vehicle.daily_rate_laari)}/day</PriceText>
+    ) : vehicle.hourly_rate_laari !== null ? (
+      <PriceText>{formatMvr(vehicle.hourly_rate_laari)}/hr</PriceText>
+    ) : null;
+
+  const demoBadge = demo ? (
+    <View
+      style={{
+        position: 'absolute',
+        top: theme.spacing.sm,
+        insetInlineEnd: theme.spacing.sm,
+        backgroundColor: theme.colors.warning,
+        borderRadius: theme.radii.full,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+      }}
+    >
+      <Label color={theme.colors.textPrimary} style={{ fontWeight: '700' }}>
+        Demo
+      </Label>
+    </View>
+  ) : null;
+
+  const card =
+    variant === 'hero' ? (
+      <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.sm }}>
+        <View>
+          <VehicleIllustration size="hero" />
+          {demoBadge}
+        </View>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: theme.spacing.md,
+          }}
+        >
+          <View style={{ flex: 1, gap: theme.spacing.xs }}>
+            <LargeTitle style={{ fontSize: 20, lineHeight: 25 }}>{vehicleLabel(vehicle)}</LargeTitle>
+            {details}
+          </View>
+          {price}
+        </View>
+      </GlassSurface>
+    ) : (
+      <GlassSurface
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: theme.spacing.lg,
+          gap: theme.spacing.md,
+        }}
+      >
+        <VehicleIllustration size="row" />
+        <View style={{ flex: 1, gap: theme.spacing.xs }}>
+          <CardTitle>{vehicleLabel(vehicle)}</CardTitle>
+          {details}
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>{price}</View>
+      </GlassSurface>
+    );
+
+  if (demo) {
+    return (
+      <View
+        testID={`vehicle-result-${vehicle.vehicle_id}`}
+        accessibilityLabel={`${vehicleLabel(vehicle)}, demo preview, not bookable`}
+        style={{ marginBottom: theme.spacing.sm }}
+      >
+        {card}
+      </View>
+    );
+  }
 
   return (
     <Link
@@ -37,34 +173,7 @@ export function VehicleResultItem({
         accessibilityLabel={`${vehicleLabel(vehicle)}, ${vehicle.organization_name}`}
         style={({ pressed }) => ({ marginBottom: theme.spacing.sm, opacity: pressed ? 0.85 : 1 })}
       >
-        <GlassSurface
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            padding: theme.spacing.lg,
-            gap: theme.spacing.md,
-          }}
-        >
-          <View style={{ flex: 1, gap: theme.spacing.xs }}>
-            <CardTitle>{vehicleLabel(vehicle)}</CardTitle>
-            <Caption>
-              {vehicle.organization_name}
-              {vehicle.location ? ` · ${vehicle.location}` : ''}
-            </Caption>
-            <Caption>
-              {vehicle.transmission === 'automatic' ? 'Automatic' : 'Manual'}
-              {vehicle.category ? ` · ${vehicle.category}` : ''}
-            </Caption>
-          </View>
-          <View style={{ alignItems: 'flex-end', gap: theme.spacing.xs }}>
-            {vehicle.daily_rate_laari !== null ? (
-              <PriceText>{formatMvr(vehicle.daily_rate_laari)}/day</PriceText>
-            ) : vehicle.hourly_rate_laari !== null ? (
-              <PriceText>{formatMvr(vehicle.hourly_rate_laari)}/hr</PriceText>
-            ) : null}
-          </View>
-        </GlassSurface>
+        {card}
       </Pressable>
     </Link>
   );

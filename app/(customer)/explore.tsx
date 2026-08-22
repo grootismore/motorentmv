@@ -1,12 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Body, LargeTitle } from '../../src/components/Typography';
+import { Skeleton } from '../../src/components/Skeleton';
+import { EmptyState } from '../../src/components/states/EmptyState';
+import { ErrorState } from '../../src/components/states/ErrorState';
+import { Body, LargeTitle, SectionTitle } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
+import { DEMO_VEHICLES } from '../../src/features/discovery/demoData';
 import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
+import { useSearchVehicles } from '../../src/features/discovery/queries';
+import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
+import { isDemoMode } from '../../src/lib/env';
 
 /**
  * The one screen that bypasses the shared Screen shell: the Ocean Glass
@@ -14,10 +22,30 @@ import { SearchForm, type SearchFormValues } from '../../src/features/discovery/
  * + search panel both sitting on it), unlike every other screen's flat
  * pearl background + compact nav title. Every other customer/renter
  * screen still uses Screen.
+ *
+ * Text/icons on the hero use `oceanForeground`, not `textInverse` --
+ * textInverse is the inverse of body text for scheme-adaptive accent
+ * surfaces (e.g. a button label on lagoonPrimary) and flips to near-black
+ * in dark mode; the ocean gradient itself never lightens with scheme, so
+ * textInverse produced unreadable near-invisible text here on a physical
+ * device in dark mode. oceanForeground is always light, in both schemes.
  */
 export default function Explore() {
   const theme = useTheme();
   const router = useRouter();
+
+  // A fixed rolling window, independent of whatever dates a customer
+  // later types into the search form above -- this section answers
+  // "what's generally available soon", not "what matches my exact trip".
+  // A lazy useState initializer, not useMemo: reading the clock (Date.now)
+  // is an impure operation the React Compiler's purity check rejects
+  // inside a render-phase useMemo factory, same class of issue as
+  // Skeleton.tsx's Animated.Value (see that component's own comment).
+  const [discoveryCriteria] = useState(() => ({
+    startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    endsAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+  }));
+  const discovery = useSearchVehicles(discoveryCriteria);
 
   const handleSubmit = (values: SearchFormValues) => {
     router.push({
@@ -29,6 +57,9 @@ export default function Explore() {
       },
     });
   };
+
+  const showDemoFallback =
+    isDemoMode && !discovery.isLoading && !discovery.isError && discovery.data?.length === 0;
 
   return (
     <SafeAreaView
@@ -54,7 +85,7 @@ export default function Explore() {
               marginBottom: theme.spacing.xl,
             }}
           >
-            <Body color={theme.colors.textInverse} style={{ fontWeight: '700' }}>
+            <Body color={theme.colors.oceanForeground} style={{ fontWeight: '700' }}>
               MotoRent MV
             </Body>
             <Link href="/notifications" asChild>
@@ -70,17 +101,66 @@ export default function Explore() {
                   justifyContent: 'center',
                 }}
               >
-                <Ionicons name="notifications-outline" size={18} color={theme.colors.textInverse} />
+                <Ionicons name="notifications-outline" size={18} color={theme.colors.oceanForeground} />
               </Pressable>
             </Link>
           </View>
 
-          <LargeTitle color={theme.colors.textInverse} style={{ marginBottom: theme.spacing.lg }}>
+          <LargeTitle color={theme.colors.oceanForeground} style={{ marginBottom: theme.spacing.lg }}>
             Find your ride
           </LargeTitle>
 
           <SearchForm onSubmit={handleSubmit} submitLabel="Search availability" />
         </LinearGradient>
+
+        <View style={{ paddingHorizontal: 20, paddingTop: theme.spacing.xl, gap: theme.spacing.md }}>
+          <SectionTitle>Available near you</SectionTitle>
+
+          {discovery.isLoading ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Skeleton height={140} radius={theme.radii.card} />
+              <Skeleton height={140} radius={theme.radii.card} />
+            </View>
+          ) : null}
+
+          {discovery.isError ? (
+            <ErrorState message={discovery.error.message} onRetry={() => discovery.refetch()} />
+          ) : null}
+
+          {!discovery.isLoading && !discovery.isError && (discovery.data?.length ?? 0) > 0
+            ? discovery.data
+                ?.slice(0, 4)
+                .map((vehicle) => (
+                  <VehicleResultItem
+                    key={vehicle.vehicle_id}
+                    vehicle={vehicle}
+                    startsAt={discoveryCriteria.startsAt}
+                    endsAt={discoveryCriteria.endsAt}
+                    variant="hero"
+                  />
+                ))
+            : null}
+
+          {showDemoFallback
+            ? DEMO_VEHICLES.map((vehicle) => (
+                <VehicleResultItem
+                  key={vehicle.vehicle_id}
+                  vehicle={vehicle}
+                  startsAt={discoveryCriteria.startsAt}
+                  endsAt={discoveryCriteria.endsAt}
+                  variant="hero"
+                  demo
+                />
+              ))
+            : null}
+
+          {!discovery.isLoading && !discovery.isError && discovery.data?.length === 0 && !showDemoFallback ? (
+            <EmptyState
+              title="No motorcycles listed yet"
+              message="Check back soon, or choose your own dates above to search a specific window."
+            />
+          ) : null}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

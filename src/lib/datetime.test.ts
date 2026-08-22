@@ -1,7 +1,9 @@
 import {
   formatMaldivesDate,
+  formatMaldivesDateShort,
   formatMaldivesDateTime,
   formatMaldivesTime,
+  formatMaldivesTime12h,
   isPast,
   maldivesDateKey,
   maldivesInputToUtcIso,
@@ -24,6 +26,14 @@ describe('Maldives time zone display helpers', () => {
 
   it('formats just the time', () => {
     expect(formatMaldivesTime(INSTANT)).toBe('01:00');
+  });
+
+  it('formats a compact weekday + day + month for picker summaries', () => {
+    expect(formatMaldivesDateShort(INSTANT)).toBe('Fri, 2 Jan');
+  });
+
+  it('formats a 12-hour time for picker summaries', () => {
+    expect(formatMaldivesTime12h(INSTANT)).toBe('1:00 AM');
   });
 
   it('derives the Maldives calendar day, which can differ from the UTC day', () => {
