@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -43,6 +44,9 @@ export default function CustomerProfile() {
   return (
     <Screen title="Profile" description="Documents and profile management land in later phases.">
       <View style={{ gap: 12 }}>
+        <Link href="/notifications" asChild>
+          <Button testID="customer-link-notifications" label="Notifications" variant="secondary" />
+        </Link>
         <Button
           testID="customer-sign-out"
           label="Sign out"

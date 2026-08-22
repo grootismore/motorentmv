@@ -42,7 +42,7 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
 
     const asset = result.assets[0];
     upload.mutate(
-      { vehicleId, organizationId, uri: asset.uri, contentType: asset.mimeType ?? 'image/jpeg' },
+      { vehicleId, organizationId, uri: asset.uri, width: asset.width, height: asset.height },
       { onError: (error) => setErrorMessage(error.message) },
     );
   };

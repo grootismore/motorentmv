@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getSupabase } from '../../lib/supabase';
+import { compressImage, uploadWithRetry } from '../../lib/uploads';
 import type { Database } from '../../lib/database.types';
 
 export type VehiclePhoto = Database['public']['Tables']['documents']['Row'] & { signedUrl: string | null };
@@ -48,7 +49,8 @@ interface UploadPhotoInput {
   vehicleId: string;
   organizationId: string;
   uri: string;
-  contentType: string;
+  width: number;
+  height: number;
 }
 
 function randomFileName(contentType: string): string {
@@ -65,14 +67,17 @@ export function useUploadVehiclePhoto() {
       const userId = session.session?.user.id;
       if (!userId) throw new Error('Not signed in');
 
-      const path = `${input.vehicleId}/${randomFileName(input.contentType)}`;
-      const response = await fetch(input.uri);
+      const compressed = await compressImage(input.uri, input.width, input.height);
+      const path = `${input.vehicleId}/${randomFileName(compressed.contentType)}`;
+      const response = await fetch(compressed.uri);
       const blob = await response.blob();
 
-      const { error: uploadError } = await supabase.storage
-        .from(VEHICLE_PHOTOS_BUCKET)
-        .upload(path, blob, { contentType: input.contentType });
-      if (uploadError) throw uploadError;
+      await uploadWithRetry({
+        bucket: VEHICLE_PHOTOS_BUCKET,
+        path,
+        blob,
+        contentType: compressed.contentType,
+      });
 
       const { data, error } = await supabase
         .from('documents')

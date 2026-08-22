@@ -42,11 +42,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-image-picker',
       {
-        photosPermission: 'Allow MotoRent MV to access your photos to add vehicle listing pictures.',
-        cameraPermission: 'Allow MotoRent MV to access your camera to take vehicle listing pictures.',
+        photosPermission: 'Allow MotoRent MV to access your photos to add vehicle and inspection pictures.',
+        cameraPermission: 'Allow MotoRent MV to access your camera to take vehicle and inspection pictures.',
         microphonePermission: false,
       },
     ],
+    // No icon/color override: defaults to the app icon, since no dedicated
+    // monochrome notification-icon asset exists yet (same "replace before
+    // store submission" placeholder spirit as BUNDLE_ID above).
+    'expo-notifications',
   ],
   experiments: {
     typedRoutes: true,

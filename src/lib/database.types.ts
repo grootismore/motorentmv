@@ -953,6 +953,12 @@ export type Database = {
         };
         Returns: Database['public']['Tables']['vehicle_rates']['Row'] | null;
       };
+      acknowledge_inspection: {
+        Args: {
+          p_inspection_id: string;
+        };
+        Returns: Database['public']['Tables']['inspections']['Row'];
+      };
     };
     Enums: {
       org_role: 'owner' | 'manager' | 'staff';

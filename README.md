@@ -3,9 +3,11 @@
 Motorcycle rental operations and booking for Malé and Hulhumalé — Expo/React Native TypeScript app for iOS and Android.
 
 **Phase 0** (engineering scaffold), the **database foundation** (Supabase
-schema/RLS/migrations), **auth + renter onboarding + fleet management**, and
-the **customer experience** (anonymous search, listing, request-to-book,
-My Bookings — PRD Prompt 5) are done.
+schema/RLS/migrations), **auth + renter onboarding + fleet management**, the
+**customer experience** (anonymous search, listing, request-to-book,
+My Bookings — Prompt 5), and **handover, payments and notifications**
+(pickup/return inspections, a manual cash/bank/reference payment ledger, and
+in-app + push notifications — Prompt 6) are done.
 See [`docs/architecture/0001-foundation-decisions.md`](./docs/architecture/0001-foundation-decisions.md)
 for what was decided and why, and the PRD for what comes next.
 
@@ -15,9 +17,10 @@ for what was decided and why, and the PRD for what comes next.
 - Expo Router (file-based navigation) + development builds (`expo-dev-client`)
 - Zod for environment validation
 - `@supabase/supabase-js` client boundary, typed against the generated schema — real auth (email OTP) and fleet CRUD are wired, inert only until `EXPO_PUBLIC_SUPABASE_*` point at a real project
-- Supabase Postgres schema: 13 tables, RLS on every one, server-side booking-overlap protection, private vehicle-photo storage — see [Database](#database) below
+- Supabase Postgres schema: 13 tables, RLS on every one, server-side booking-overlap protection, private vehicle-photo and booking-document storage — see [Database](#database) below
 - TanStack Query for server state, with an AsyncStorage cache persister for offline-read
-- expo-image-picker + expo-image for vehicle photos
+- expo-image-picker + expo-image + expo-image-manipulator for vehicle/inspection photos (compression, retryable upload — see `src/lib/uploads.ts`)
+- expo-notifications for in-app + local test notifications, behind a `NotificationService` interface (`src/features/notifications/service.ts`)
 - ESLint (`eslint-config-expo`, flat config) + Prettier
 - Jest (`jest-expo` preset) + React Native Testing Library
 - Maestro flow files (`.maestro/`) for on-device/simulator E2E — see
@@ -89,7 +92,8 @@ app/                  Expo Router routes (file-based)
   (renter)/            Onboarding (no org yet) or the renter tabs (org exists)
     fleet/              List, detail, create, edit — real Supabase CRUD
     more/staff.tsx       Staff invitation (placeholder-level, see Database below)
-  (shared)/            Notifications, support, legal — shells only
+  (shared)/            notifications.tsx (real inbox, Prompt 6), support and
+                       legal are still shells
 __tests__/            Tests for files under app/ — Expo Router's require.context
                        sweeps every file under app/ into the bundle, so a
                        colocated *.test.tsx there breaks `expo export`/builds;
@@ -110,9 +114,15 @@ src/
                          VehicleResultItem, FilterBar (customer-facing)
     checkout/             request-submission mutation, RiderDetailsForm
     profile/              customer's own profile query/update
+    inspections/           pickup/return checklist queries, InspectionForm/
+                         Summary/Section (record, view, acknowledge)
+    payments/              manual ledger queries, PaymentLedger (record,
+                         view — cash/bank/reference, no card fields)
+    notifications/         NotificationService interface + expo-notifications
+                         implementation, inbox queries, deep-link listener
   lib/                  env.ts, supabase.ts, database.types.ts, query-client.ts,
                        query-persister.ts, result.ts, datetime.ts (Maldives
-                       UTC+5 conversions)
+                       UTC+5 conversions), uploads.ts (compression + retry)
 ```
 
 ## App config and EAS
@@ -236,15 +246,69 @@ when ready to build.
   why they can't actually be run in this sandbox and the email-OTP caveat
   baked into both flows.
 
+## Handover, payments and notifications
+
+- **Pickup/return inspections** (`src/features/inspections/`): a checklist
+  (odometer, fuel/battery %, an accessories toggle set, condition notes,
+  before/after photos) recorded by org staff for pickup and again for
+  return, shown inline on both the renter and customer booking-detail
+  screens (`InspectionSection`). Photos upload through the shared
+  `src/lib/uploads.ts` (compressed client-side via `expo-image-manipulator`,
+  retried with backoff, distinguishing a permission/validation rejection —
+  which retrying can't fix — from a genuinely transient failure) into the
+  private `booking-documents` Storage bucket.
+- **Customer acknowledgement**: the customer can confirm ("I agree with
+  this record") an inspection once it's recorded, via the
+  `acknowledge_inspection` RPC — customer-only, idempotent, and the
+  checklist becomes immutable once acknowledged
+  (20260821160001_inspections_lifecycle.sql).
+- **Real lifecycle gates, enforced in the database**: `activate_booking`
+  (start the rental) is rejected without a recorded pickup inspection on
+  file, and `complete_booking` is rejected without a recorded return
+  inspection — enforced in `bookings_guard()`, the same trigger that already
+  enforces the state machine and overlap protection, so no client code path
+  can bypass it. Deliberately gated on the inspection being _recorded_, not
+  the customer's _acknowledgement_ of it — see that migration's own comment
+  for why (an unresponsive customer must never be able to block their own
+  vehicle's return).
+- **Manual payment ledger** (`src/features/payments/PaymentLedger.tsx`):
+  cash, bank transfer, or an external reference only — no card field exists
+  anywhere in this app or its schema. Supports partial payments, refunds and
+  non-payment adjustments (e.g. a late fee). A refund can never exceed what
+  was actually received, enforced by a database trigger
+  (`transactions_guard`) regardless of insert path, not just a client-side
+  check.
+- **Audit trail**: every inspection record/acknowledgement and every ledger
+  entry is mirrored into the same append-only `booking_events` timeline
+  status changes already use (`BookingTimeline`), via `AFTER INSERT`
+  triggers — one choke point, not fan-out logic duplicated per writer.
+- **Notifications**: `notify_on_booking_event()` (a trigger on
+  `booking_events`) generates `notifications` rows for the relevant
+  audience — org staff on a new/resubmitted request, the customer on every
+  other status change, inspection record, and payment/refund — while never
+  self-notifying whoever caused the event. `src/features/notifications/
+service.ts` defines a `NotificationService` interface around
+  expo-notifications (permission, a local "send test notification" path,
+  and a response listener) so no screen imports expo-notifications
+  directly. A root-level listener (`useNotificationDeepLinks`,
+  `app/_layout.tsx`) deep-links a tapped notification into
+  `/bookings/[bookingId]`, resolving to whichever of the renter/customer
+  apps is mounted, cold-start included.
+- **Private documents and short-lived access, still**: the same rule as
+  vehicle photos (Prompt 3/5) — the `booking-documents` bucket is private,
+  RLS-scoped to the booking's own customer or org members, and every
+  signed URL this app requests is fetched fresh (60 min TTL) rather than
+  cached, since a cached one would just be an expired one.
+
 ## Database
 
-Schema lives in `supabase/migrations/` (25 ordered files) — profiles,
+Schema lives in `supabase/migrations/` (30 ordered files) — profiles,
 organizations, organization_members, vehicles, vehicle_rates,
 availability_blocks, bookings, booking_events, inspections, transactions,
-expenses, documents, notifications, a private `vehicle-photos` Storage
-bucket + its `storage.objects` policies, and the helper functions/RPCs
-that enforce the rules below at the database level, not just in
-application code.
+expenses, documents, notifications, private `vehicle-photos` and
+`booking-documents` Storage buckets + their `storage.objects` policies, and
+the helper functions/RPCs/triggers that enforce the rules below at the
+database level, not just in application code.
 
 - **Money**: every amount is an integer `*_laari` column (1 MVR = 100 laari),
   never floating point.
@@ -381,7 +445,7 @@ shim, see that file's header comment.
   mirrored `__tests__/app/` tree instead — see Project structure above.
 - No iOS Simulator or Android Emulator is available in this sandbox (no
   Xcode/Android SDK). Verification here is `expo export --platform ios`
-  and `--platform android` (both bundle cleanly, 1388/1476 modules) plus
+  and `--platform android` (both bundle cleanly, 1462/1552 modules) plus
   the full unit/component/RLS test suites — not an on-device or
   in-simulator run. Real device/simulator verification is still needed
   before treating this as done.
@@ -409,9 +473,18 @@ shim, see that file's header comment.
   (e.g. `pg_cron` or an Edge Function on a timer) is future-phase work.
 - An org member can decline or cancel a `needs_info` booking but not accept
   it directly — the state machine only allows `needs_info → requested` (the
-  customer resubmitting), and there's no customer app yet to do that from
-  (PRD Prompt 5). The RPC (`request_booking`) and the transition itself
-  already support it; only the customer-facing UI is missing.
+  customer resubmitting). The customer app (Prompt 5) can now do this via
+  the customer booking-detail screen's own resubmission path.
+- Real push notification delivery (an Expo push token round-tripping
+  through Expo's push service to a physical device) can't be verified in
+  this sandbox — no physical device, and `extra.eas.projectId` is still the
+  placeholder noted in `app.config.ts` (no EAS project linked yet).
+  `expoNotificationService.getExpoPushToken()` is written to fail
+  gracefully (returns `null`, never throws) when no project is linked,
+  precisely for this reason. What _is_ verified here: permission requests,
+  local test-notification scheduling and foreground presentation, the
+  notification-tap response listener, and the deep link it drives into
+  booking detail — see `src/features/notifications/service.test.ts`.
 - The iOS CI workflow pins `runs-on: macos-26` because Expo SDK 57 needs
   Xcode 26.4+ / Swift 6.2. `macos-14` (whose newest Xcode is 16.2) fails
   twice over: RN 0.86's Podfile rejects Xcode < 16.1, and `expo-modules-jsi`
@@ -439,9 +512,6 @@ producing an artifact if any check does not hold.
 
 ## What's next
 
-Customer discovery and the customer-side booking flow (Prompt 5 — the
-`request_booking` RPC and customer-facing RLS policies already exist from
-this and earlier prompts; Prompt 5 adds the customer app screens),
-handover/payments/notifications (Prompt 6), finance/reports (Prompt 7),
-CI/EAS automation (Prompt 8), and the release-candidate/pilot handoff
-(Prompt 9) — see the PRD for full scope per phase.
+Finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the
+release-candidate/pilot handoff (Prompt 9) — see the PRD for full scope per
+phase.

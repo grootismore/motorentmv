@@ -10,12 +10,14 @@ import { ThemeProvider, useTheme } from '../src/design-system/ThemeProvider';
 import { AuthProvider } from '../src/features/auth/AuthProvider';
 import { ExperienceIntentProvider } from '../src/features/auth/experience-intent';
 import { useAppGate } from '../src/features/auth/useAppGate';
+import { useNotificationDeepLinks } from '../src/features/notifications/useNotificationDeepLinks';
 import { attachAppStateListener, queryClient } from '../src/lib/query-client';
 import { queryPersister, shouldPersistQuery } from '../src/lib/query-persister';
 
 function RootNavigator() {
   const gate = useAppGate();
   const theme = useTheme();
+  useNotificationDeepLinks();
 
   if (gate === 'loading') {
     return <LoadingState label="Loading your account…" />;

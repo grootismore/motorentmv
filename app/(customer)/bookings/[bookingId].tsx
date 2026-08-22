@@ -12,6 +12,8 @@ import { useBooking, useCancelBooking, type BookingQuote } from '../../../src/fe
 import { QuotePanel } from '../../../src/features/bookings/QuotePanel';
 import { displayBookingStatus } from '../../../src/features/bookings/status';
 import { StatusBadge } from '../../../src/features/bookings/StatusBadge';
+import { InspectionSection } from '../../../src/features/inspections/InspectionSection';
+import { PaymentLedger } from '../../../src/features/payments/PaymentLedger';
 import { formatMaldivesDateTime } from '../../../src/lib/datetime';
 
 const CANCELLABLE_STATUSES = ['draft', 'requested', 'needs_info'];
@@ -81,6 +83,15 @@ export default function CustomerBookingDetail() {
             />
           </View>
         ) : null}
+
+        <InspectionSection
+          bookingId={b.id}
+          organizationId={b.organization_id}
+          bookingStatus={b.status}
+          viewerRole="customer"
+        />
+
+        <PaymentLedger bookingId={b.id} organizationId={b.organization_id} viewerRole="customer" />
 
         <BookingTimeline bookingId={b.id} />
       </View>
