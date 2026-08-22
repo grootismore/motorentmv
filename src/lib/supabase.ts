@@ -28,6 +28,11 @@ export const supabase: SupabaseClient<Database> | null =
       })
     : null;
 
+/** True once EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY are set
+ * — lets a screen distinguish "backend not configured yet" from a real
+ * query failure without string-matching getSupabase()'s thrown message. */
+export const isSupabaseConfigured = supabase !== null;
+
 export function getSupabase(): SupabaseClient<Database> {
   if (!supabase) {
     throw new Error(

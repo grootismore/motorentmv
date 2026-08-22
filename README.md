@@ -530,6 +530,32 @@ ios-unsigned-ipa.yml`, which triggers automatically on push to this
   branch; retrieve it from that workflow run's artifacts to verify on an
   actual device.
 
+### Ocean Glass corrective pass, round 3 (demo fallback on unconfigured backend)
+
+Physical-device screenshots from a build with no `EXPO_PUBLIC_SUPABASE_URL`/
+`EXPO_PUBLIC_SUPABASE_ANON_KEY` set showed Explore's discovery section and
+Search's results both surfacing a raw `"Supabase is not configured. Set
+EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY."` error — a real,
+correct error (the backend genuinely isn't configured in that build), but not
+a useful screen for reviewing the redesign itself.
+
+- **`isSupabaseConfigured`** (`src/lib/supabase.ts`) exposes the same
+  "is there a client at all" check `getSupabase()` already made internally,
+  as a plain boolean a screen can read before querying, instead of every
+  caller string-matching the thrown error message.
+- **Explore and Search now extend the existing demo-mode fallback** to this
+  condition: with `EXPO_PUBLIC_DEMO_MODE=true`, an unconfigured backend now
+  renders the same clearly-labeled, non-bookable demo cards
+  (`DEMO_VEHICLES`) that already covered "the real search returned zero
+  vehicles." Search's results list gained a demo branch the same shape as
+  Explore's. With the flag unset (the default in every real environment)
+  the raw configuration error still surfaces exactly as before — this only
+  changes what a `EXPO_PUBLIC_DEMO_MODE=true` review build shows.
+  `search.demo-fallback.test.tsx` covers the new branch directly.
+- Everything else about this round is unchanged from round 2: no query,
+  RPC, route, or testID touched; `npm run verify` (20 suites / 97 tests) and
+  `expo export --platform ios` stayed green.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

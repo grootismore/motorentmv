@@ -16,6 +16,7 @@ import { SearchForm, type SearchFormValues } from '../../src/features/discovery/
 import { useSearchVehicles } from '../../src/features/discovery/queries';
 import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
 import { isDemoMode } from '../../src/lib/env';
+import { isSupabaseConfigured } from '../../src/lib/supabase';
 
 /**
  * The one screen that bypasses the shared Screen shell: the Ocean Glass
@@ -59,8 +60,14 @@ export default function Explore() {
     });
   };
 
+  // Supabase not being configured at all (no backend to query against yet)
+  // is a distinct condition from a real query failure -- in demo mode it
+  // falls back the same way "the real search returned nothing" does,
+  // rather than surfacing the "Supabase is not configured" ErrorState.
   const showDemoFallback =
-    isDemoMode && !discovery.isLoading && !discovery.isError && discovery.data?.length === 0;
+    isDemoMode &&
+    (!isSupabaseConfigured || (!discovery.isLoading && !discovery.isError && discovery.data?.length === 0));
+  const showDiscoveryError = discovery.isError && !(isDemoMode && !isSupabaseConfigured);
 
   return (
     <SafeAreaView
@@ -132,8 +139,8 @@ export default function Explore() {
             </GlassSurface>
           ) : null}
 
-          {discovery.isError ? (
-            <ErrorState message={discovery.error.message} onRetry={() => discovery.refetch()} />
+          {showDiscoveryError ? (
+            <ErrorState message={discovery.error?.message ?? ''} onRetry={() => discovery.refetch()} />
           ) : null}
 
           {!discovery.isLoading && !discovery.isError && (discovery.data?.length ?? 0) > 0

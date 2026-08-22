@@ -15,12 +15,14 @@ const envSchema = z.object({
   // Phase 0 can boot without a backend configured yet.
   EXPO_PUBLIC_SUPABASE_URL: z.url().optional(),
   EXPO_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  /** Visual-review only: when 'true', Explore's discovery section falls
-   * back to clearly-labeled, non-bookable demo cards if the real search
-   * returns no vehicles (e.g. an empty/unseeded database), so the screen
-   * can be reviewed with realistic content. Never affects any other
-   * screen or query, never substitutes for real data when real data
-   * exists, and defaults off — production builds never set this. */
+  /** Visual-review only: when 'true', Explore's discovery section and
+   * Search's results both fall back to clearly-labeled, non-bookable demo
+   * cards if the real search returns no vehicles, or if
+   * EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY aren't set at
+   * all (e.g. reviewing this build without a backend configured), so
+   * either screen can be reviewed with realistic content. Never affects
+   * any other screen or query, never substitutes for real data when real
+   * data exists, and defaults off — production builds never set this. */
   EXPO_PUBLIC_DEMO_MODE: z.enum(['true', 'false']).default('false'),
 });
 

@@ -10,11 +10,14 @@ import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
 import { Body } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
+import { DEMO_VEHICLES } from '../../src/features/discovery/demoData';
 import { FilterBar, type FilterValues } from '../../src/features/discovery/FilterBar';
 import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
 import { useSearchVehicles } from '../../src/features/discovery/queries';
 import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
 import { formatMaldivesDateShort, formatMaldivesTime12h } from '../../src/lib/datetime';
+import { isDemoMode } from '../../src/lib/env';
+import { isSupabaseConfigured } from '../../src/lib/supabase';
 
 /** Mirrors VehicleResultItem's row shape (illustration tile + two text
  * lines + price) so the loading state resembles the final layout instead
@@ -66,6 +69,11 @@ export default function Search() {
 
   const results = useSearchVehicles(criteria);
 
+  // Same "backend not configured yet" fallback as Explore's discovery
+  // section: in demo mode, a missing Supabase config falls back to the
+  // fixed demo cards instead of surfacing "Supabase is not configured".
+  const showDemoResults = isDemoMode && !isSupabaseConfigured;
+
   const handleSearchSubmit = (values: SearchFormValues) => {
     setIsEditing(false);
     router.setParams({
@@ -113,31 +121,47 @@ export default function Search() {
         )}
 
         {!isEditing && criteria ? (
-          <>
-            {results.isLoading ? <SearchResultsSkeleton /> : null}
-            {results.isError ? (
-              <ErrorState message={results.error.message} onRetry={() => results.refetch()} />
-            ) : null}
-            {results.data && results.data.length === 0 ? (
-              <EmptyState
-                icon="search-outline"
-                title="Nothing available"
-                message="No vehicles match these dates and filters. Try widening your search."
-              />
-            ) : null}
-            {results.data && results.data.length > 0 ? (
-              <FlatList
-                testID="search-results"
-                data={results.data}
-                keyExtractor={(item) => item.vehicle_id}
-                onRefresh={() => results.refetch()}
-                refreshing={results.isRefetching}
-                renderItem={({ item }) => (
-                  <VehicleResultItem vehicle={item} startsAt={criteria.startsAt} endsAt={criteria.endsAt} />
-                )}
-              />
-            ) : null}
-          </>
+          showDemoResults ? (
+            <FlatList
+              testID="search-results"
+              data={DEMO_VEHICLES}
+              keyExtractor={(item) => item.vehicle_id}
+              renderItem={({ item }) => (
+                <VehicleResultItem
+                  vehicle={item}
+                  startsAt={criteria.startsAt}
+                  endsAt={criteria.endsAt}
+                  demo
+                />
+              )}
+            />
+          ) : (
+            <>
+              {results.isLoading ? <SearchResultsSkeleton /> : null}
+              {results.isError ? (
+                <ErrorState message={results.error.message} onRetry={() => results.refetch()} />
+              ) : null}
+              {results.data && results.data.length === 0 ? (
+                <EmptyState
+                  icon="search-outline"
+                  title="Nothing available"
+                  message="No vehicles match these dates and filters. Try widening your search."
+                />
+              ) : null}
+              {results.data && results.data.length > 0 ? (
+                <FlatList
+                  testID="search-results"
+                  data={results.data}
+                  keyExtractor={(item) => item.vehicle_id}
+                  onRefresh={() => results.refetch()}
+                  refreshing={results.isRefetching}
+                  renderItem={({ item }) => (
+                    <VehicleResultItem vehicle={item} startsAt={criteria.startsAt} endsAt={criteria.endsAt} />
+                  )}
+                />
+              ) : null}
+            </>
+          )
         ) : null}
       </View>
     </Screen>
