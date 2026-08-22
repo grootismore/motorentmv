@@ -47,6 +47,13 @@ env:
   # by deriving it from that file (see "Resolve build metadata" below)
   # rather than duplicating the literal string here.
   APP_PRODUCT_DISPLAY_NAME: MotoRentMV
+  # This workflow has no EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY
+  # to give it (there's no backend behind this review build), so without
+  # this flag every screen that queries Supabase would show "Supabase is
+  # not configured" instead of anything reviewable — confirmed from a real
+  # sideloaded build. src/lib/env.ts documents this flag as visual-review
+  # only, off by default everywhere else; it is only ever set here.
+  EXPO_PUBLIC_DEMO_MODE: 'true'
 
 jobs:
   build-unsigned-ipa:

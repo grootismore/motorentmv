@@ -581,6 +581,46 @@ together), rather than differentiating tabs by tint color alone.
   `title`); `npm run verify` (20 suites / 97 tests) and
   `expo export --platform ios` stayed green.
 
+### Ocean Glass corrective pass, round 5 (tab bar label wrapping + review-build content)
+
+A physical-device screenshot of round 4's tab bar showed every label reduced
+to vertical single/double-letter columns ("Explore" as "E"/"x"/"p") — a real
+layout bug, not a rendering glitch.
+
+- **Root cause, found by reading expo-router's vendored react-navigation
+  source** (`node_modules/expo-router/build/react-navigation/bottom-tabs`):
+  whatever a `tabBarIcon` option returns is rendered inside `TabBarIcon`'s
+  fixed-size wrapper (`wrapperUikit`/`wrapperUikitCompact`, ~20-31pt wide)
+  — a container sized for an icon alone. Round 4 rendered icon **and**
+  label together from `tabBarIcon`, so the label text was forced into that
+  ~20pt box and wrapped letter-by-letter.
+- **Fix**: switched from `tabBarIcon` to `tabBarButton` (`oceanTabBarButton`,
+  `src/components/oceanTabBar.tsx`), which replaces the entire per-tab
+  button and receives the real evenly-divided `flex: 1` slot the default
+  button gets (confirmed from the same source: `BottomTabBar`'s
+  `styles.bottomItem` is `{ flex: 1 }`, passed straight through to
+  whatever `tabBarButton` renders). The active-tab pill highlight is
+  unchanged in appearance; `numberOfLines={1}` was added as defense in
+  depth. `oceanTabBar.test.tsx` (new) renders the button directly and
+  asserts the full label text is present on one line, and that
+  `aria-selected`/`onPress` wire through `accessibilityState`/press
+  handling correctly — a regression back to `tabBarIcon` for this would
+  fail the same way the physical device did.
+- **A second, unrelated finding from the same screenshot**: Explore still
+  showed "Supabase is not configured" even though `EXPO_PUBLIC_DEMO_MODE`'s
+  fallback for that (round 3, above) was already live in this build. Root
+  cause: `EXPO_PUBLIC_DEMO_MODE` is inlined into the JS bundle at build
+  time, and `.github/workflows/ios-unsigned-ipa.yml` (the only pipeline
+  that produces a build for physical-device review here) never set it —
+  every review IPA it produces genuinely has no Supabase credentials _and_
+  demo mode off, so the raw configuration error was the only possible
+  outcome regardless of what application code did. Fixed by setting
+  `EXPO_PUBLIC_DEMO_MODE: 'true'` in that workflow's `env:` block — scoped
+  to this one review-build workflow only, not a default anywhere else.
+- `npm run verify` (21 suites / 99 tests, including the two new
+  `oceanTabBar.test.tsx` cases) and `expo export --platform ios` stayed
+  green.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

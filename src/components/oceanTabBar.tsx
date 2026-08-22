@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import type { ColorValue } from 'react-native';
-import { Text, View } from 'react-native';
+import type { GestureResponderEvent, StyleProp, ViewStyle } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../design-system/ThemeProvider';
@@ -25,15 +25,10 @@ export function useOceanTabBarScreenOptions() {
 
   return {
     headerShown: false as const,
-    tabBarActiveTintColor: theme.colors.lagoonPrimary,
-    tabBarInactiveTintColor: theme.colors.textTertiary,
-    // The label renders inside oceanTabBarIcon's own pill now, alongside
-    // the icon, instead of as React Navigation's separate default label
-    // element — that's what lets the active tab's highlight wrap icon+label
-    // together as one capsule (the reference's "Home" pill) rather than
-    // tinting two disconnected pieces of text/icon the same color.
-    tabBarShowLabel: false,
-    tabBarItemStyle: { paddingVertical: 2 },
+    // tabBarActiveTintColor/tabBarInactiveTintColor/tabBarShowLabel are
+    // irrelevant once every screen supplies its own tabBarButton below —
+    // that option replaces React Navigation's entire per-tab button
+    // (icon + label together), not just one piece of it.
     tabBarStyle: {
       position: 'absolute' as const,
       left: theme.spacing.xl,
@@ -72,38 +67,78 @@ export type OceanTabIconName = keyof typeof Ionicons.glyphMap;
 
 /** Compact icon size for the floating tab bar — deliberately smaller than
  * React Navigation's own default (~25pt), per the Ocean Glass "compact
- * icons, reduced height" tab bar spec; the `size` React Navigation passes
- * in is ignored on purpose. */
+ * icons, reduced height" tab bar spec. */
 const TAB_ICON_SIZE = 20;
 
 /**
- * Renders the thin-line/filled Ionicon pair plus its label as one unit —
- * call from each Tabs.Screen's tabBarIcon. The active tab wraps icon+label
- * in a soft tinted capsule (`tabActivePill`) instead of only tinting the
- * icon/label color, matching the segmented-pill tab bar reference (a
- * distinct rounded highlight behind the selected item, not color alone).
+ * The subset of BottomTabBarButtonProps (expo-router's vendored
+ * react-navigation/bottom-tabs, not part of its public API) this button
+ * actually reads. Declared locally instead of importing that internal
+ * type, matching this file's existing policy of staying typed against
+ * expo-router's public Tabs API rather than reaching into vendored
+ * internals — see useOceanTabBarScreenOptions's own comment on this.
  */
-export function oceanTabBarIcon(outline: OceanTabIconName, filled: OceanTabIconName, label: string) {
-  function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
+interface OceanTabButtonProps {
+  onPress?: ((e: GestureResponderEvent) => void) | null;
+  onLongPress?: ((e: GestureResponderEvent) => void) | null;
+  testID?: string;
+  style?: StyleProp<ViewStyle>;
+  'aria-label'?: string;
+  'aria-selected'?: boolean;
+}
+
+/**
+ * Renders one entire tab bar item (icon + label together) — pass as a
+ * Tabs.Screen's `tabBarButton` option, not `tabBarIcon`. `tabBarIcon`
+ * looks like the right hook for this but isn't: react-navigation renders
+ * whatever it returns inside a small fixed-size icon box (~23-31pt wide,
+ * see TabBarIcon's `wrapperUikit*` styles), meant for an icon alone — a
+ * label placed inside wraps letter-by-letter, confirmed from a physical
+ * device screenshot showing "Explore"/"Bookings"/etc. reduced to vertical
+ * single-character columns. `tabBarButton` instead replaces the entire
+ * per-tab button, receiving the real evenly-divided `flex: 1` slot
+ * (BottomTabBar's `styles.bottomItem`) the default button gets, so icon
+ * and label can be laid out and sized together properly.
+ *
+ * The active tab wraps icon+label in a soft tinted capsule
+ * (`tabActivePill`) instead of only tinting their color, matching the
+ * segmented-pill tab bar reference (a distinct rounded highlight behind
+ * the selected item, not color alone).
+ */
+export function oceanTabBarButton(outline: OceanTabIconName, filled: OceanTabIconName, label: string) {
+  function TabButton(props: OceanTabButtonProps) {
     const theme = useTheme();
+    const focused = props['aria-selected'] === true;
+    const color = focused ? theme.colors.lagoonPrimary : theme.colors.textTertiary;
+
     return (
-      <View
-        style={{
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-          paddingHorizontal: focused ? theme.spacing.md : theme.spacing.sm,
-          paddingVertical: 4,
-          borderRadius: theme.radii.full,
-          backgroundColor: focused ? theme.colors.tabActivePill : 'transparent',
-        }}
+      <Pressable
+        onPress={props.onPress}
+        onLongPress={props.onLongPress}
+        testID={props.testID}
+        accessibilityRole="tab"
+        accessibilityLabel={props['aria-label'] ?? label}
+        accessibilityState={{ selected: focused }}
+        style={[props.style, { alignItems: 'center', justifyContent: 'center' }]}
       >
-        <Ionicons name={focused ? filled : outline} color={color as string} size={TAB_ICON_SIZE} />
-        <Text style={{ color: color as string, fontSize: 10, fontWeight: focused ? '700' : '600' }}>
-          {label}
-        </Text>
-      </View>
+        <View
+          style={{
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            paddingHorizontal: focused ? theme.spacing.md : theme.spacing.sm,
+            paddingVertical: 4,
+            borderRadius: theme.radii.full,
+            backgroundColor: focused ? theme.colors.tabActivePill : 'transparent',
+          }}
+        >
+          <Ionicons name={focused ? filled : outline} color={color} size={TAB_ICON_SIZE} />
+          <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '700' : '600' }}>
+            {label}
+          </Text>
+        </View>
+      </Pressable>
     );
   }
-  return TabIcon;
+  return TabButton;
 }

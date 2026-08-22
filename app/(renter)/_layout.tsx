@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 
-import { oceanTabBarIcon, useOceanTabBarScreenOptions } from '../../src/components/oceanTabBar';
+import { oceanTabBarButton, useOceanTabBarScreenOptions } from '../../src/components/oceanTabBar';
 import { LoadingState } from '../../src/components/states/LoadingState';
 import { useAuth } from '../../src/features/auth/AuthProvider';
 import { CreateOrganizationScreen } from '../../src/features/organizations/CreateOrganizationScreen';
@@ -25,29 +25,32 @@ export default function RenterLayout() {
       <Tabs initialRouteName="today" screenOptions={screenOptions}>
         <Tabs.Screen
           name="today"
-          options={{ title: 'Today', tabBarIcon: oceanTabBarIcon('today-outline', 'today', 'Today') }}
+          options={{ title: 'Today', tabBarButton: oceanTabBarButton('today-outline', 'today', 'Today') }}
         />
         <Tabs.Screen
           name="calendar"
           options={{
             title: 'Calendar',
-            tabBarIcon: oceanTabBarIcon('calendar-outline', 'calendar', 'Calendar'),
+            tabBarButton: oceanTabBarButton('calendar-outline', 'calendar', 'Calendar'),
           }}
         />
         <Tabs.Screen
           name="bookings/index"
-          options={{ title: 'Bookings', tabBarIcon: oceanTabBarIcon('list-outline', 'list', 'Bookings') }}
+          options={{ title: 'Bookings', tabBarButton: oceanTabBarButton('list-outline', 'list', 'Bookings') }}
         />
         <Tabs.Screen name="bookings/[bookingId]" options={{ href: null }} />
         <Tabs.Screen
           name="fleet/index"
-          options={{ title: 'Fleet', tabBarIcon: oceanTabBarIcon('car-sport-outline', 'car-sport', 'Fleet') }}
+          options={{
+            title: 'Fleet',
+            tabBarButton: oceanTabBarButton('car-sport-outline', 'car-sport', 'Fleet'),
+          }}
         />
         <Tabs.Screen
           name="more/index"
           options={{
             title: 'More',
-            tabBarIcon: oceanTabBarIcon(
+            tabBarButton: oceanTabBarButton(
               'ellipsis-horizontal-circle-outline',
               'ellipsis-horizontal-circle',
               'More',
