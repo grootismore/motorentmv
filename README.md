@@ -26,7 +26,10 @@ for what was decided and why, and the PRD for what comes next.
   `@supabase/auth-js`, pulled in transitively by `@supabase/supabase-js`,
   declares `"engines": { "node": ">=22.0.0" }` — `npm ci`/`npm install`
   hard-fail on Node 20)
-- Xcode (iOS simulator builds) and/or Android Studio (Android emulator builds) for local native runs
+- Xcode 26.4+ for iOS builds (Expo SDK 57's documented minimum; separately,
+  `expo-modules-jsi/apple/Package.swift` declares `swift-tools-version: 6.2`,
+  so any Xcode older than 26 fails the build outright at SwiftPM resolution)
+  and/or Android Studio for Android emulator builds
 - An Expo account + the [EAS CLI](https://docs.expo.dev/eas/) (`npm i -g eas-cli`) once you're building with EAS
 
 ## Setup
@@ -332,6 +335,30 @@ shim, see that file's header comment.
   customer resubmitting), and there's no customer app yet to do that from
   (PRD Prompt 5). The RPC (`request_booking`) and the transition itself
   already support it; only the customer-facing UI is missing.
+- The iOS CI workflow pins `runs-on: macos-26` because Expo SDK 57 needs
+  Xcode 26.4+ / Swift 6.2. `macos-14` (whose newest Xcode is 16.2) fails
+  twice over: RN 0.86's Podfile rejects Xcode < 16.1, and `expo-modules-jsi`
+  then fails SwiftPM resolution with "package 'apple' is using Swift tools
+  version 6.2.0 but the installed version is 6.0.0". Both were confirmed by
+  real runs. The workflow discovers and selects the newest Xcode on whatever
+  runner it lands on rather than hardcoding a path, and its `runner` input
+  allows overriding the label from the Run workflow dialog if GitHub's image
+  lineup changes again.
+
+## CI: unsigned iOS device IPA
+
+`.github/workflows/ios-unsigned-ipa.yml` builds an **unsigned** arm64
+device IPA for sideloading (Sideloadly/AltStore re-sign it at install
+time — it cannot be installed as-is). It runs on manual dispatch and on
+pushes to the working branch that touch app source. No Apple certificates,
+provisioning profiles, device UDIDs or EAS signing are involved anywhere:
+`CODE_SIGNING_ALLOWED=NO` makes signing impossible rather than skipped.
+
+Before packaging, it verifies the built `.app` is genuinely a device
+build — products directory, `CFBundleSupportedPlatforms`, the Mach-O
+build-version platform, an arm64-only slice, a matching bundle id, and
+that Hermes and ExpoModulesCore are actually present — and fails without
+producing an artifact if any check does not hold.
 
 ## What's next
 

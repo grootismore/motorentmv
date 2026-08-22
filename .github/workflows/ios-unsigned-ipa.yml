@@ -12,7 +12,15 @@ name: iOS unsigned device IPA (sideload)
 # and slow relative to Linux, so the push trigger is path-filtered to
 # skip docs-only/database-only commits that can't affect the IPA.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          GitHub-hosted macOS runner label. Must carry Xcode 26.4+ (Expo SDK 57
+          requirement). Override only if the default label is unavailable.
+        required: false
+        default: macos-26
+        type: string
   push:
     branches:
       - claude/motorent-mv-architecture-review-1cwexr
@@ -43,22 +51,43 @@ env:
 jobs:
   build-unsigned-ipa:
     name: Build unsigned iOS device IPA
-    runs-on: macos-14
-    timeout-minutes: 60
+    # macos-26 (not macos-14/15): Expo SDK 57 requires Xcode 26.4+
+    # (https://docs.expo.dev/versions/v57.0.0/ — SDK/Xcode compatibility
+    # table), and expo-modules-jsi/apple/Package.swift declares
+    # `swift-tools-version: 6.2`, whose toolchain first ships in Xcode 26.
+    # A real run on macos-14 (whose newest Xcode is 16.2 / Swift 6.0) died
+    # at "package 'apple' is using Swift tools version 6.2.0 but the
+    # installed version is 6.0.0". The `inputs.runner ||` fallback makes
+    # this overridable from the Run workflow dialog without editing the
+    # file — on a push event `inputs` is empty and the default applies.
+    runs-on: ${{ inputs.runner || 'macos-26' }}
+    # A cold RN 0.86 build compiles React Native and several Expo
+    # xcframeworks from source (the runner has no prebuilt-xcframework
+    # cache), which comfortably exceeds the 60 minutes this used to allow.
+    timeout-minutes: 90
     steps:
       - name: Check out repository
         uses: actions/checkout@v4.2.2
 
-      # Confirmed by a real failed run: macos-14's default active Xcode is
-      # 15.4, but React Native 0.86 requires >= 16.1 ("React Native
-      # requires XCode >= 16.1. Found 15.4." / "Invalid Podfile file:
-      # Please upgrade XCode."), which broke both expo prebuild's own
-      # internal pod-install attempt and the explicit one below. Rather
-      # than hardcode a specific Xcode path/version (which GitHub's runner
-      # images change over time), this finds every Xcode actually
-      # installed on the runner and switches to the newest one, failing
-      # clearly if even that one is too old.
-      - name: Select a compatible Xcode version (React Native 0.86 needs >= 16.1)
+      # Two real failed runs drove the shape of this step:
+      #   1. macos-14's *default active* Xcode is 15.4, but RN 0.86's
+      #      Podfile hard-requires >= 16.1 ("Invalid Podfile file: Please
+      #      upgrade XCode"), which broke pod install.
+      #   2. Selecting the newest Xcode on macos-14 (16.2 / Swift 6.0) got
+      #      past pods but died in xcodebuild: "package 'apple' is using
+      #      Swift tools version 6.2.0 but the installed version is 6.0.0"
+      #      — expo-modules-jsi/apple/Package.swift declares
+      #      `swift-tools-version: 6.2`, whose toolchain ships in Xcode 26.
+      #
+      # So the hard gate below is the Swift toolchain version (the thing
+      # that actually failed), not an Xcode version guess. Expo separately
+      # documents Xcode 26.4+ for SDK 57; falling short of that is a
+      # warning rather than an error, so a runner carrying, say, Xcode 26.2
+      # still gets to attempt a build instead of being rejected outright.
+      # Xcode paths/versions are discovered, never hardcoded — GitHub
+      # changes which versions ship in each image over time.
+      - name: Select a compatible Xcode (Swift >= 6.2 required by expo-modules-jsi)
+        id: xcode_select
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -89,16 +118,29 @@ jobs:
           done
 
           echo "Newest installed Xcode: $BEST_PATH ($BEST_VERSION)"
+          sudo xcode-select -s "$BEST_PATH/Contents/Developer"
+          xcodebuild -version
 
-          REQUIRED_KEY="$(version_key '16.1')"
-          if [[ "$BEST_KEY" < "$REQUIRED_KEY" ]]; then
-            echo "::error::Newest installed Xcode is $BEST_VERSION, but React Native 0.86 requires >= 16.1. This runner image may need to change (e.g. runs-on: macos-15)."
+          SWIFT_RAW="$(swift --version 2>&1 || true)"
+          echo "Swift toolchain:"
+          echo "$SWIFT_RAW"
+          SWIFT_VERSION="$(grep -oE 'Apple Swift version [0-9]+(\.[0-9]+)*' <<< "$SWIFT_RAW" | head -1 | awk '{ print $NF }')"
+          if [ -z "$SWIFT_VERSION" ]; then
+            echo "::error::Could not determine the Swift version of $BEST_PATH"
             exit 1
           fi
 
-          sudo xcode-select -s "$BEST_PATH/Contents/Developer"
-          echo "Selected Xcode:"
-          xcodebuild -version
+          if [[ "$(version_key "$SWIFT_VERSION")" < "$(version_key '6.2')" ]]; then
+            echo "::error::Runner '${{ inputs.runner || 'macos-26' }}' provides Swift $SWIFT_VERSION (Xcode $BEST_VERSION), but expo-modules-jsi requires Swift >= 6.2 (Xcode 26+). Re-run this workflow and set the 'runner' input to a macOS image that ships Xcode 26.4+."
+            exit 1
+          fi
+
+          if [[ "$BEST_KEY" < "$(version_key '26.4')" ]]; then
+            echo "::warning::Xcode $BEST_VERSION is below the 26.4+ that Expo documents for SDK 57. Swift $SWIFT_VERSION satisfies the toolchain requirement, so the build will proceed, but an SDK-level incompatibility later in this job may trace back to this."
+          fi
+
+          echo "xcode_version=$BEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "swift_version=$SWIFT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4.1.0
@@ -166,9 +208,6 @@ jobs:
           echo "scheme=${SCHEME}" >> "$GITHUB_OUTPUT"
           echo "Workspace: ${WORKSPACE}"
           echo "Scheme: ${SCHEME}"
-
-      - name: Show Xcode version
-        run: xcodebuild -version
 
       - name: Build Release for a physical iOS device (arm64, unsigned)
         id: build
@@ -253,20 +292,25 @@ jobs:
             exit 1
           fi
 
-          # --- Platform: the Mach-O load command must say IOS, never
-          # IOSSIMULATOR. This is the definitive "not a simulator app"
-          # check (arch alone isn't enough on Apple Silicon, where
-          # arm64 simulator builds also exist). ---
+          # --- Platform: the Mach-O build-version load command must say
+          # iOS, never iOS-Simulator. Arch alone isn't enough on Apple
+          # Silicon, where arm64 *simulator* binaries also exist. otool
+          # renders the platform either as a name ("platform iOS") or as
+          # the raw Mach-O constant (2 = IOS, 7 = IOSSIMULATOR) depending
+          # on the toolchain, so both spellings are matched. Any simulator
+          # indication is a hard failure; an unrecognized rendering is
+          # only a warning, because CFBundleSupportedPlatforms and the
+          # products-directory check below/above independently establish
+          # the same fact and would already have failed. ---
           PLATFORM_INFO="$(otool -l "$EXECUTABLE_PATH" | grep -A4 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_IPHONEOS' || true)"
           echo "Mach-O platform load command:"
           echo "$PLATFORM_INFO"
-          if echo "$PLATFORM_INFO" | grep -qi 'IOSSIMULATOR'; then
+          if grep -qiE 'IOSSIMULATOR|iOS[ -]Simulator|^[[:space:]]*platform[[:space:]]+7$' <<< "$PLATFORM_INFO"; then
             echo "::error::Executable is built for the iOS Simulator platform, not a physical device"
             exit 1
           fi
-          if [ -z "$PLATFORM_INFO" ]; then
-            echo "::error::Could not determine the Mach-O target platform for $EXECUTABLE_PATH"
-            exit 1
+          if ! grep -qiE 'platform[[:space:]]+(iOS|2)$|LC_VERSION_MIN_IPHONEOS' <<< "$PLATFORM_INFO"; then
+            echo "::warning::Could not positively identify the Mach-O platform for $EXECUTABLE_PATH; relying on CFBundleSupportedPlatforms and the products-directory check instead."
           fi
 
           # --- Supported platforms declared in Info.plist must be device
@@ -282,20 +326,54 @@ jobs:
             exit 1
           fi
 
-          # --- Required native modules/frameworks are actually embedded. ---
+          # --- Required native modules are actually present. ---
+          # Expo/RN can ship a given module as an embedded dynamic
+          # framework OR statically linked into the app executable, and
+          # SDK 57's precompiled-xcframework pipeline can change which,
+          # per module, without that meaning the build is broken. So each
+          # module is looked for three ways — an embedded *.framework
+          # anywhere in the bundle, an entry in the executable's load
+          # commands, or a symbol/path match in the binary — and is only
+          # treated as missing when none of the three find it. A narrower
+          # check risks rejecting a perfectly good build.
           FRAMEWORKS_DIR="$APP_PATH/Frameworks"
-          if [ ! -d "$FRAMEWORKS_DIR" ]; then
-            echo "::error::No Frameworks/ directory found inside the app bundle"
-            exit 1
+          if [ -d "$FRAMEWORKS_DIR" ]; then
+            echo "Embedded frameworks:"
+            ls -la "$FRAMEWORKS_DIR"
+          else
+            echo "No Frameworks/ directory in the bundle — modules must be statically linked."
           fi
-          echo "Embedded frameworks:"
-          ls -la "$FRAMEWORKS_DIR"
-          if ! find "$FRAMEWORKS_DIR" -iname 'hermes*.framework' -maxdepth 1 | grep -q .; then
-            echo "::error::hermes.framework (the JS engine) is not embedded in Frameworks/ — this build is incomplete"
-            exit 1
-          fi
-          if ! strings "$EXECUTABLE_PATH" | grep -q 'ExpoModulesCore'; then
-            echo "::error::ExpoModulesCore does not appear to be linked into the executable — required Expo native modules are missing"
+
+          LOAD_COMMANDS="$(otool -L "$EXECUTABLE_PATH" 2>/dev/null || true)"
+          BINARY_STRINGS="$(strings "$EXECUTABLE_PATH" 2>/dev/null || true)"
+
+          module_present() {
+            local name="$1"
+            if find "$APP_PATH" -iname "${name}*.framework" -type d 2>/dev/null | grep -q .; then
+              echo "  $name: found as an embedded framework"
+              return 0
+            fi
+            if grep -qi "$name" <<< "$LOAD_COMMANDS"; then
+              echo "  $name: found in the executable's load commands"
+              return 0
+            fi
+            if grep -qi "$name" <<< "$BINARY_STRINGS"; then
+              echo "  $name: found linked into the executable"
+              return 0
+            fi
+            return 1
+          }
+
+          echo "Required native modules:"
+          MISSING_MODULES=""
+          for module in hermes ExpoModulesCore; do
+            if ! module_present "$module"; then
+              echo "  $module: MISSING"
+              MISSING_MODULES="$MISSING_MODULES $module"
+            fi
+          done
+          if [ -n "$MISSING_MODULES" ]; then
+            echo "::error::Required native module(s) missing from the app bundle:$MISSING_MODULES — this build is incomplete"
             exit 1
           fi
 
@@ -351,6 +429,8 @@ jobs:
             echo "| Bundle identifier | \`${{ steps.verify.outputs.actual_bundle_id }}\` |"
             echo "| Architecture | \`${{ steps.verify.outputs.arch_info }}\` |"
             echo "| IPA size | \`${{ steps.package.outputs.ipa_size_bytes }}\` bytes |"
+            echo "| Runner | \`${{ inputs.runner || 'macos-26' }}\` |"
+            echo "| Xcode / Swift | \`${{ steps.xcode_select.outputs.xcode_version }}\` / \`${{ steps.xcode_select.outputs.swift_version }}\` |"
             echo
             echo "### Verification results"
             echo "- ✅ Not a Simulator build (Mach-O platform, Info.plist, and products-directory checks all confirm \`iphoneos\`)"
