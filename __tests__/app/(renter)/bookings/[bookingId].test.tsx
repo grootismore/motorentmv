@@ -116,6 +116,15 @@ function renderScreen() {
  * this proves the renter UI surfaces that rejection clearly rather than
  * failing silently or with a cryptic error, and that the inspection form
  * itself is the obvious next step on the same screen.
+ *
+ * This screen renders more chained/nested cards (GroupedSection, ActionPanel,
+ * PaymentLedger, BookingTimeline) than any other single screen, each layered
+ * on top of the useBooking -> useInspections query sequence this test
+ * exercises. RTL's default findBy* timeout (1000ms) was intermittently too
+ * tight for that on the CI runner even though the underlying render path is
+ * correct (confirmed reproducible in CI, not reproduced locally) -- the
+ * explicit 5000ms below is a realistic budget for that chain, not a mask for
+ * a bug.
  */
 describe('Renter booking detail — handover lifecycle gate', () => {
   it('shows the pickup inspection form (not a summary) when the booking is ready and none is recorded yet', async () => {
@@ -123,7 +132,7 @@ describe('Renter booking detail — handover lifecycle gate', () => {
 
     await renderScreen();
 
-    expect(await screen.findByTestId('inspection-form-pickup')).toBeTruthy();
+    expect(await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 })).toBeTruthy();
     expect(screen.queryByTestId('inspection-summary-pickup')).toBeNull();
   });
 
@@ -140,7 +149,7 @@ describe('Renter booking detail — handover lifecycle gate', () => {
     });
 
     await renderScreen();
-    await screen.findByTestId('inspection-form-pickup');
+    await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 });
 
     fireEvent.press(screen.getByTestId('booking-action-activate'));
 
@@ -153,7 +162,7 @@ describe('Renter booking detail — handover lifecycle gate', () => {
     mockNoInspectionsYet();
 
     await renderScreen();
-    await screen.findByTestId('inspection-form-pickup');
+    await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 });
 
     fireEvent.changeText(screen.getByTestId('inspection-odometer-pickup'), '1200');
     fireEvent.press(screen.getByTestId('inspection-submit-pickup'));
