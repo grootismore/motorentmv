@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ColorValue } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../design-system/ThemeProvider';
@@ -31,9 +32,9 @@ export function useOceanTabBarScreenOptions() {
     tabBarItemStyle: { paddingVertical: 2 },
     tabBarStyle: {
       position: 'absolute' as const,
-      left: theme.spacing.lg,
-      right: theme.spacing.lg,
-      bottom: insets.bottom + theme.spacing.xs,
+      left: theme.spacing.xl,
+      right: theme.spacing.xl,
+      bottom: insets.bottom + theme.spacing.sm,
       height: 52,
       borderRadius: theme.radii.full,
       borderTopWidth: 0,
@@ -41,8 +42,21 @@ export function useOceanTabBarScreenOptions() {
       elevation: 0,
       paddingTop: theme.spacing.xs,
     },
+    // The shadow lives on this plain outer View, not on GlassSurface
+    // itself: GlassSurface clips its own blur/background layers with
+    // overflow:'hidden', which on iOS also clips any shadow set on that
+    // same view down to nothing. Without this wrapper the bar had zero
+    // elevation and, combined with the dark-mode glass/background colors
+    // once being only ~5 RGB units apart (see tokens.ts), was
+    // indistinguishable from a flat continuation of the page on a real
+    // device -- confirmed from physical-device screenshots, not a
+    // hypothetical. tone="default" (not "strong") for a lighter, more
+    // visibly translucent bar -- "strong" is meant for financial/form
+    // content that wants to read as more solid, not the tab bar.
     tabBarBackground: () => (
-      <GlassSurface tone="strong" style={{ flex: 1, borderRadius: theme.radii.full }} />
+      <View style={{ flex: 1, borderRadius: theme.radii.full, ...theme.elevation.raised }}>
+        <GlassSurface tone="default" style={{ flex: 1, borderRadius: theme.radii.full }} />
+      </View>
     ),
   };
 }

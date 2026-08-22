@@ -166,8 +166,15 @@ export const darkColors: ColorTokens = {
   lagoonPrimary: '#3FB5BD',
   lagoonPressed: '#2E8E94',
   pearlBackground: '#0E1A24',
-  glassSurface: 'rgba(20,34,46,0.62)',
-  glassSurfaceStrong: 'rgba(20,34,46,0.90)',
+  /** A meaningfully lighter navy than pearlBackground (rgb 52,72,92 vs
+   * 14,26,36) -- the previous dark-mode value (20,34,46) blended to within
+   * ~5 RGB units of the background at these opacities, so every "glass"
+   * card was visually indistinguishable from the page on a real device
+   * (confirmed from physical-device screenshots: no floating tab bar, no
+   * visible cards, everything reading as one flat dark mass). This isn't
+   * a blur-rendering bug -- the math simply didn't separate. */
+  glassSurface: 'rgba(52,72,92,0.62)',
+  glassSurfaceStrong: 'rgba(52,72,92,0.90)',
   glassBorder: 'rgba(255,255,255,0.08)',
   textPrimary: '#EAF2F6',
   textSecondary: '#9FB3C2',
@@ -184,8 +191,8 @@ export const darkColors: ColorTokens = {
   overlay: 'rgba(0, 0, 0, 0.6)',
 
   background: '#0E1A24',
-  surface: 'rgba(20,34,46,0.62)',
-  surfaceAlt: 'rgba(20,34,46,0.90)',
+  surface: 'rgba(52,72,92,0.62)',
+  surfaceAlt: 'rgba(52,72,92,0.90)',
   border: 'rgba(255,255,255,0.08)',
   primary: '#3FB5BD',
   primaryText: '#0B1826',
