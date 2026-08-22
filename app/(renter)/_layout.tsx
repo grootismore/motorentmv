@@ -25,26 +25,33 @@ export default function RenterLayout() {
       <Tabs initialRouteName="today" screenOptions={screenOptions}>
         <Tabs.Screen
           name="today"
-          options={{ title: 'Today', tabBarIcon: oceanTabBarIcon('today-outline', 'today') }}
+          options={{ title: 'Today', tabBarIcon: oceanTabBarIcon('today-outline', 'today', 'Today') }}
         />
         <Tabs.Screen
           name="calendar"
-          options={{ title: 'Calendar', tabBarIcon: oceanTabBarIcon('calendar-outline', 'calendar') }}
+          options={{
+            title: 'Calendar',
+            tabBarIcon: oceanTabBarIcon('calendar-outline', 'calendar', 'Calendar'),
+          }}
         />
         <Tabs.Screen
           name="bookings/index"
-          options={{ title: 'Bookings', tabBarIcon: oceanTabBarIcon('list-outline', 'list') }}
+          options={{ title: 'Bookings', tabBarIcon: oceanTabBarIcon('list-outline', 'list', 'Bookings') }}
         />
         <Tabs.Screen name="bookings/[bookingId]" options={{ href: null }} />
         <Tabs.Screen
           name="fleet/index"
-          options={{ title: 'Fleet', tabBarIcon: oceanTabBarIcon('car-sport-outline', 'car-sport') }}
+          options={{ title: 'Fleet', tabBarIcon: oceanTabBarIcon('car-sport-outline', 'car-sport', 'Fleet') }}
         />
         <Tabs.Screen
           name="more/index"
           options={{
             title: 'More',
-            tabBarIcon: oceanTabBarIcon('ellipsis-horizontal-circle-outline', 'ellipsis-horizontal-circle'),
+            tabBarIcon: oceanTabBarIcon(
+              'ellipsis-horizontal-circle-outline',
+              'ellipsis-horizontal-circle',
+              'More',
+            ),
           }}
         />
         <Tabs.Screen name="fleet/[vehicleId]/index" options={{ href: null }} />

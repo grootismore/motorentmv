@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ColorValue } from 'react-native';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../design-system/ThemeProvider';
@@ -27,15 +27,22 @@ export function useOceanTabBarScreenOptions() {
     headerShown: false as const,
     tabBarActiveTintColor: theme.colors.lagoonPrimary,
     tabBarInactiveTintColor: theme.colors.textTertiary,
-    tabBarShowLabel: true,
-    tabBarLabelStyle: { fontSize: 10, fontWeight: '600' as const, marginTop: 0 },
+    // The label renders inside oceanTabBarIcon's own pill now, alongside
+    // the icon, instead of as React Navigation's separate default label
+    // element — that's what lets the active tab's highlight wrap icon+label
+    // together as one capsule (the reference's "Home" pill) rather than
+    // tinting two disconnected pieces of text/icon the same color.
+    tabBarShowLabel: false,
     tabBarItemStyle: { paddingVertical: 2 },
     tabBarStyle: {
       position: 'absolute' as const,
       left: theme.spacing.xl,
       right: theme.spacing.xl,
       bottom: insets.bottom + theme.spacing.sm,
-      height: 52,
+      // Tall enough for icon + label + the active pill's own padding to sit
+      // comfortably (56pt is the low end of the compact tab bar guidance),
+      // now that the label renders inside the pill instead of below it.
+      height: 58,
       borderRadius: theme.radii.full,
       borderTopWidth: 0,
       backgroundColor: 'transparent',
@@ -67,13 +74,36 @@ export type OceanTabIconName = keyof typeof Ionicons.glyphMap;
  * React Navigation's own default (~25pt), per the Ocean Glass "compact
  * icons, reduced height" tab bar spec; the `size` React Navigation passes
  * in is ignored on purpose. */
-const TAB_ICON_SIZE = 22;
+const TAB_ICON_SIZE = 20;
 
-/** Renders the thin-line/filled Ionicon pair Ocean Glass uses for the
- * inactive/active tab states — call from each Tabs.Screen's tabBarIcon. */
-export function oceanTabBarIcon(outline: OceanTabIconName, filled: OceanTabIconName) {
+/**
+ * Renders the thin-line/filled Ionicon pair plus its label as one unit —
+ * call from each Tabs.Screen's tabBarIcon. The active tab wraps icon+label
+ * in a soft tinted capsule (`tabActivePill`) instead of only tinting the
+ * icon/label color, matching the segmented-pill tab bar reference (a
+ * distinct rounded highlight behind the selected item, not color alone).
+ */
+export function oceanTabBarIcon(outline: OceanTabIconName, filled: OceanTabIconName, label: string) {
   function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
-    return <Ionicons name={focused ? filled : outline} color={color as string} size={TAB_ICON_SIZE} />;
+    const theme = useTheme();
+    return (
+      <View
+        style={{
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 2,
+          paddingHorizontal: focused ? theme.spacing.md : theme.spacing.sm,
+          paddingVertical: 4,
+          borderRadius: theme.radii.full,
+          backgroundColor: focused ? theme.colors.tabActivePill : 'transparent',
+        }}
+      >
+        <Ionicons name={focused ? filled : outline} color={color as string} size={TAB_ICON_SIZE} />
+        <Text style={{ color: color as string, fontSize: 10, fontWeight: focused ? '700' : '600' }}>
+          {label}
+        </Text>
+      </View>
+    );
   }
   return TabIcon;
 }

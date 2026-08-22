@@ -140,6 +140,10 @@ export const lightColors = {
   glassTint: 'rgba(255,255,255,0.22)',
   glassTintStrong: 'rgba(255,255,255,0.45)',
   glassBorder: 'rgba(15,37,64,0.08)',
+  /** The soft tinted capsule drawn behind the active tab bar item — the
+   * lagoonPrimary accent at low opacity, matching the reference's
+   * pill-highlighted active tab rather than color-only differentiation. */
+  tabActivePill: 'rgba(14,110,118,0.14)',
   textPrimary: '#12283D',
   textSecondary: '#5C7285',
   textTertiary: '#8CA0AF',
@@ -194,6 +198,7 @@ export const darkColors: ColorTokens = {
   glassTint: 'rgba(52,72,92,0.30)',
   glassTintStrong: 'rgba(52,72,92,0.55)',
   glassBorder: 'rgba(255,255,255,0.08)',
+  tabActivePill: 'rgba(63,181,189,0.20)',
   textPrimary: '#EAF2F6',
   textSecondary: '#9FB3C2',
   textTertiary: '#6E8394',

@@ -556,6 +556,31 @@ a useful screen for reviewing the redesign itself.
   RPC, route, or testID touched; `npm run verify` (20 suites / 97 tests) and
   `expo export --platform ios` stayed green.
 
+### Ocean Glass corrective pass, round 4 (segmented-pill tab bar)
+
+Requested against a tvOS-style reference: a floating glass tab bar whose
+active item sits inside its own distinct rounded pill (icon + label
+together), rather than differentiating tabs by tint color alone.
+
+- **`oceanTabBarIcon`** (`src/components/oceanTabBar.tsx`) now renders icon
+  and label together as one unit and takes an explicit `label` argument
+  (all 9 call sites across the customer/renter tab layouts updated). The
+  active tab wraps both in a new `tabActivePill` token — the `lagoonPrimary`
+  accent at 14–20% opacity — so it reads as a soft tinted capsule sitting
+  inside the outer floating bar, matching the reference's highlighted
+  "Home" pill; inactive tabs keep icon+label with no background.
+- `tabBarShowLabel` switched off — the label is drawn inside
+  `oceanTabBarIcon` now instead of React Navigation's separate default
+  label element, which is what lets one pill wrap both pieces together
+  instead of tinting two disconnected elements the same color.
+- Bar height went from 52→58pt (still within the compact tab bar
+  guidance) to give the pill's own padding room without crowding the
+  56–68pt target.
+- Everything else is unchanged: no query, RPC, route, hook signature, or
+  testID touched (labels were already the same strings as each screen's
+  `title`); `npm run verify` (20 suites / 97 tests) and
+  `expo export --platform ios` stayed green.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,
