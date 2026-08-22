@@ -1,0 +1,52 @@
+appId: com.motorentmv.app
+---
+# Renter flow (PRD Prompt 5): sign in -> open the pending booking request
+# left by the customer flow -> accept it.
+#
+# LIMITATION, documented rather than faked: same email-OTP caveat as
+# customer-search-to-request.yaml — the verification-code step types a
+# fixed placeholder value, not a code actually retrieved from an inbox.
+#
+# This flow assumes it runs after customer-search-to-request.yaml has
+# already created a 'requested' booking for this renter's organization
+# (see search-to-accept.yaml, which chains the two) — it does not create
+# one itself.
+
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: 'role-select-renter'
+
+- tapOn:
+    id: 'sign-in-email'
+- inputText: 'renter@example.com'
+- tapOn:
+    id: 'sign-in-continue'
+
+# See the LIMITATION note above.
+- tapOn:
+    id: 'verify-code'
+- inputText: '000000'
+- tapOn:
+    id: 'verify-confirm'
+
+# The bookings inbox defaults to the "Needs action" filter (requested +
+# needs_info) — the new request is visible without changing filters.
+- assertVisible:
+    id: 'bookings-list'
+
+- tapOn:
+    id: 'booking-item-.*'
+    index: 0
+
+- assertVisible:
+    id: 'booking-action-panel'
+
+# Accept is a direct action on a 'requested' booking (see ActionPanel.tsx)
+# — no separate confirm step, unlike decline/needs_info/cancel.
+- tapOn:
+    id: 'booking-action-accept'
+
+- assertVisible:
+    text: 'Accepted'

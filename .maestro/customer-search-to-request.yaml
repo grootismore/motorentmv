@@ -1,0 +1,90 @@
+appId: com.motorentmv.app
+---
+# Customer flow (PRD Prompt 5): anonymous browsing -> search -> listing
+# detail -> authentication gate -> rider details -> request submission.
+#
+# LIMITATION, documented rather than faked: real email-OTP retrieval
+# cannot be automated here without a test-inbox integration this project
+# doesn't have (no such integration exists anywhere in this repo). The
+# "enter code" step below types a fixed placeholder value — it only
+# succeeds against a backend/local Supabase instance configured to accept
+# a fixed test OTP for this address. Running this flow against a real
+# environment requires either wiring a mail-testing API into this step or
+# supplying the code out of band before that step runs.
+
+- launchApp:
+    clearState: true
+
+# Fresh install lands on role-select. Choosing "customer" goes straight
+# into anonymous browsing (see src/features/auth/computeAppGate.ts) — no
+# sign-in required to search, view listings, or get a quote.
+- tapOn:
+    id: 'role-select-customer'
+
+- assertVisible:
+    id: 'search-form'
+
+- tapOn:
+    id: 'search-form-location'
+- inputText: 'Male'
+
+- tapOn:
+    id: 'search-form-submit'
+
+- assertVisible:
+    id: 'search-results'
+
+- tapOn:
+    id: 'vehicle-result-.*'
+    index: 0
+
+- assertVisible:
+    id: 'listing-details'
+
+- assertVisible:
+    id: 'listing-payment-notice'
+
+- tapOn:
+    id: 'listing-request-to-book'
+
+# Signed out: the checkout screen shows the authentication gate instead of
+# the rider-details form.
+- assertVisible:
+    id: 'inline-auth-gate'
+
+- tapOn:
+    id: 'inline-auth-email'
+- inputText: 'customer@example.com'
+- tapOn:
+    id: 'inline-auth-send-code'
+
+# See the LIMITATION note above — this value is a placeholder, not a code
+# actually retrieved from the inbox.
+- tapOn:
+    id: 'inline-auth-code'
+- inputText: '000000'
+- tapOn:
+    id: 'inline-auth-confirm'
+
+- assertVisible:
+    id: 'rider-details-form'
+
+- assertVisible:
+    id: 'rider-details-document-placeholder'
+
+- tapOn:
+    id: 'rider-details-full-name'
+- inputText: 'Test Rider'
+
+- assertVisible:
+    id: 'checkout-payment-notice'
+
+- tapOn:
+    id: 'checkout-submit'
+
+# Request-to-book, not instant booking: submission lands on the new
+# booking's own detail screen, not a confirmed/paid state.
+- assertVisible:
+    id: 'booking-summary'
+- assertVisible:
+    text: 'Requested'

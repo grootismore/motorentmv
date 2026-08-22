@@ -1,13 +1,29 @@
+import { useRouter } from 'expo-router';
+
 import { Screen } from '../../src/components/Screen';
-import { EmptyState } from '../../src/components/states/EmptyState';
+import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
 
 export default function Explore() {
+  const router = useRouter();
+
+  const handleSubmit = (values: SearchFormValues) => {
+    router.push({
+      pathname: '/search',
+      params: {
+        location: values.location || undefined,
+        startsAt: values.startsAtUtc,
+        endsAt: values.endsAtUtc,
+      },
+    });
+  };
+
   return (
-    <Screen title="Explore">
-      <EmptyState
-        title="No listings yet"
-        message="Date/zone search and listing results land in Phase 2 (Prompt 5)."
-      />
+    <Screen
+      title="Find a motorcycle"
+      description="Pick a location and dates — we'll show you what's actually available."
+      scroll
+    >
+      <SearchForm onSubmit={handleSubmit} submitLabel="Search availability" />
     </Screen>
   );
 }

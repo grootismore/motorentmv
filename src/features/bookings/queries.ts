@@ -71,6 +71,26 @@ export function useOrgBookings(organizationId: string | undefined, statuses?: Bo
   });
 }
 
+export function useCustomerBookings(customerId: string | undefined, statuses?: BookingStatus[]) {
+  return useQuery({
+    queryKey: ['customer-bookings', customerId, statuses],
+    enabled: Boolean(customerId),
+    queryFn: async (): Promise<BookingWithDetails[]> => {
+      let query = getSupabase()
+        .from('bookings')
+        .select(BOOKING_SELECT)
+        .eq('customer_id', customerId as string)
+        .order('starts_at', { ascending: false });
+      if (statuses && statuses.length > 0) {
+        query = query.in('status', statuses);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as unknown as BookingWithDetails[];
+    },
+  });
+}
+
 export function useBooking(bookingId: string | undefined) {
   return useQuery({
     queryKey: ['booking', bookingId],

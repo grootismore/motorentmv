@@ -873,6 +873,70 @@ export type Database = {
         };
         Returns: Database['public']['Tables']['bookings']['Row'];
       };
+      search_available_vehicles: {
+        Args: {
+          p_starts_at: string;
+          p_ends_at: string;
+          p_location?: string | null;
+          p_category?: string | null;
+          p_transmission?: Database['public']['Enums']['transmission_type'] | null;
+          p_max_daily_rate_laari?: number | null;
+        };
+        Returns: {
+          vehicle_id: string;
+          organization_id: string;
+          organization_name: string;
+          registration_number: string;
+          make: string | null;
+          model: string | null;
+          year: number | null;
+          category: string | null;
+          transmission: Database['public']['Enums']['transmission_type'] | null;
+          color: string | null;
+          location: string | null;
+          deposit_amount_laari: number;
+          daily_rate_laari: number | null;
+          hourly_rate_laari: number | null;
+        }[];
+      };
+      get_vehicle_listing: {
+        Args: {
+          p_vehicle_id: string;
+        };
+        Returns: {
+          vehicle_id: string;
+          organization_id: string;
+          organization_name: string;
+          registration_number: string;
+          make: string | null;
+          model: string | null;
+          year: number | null;
+          category: string | null;
+          transmission: Database['public']['Enums']['transmission_type'] | null;
+          color: string | null;
+          location: string | null;
+          included_accessories: string[];
+          deposit_amount_laari: number;
+          daily_rate_laari: number | null;
+          hourly_rate_laari: number | null;
+        }[];
+      };
+      get_listing_quote: {
+        Args: {
+          p_vehicle_id: string;
+          p_starts_at: string;
+          p_ends_at: string;
+        };
+        Returns: Json;
+      };
+      is_vehicle_bookable: {
+        Args: {
+          p_vehicle_id: string;
+          p_starts_at: string;
+          p_ends_at: string;
+        };
+        Returns: boolean;
+      };
       invite_org_member_by_email: {
         Args: {
           p_organization_id: string;

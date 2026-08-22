@@ -3,10 +3,14 @@ import { View } from 'react-native';
 
 import { Button } from '../../../src/components/Button';
 import { Screen } from '../../../src/components/Screen';
+import { LoadingState } from '../../../src/components/states/LoadingState';
+import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { useExperienceIntent } from '../../../src/features/auth/experience-intent';
+import { InlineAuthGate } from '../../../src/features/auth/InlineAuthGate';
 import { signOut } from '../../../src/features/auth/session';
 
 export default function CustomerProfile() {
+  const { session } = useAuth();
   const { setIntent } = useExperienceIntent();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -15,9 +19,26 @@ export default function CustomerProfile() {
     await signOut();
     setIntent(null);
     // No manual navigation: AuthProvider's onAuthStateChange flips
-    // session to null, useAppGate recomputes to 'auth', and the root
-    // Stack.Protected swap handles the rest.
+    // session to null, but with intent also cleared here the gate lands
+    // back on role-select — a browsing customer's next visit starts from
+    // the same choice they made this time, not silently re-entering
+    // anonymous customer mode.
   };
+
+  if (session === undefined) {
+    return <LoadingState label="Loading…" />;
+  }
+
+  if (session === null) {
+    return (
+      <Screen title="Profile" scroll>
+        <InlineAuthGate
+          title="Sign in"
+          description="Sign in to manage your profile and see your booking history."
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen title="Profile" description="Documents and profile management land in later phases.">

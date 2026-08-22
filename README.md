@@ -3,8 +3,9 @@
 Motorcycle rental operations and booking for Malé and Hulhumalé — Expo/React Native TypeScript app for iOS and Android.
 
 **Phase 0** (engineering scaffold), the **database foundation** (Supabase
-schema/RLS/migrations), and **auth + renter onboarding + fleet management**
-are done. Customer booking is still a placeholder shell — see PRD Prompt 5.
+schema/RLS/migrations), **auth + renter onboarding + fleet management**, and
+the **customer experience** (anonymous search, listing, request-to-book,
+My Bookings — PRD Prompt 5) are done.
 See [`docs/architecture/0001-foundation-decisions.md`](./docs/architecture/0001-foundation-decisions.md)
 for what was decided and why, and the PRD for what comes next.
 
@@ -19,6 +20,9 @@ for what was decided and why, and the PRD for what comes next.
 - expo-image-picker + expo-image for vehicle photos
 - ESLint (`eslint-config-expo`, flat config) + Prettier
 - Jest (`jest-expo` preset) + React Native Testing Library
+- Maestro flow files (`.maestro/`) for on-device/simulator E2E — see
+  [Known, accepted issues](#known-accepted-issues) below for why they
+  aren't runnable in this sandbox
 
 ## Prerequisites
 
@@ -75,9 +79,13 @@ commit.
 ## Project structure
 
 ```
+.maestro/              E2E flow files (search -> request -> renter accept)
+                       — see Known, accepted issues for the email-OTP caveat
 app/                  Expo Router routes (file-based)
   (auth)/              Role selection, sign-in, verify — real Supabase OTP auth
-  (customer)/          Customer tab experience — still shells only (Prompt 5)
+  (customer)/          Customer tabs: explore/search, listing, checkout,
+                       My Bookings, profile — anonymous browsing, auth gate
+                       only at request-to-book (PRD Prompt 5)
   (renter)/            Onboarding (no org yet) or the renter tabs (org exists)
     fleet/              List, detail, create, edit — real Supabase CRUD
     more/staff.tsx       Staff invitation (placeholder-level, see Database below)
@@ -92,13 +100,19 @@ src/
   design-system/        tokens.ts, ThemeProvider
   features/
     auth/                AuthProvider (session restore), session.ts (OTP),
-                         experience-intent.tsx + useAppGate (routing gate)
+                         experience-intent.tsx + useAppGate (routing gate),
+                         InlineAuthGate (in-screen sign-in, no route change)
     organizations/        CreateOrganizationScreen, membership/invite queries
     fleet/                vehicle/rate/availability-block queries, photo
                          upload, VehicleForm + Rates/Photos/AvailabilityBlocks
                          sections
+    discovery/            search/listing/quote queries, SearchForm,
+                         VehicleResultItem, FilterBar (customer-facing)
+    checkout/             request-submission mutation, RiderDetailsForm
+    profile/              customer's own profile query/update
   lib/                  env.ts, supabase.ts, database.types.ts, query-client.ts,
-                       query-persister.ts, result.ts
+                       query-persister.ts, result.ts, datetime.ts (Maldives
+                       UTC+5 conversions)
 ```
 
 ## App config and EAS
@@ -169,6 +183,58 @@ when ready to build.
   booking row), and the eight state-machine actions
   (`src/features/bookings/ActionPanel.tsx`) wired straight to their RPCs —
   no client-side status field is ever written directly.
+
+## Customer experience
+
+- **Anonymous browsing**: `computeAppGate` lets a signed-out user who picked
+  "customer" on role-select go straight into search/listing/quote — no
+  sign-in required until they actually try to request a booking. The
+  underlying RPCs (`search_available_vehicles`, `get_vehicle_listing`,
+  `get_listing_quote`, `is_vehicle_bookable`) are granted to the Postgres
+  `anon` role directly, with a narrowly-scoped RLS policy exposing only
+  `vehicle_photo` documents/storage objects for `available` vehicles — never
+  direct table access to `vehicles`/`organizations`.
+- **Search correctness**: `search_available_vehicles` excludes a vehicle for
+  a requested interval if it overlaps an accepted booking
+  (`vehicle_busy_ranges`) or a manual `availability_blocks` row, using
+  half-open UTC range overlap — proven with a fixture in
+  `supabase/tests/06_customer_discovery.sql` covering both a same-instant
+  request expressed as a different UTC offset and a window that no longer
+  overlaps.
+- **Maldives time display**: all customer-facing dates render via
+  `formatMaldivesDateTime`/round-trip through `maldivesInputToUtcIso` /
+  `utcIsoToMaldivesInput` (`src/lib/datetime.ts`) — fixed UTC+5, no DST, pure
+  arithmetic rather than IANA zone-string parsing. Every RPC and stored
+  timestamp is still UTC; the conversion is display/input-only.
+- **Request-to-book, not instant booking**: submitting checkout calls
+  `request_booking`, landing the customer on that booking's own detail
+  screen showing status "Requested" — a renter still has to accept it (see
+  Auth/routing/bookings above). Nothing about submission charges a payment
+  method.
+- **Retry-safe submission**: `useSubmitBookingRequest` sets `retry: 1`;
+  `request_booking` itself de-duplicates on
+  `(vehicle_id, customer_id, starts_at, ends_at)`, so the automatic retry
+  and a customer's own "Try again" tap after a failure are both safe to
+  replay with identical params — verified in
+  `__tests__/app/(customer)/checkout.test.tsx` by asserting all attempts
+  carry byte-identical params.
+- **Gateway-agnostic checkout**: no payment SDK is integrated. The checkout
+  and listing screens both carry an explicit, always-visible notice
+  (`checkout-payment-notice` / `listing-payment-notice`) that the request is
+  free to submit and payment is handled separately, later — deliberately
+  not wired to any specific processor yet.
+- **Rider details / documents**: `RiderDetailsForm` collects name/phone only
+  and shows a clearly-labeled placeholder
+  (`rider-details-document-placeholder`) explaining that license/ID upload
+  isn't built yet — bring documents to pickup — the same "visible
+  placeholder, not a silent gap" approach as the Prompt 3 staff-invitation
+  flow.
+- **E2E flows**: `.maestro/customer-search-to-request.yaml`,
+  `.maestro/renter-accept-request.yaml`, and the composed
+  `.maestro/search-to-accept.yaml` drive the full search → request → renter
+  accept path via the app's existing testIDs. See Known, accepted issues for
+  why they can't actually be run in this sandbox and the email-OTP caveat
+  baked into both flows.
 
 ## Database
 
@@ -315,10 +381,21 @@ shim, see that file's header comment.
   mirrored `__tests__/app/` tree instead — see Project structure above.
 - No iOS Simulator or Android Emulator is available in this sandbox (no
   Xcode/Android SDK). Verification here is `expo export --platform ios`
-  and `--platform android` (both bundle cleanly, 1378/1466 modules) plus
+  and `--platform android` (both bundle cleanly, 1388/1476 modules) plus
   the full unit/component/RLS test suites — not an on-device or
   in-simulator run. Real device/simulator verification is still needed
   before treating this as done.
+- The `.maestro/` flow files are written and reviewed but **not run** in
+  this sandbox for the same reason — `maestro test` needs a booted
+  simulator/emulator or connected device, neither available here. They're
+  provided ready to run once one is.
+- Both Maestro flows type a fixed placeholder value into the email-OTP
+  step rather than a code retrieved from a real inbox — there's no
+  test-inbox/mail-testing integration in this project to fetch one, and
+  fabricating success there would misrepresent what's actually verified.
+  Running either flow against a real backend needs either that OTP step
+  wired to a mail-testing API, or the code supplied out of band before the
+  flow reaches it.
 - `(renter)/calendar.tsx` is a lightweight agenda (bookings grouped by
   pickup date), not a calendar-grid view — no date/calendar library was
   added for it, per the same "prefer Expo-supported packages, avoid

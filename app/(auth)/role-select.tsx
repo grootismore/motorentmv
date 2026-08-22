@@ -38,7 +38,15 @@ export default function RoleSelect() {
             testID={`role-select-${option.role}`}
             onPress={() => {
               setIntent(option.role);
-              router.push({ pathname: '/sign-in', params: { role: option.role } });
+              // Renter onboarding has no anonymous mode — sign in right
+              // away. A customer, though, browses anonymously from here
+              // (PRD Prompt 5): setting intent alone flips useAppGate to
+              // 'customer' and mounts that route group; there's nothing
+              // to navigate to, sign-in only happens later, inline, when
+              // they actually submit a booking request.
+              if (option.role === 'renter') {
+                router.push({ pathname: '/sign-in', params: { role: option.role } });
+              }
             }}
             accessibilityRole="button"
             accessibilityLabel={option.title}

@@ -12,10 +12,34 @@ describe('computeAppGate', () => {
     ).toBe('loading');
   });
 
-  it('goes to auth when there is no session', () => {
+  it('goes to auth when there is no session and no intent chosen yet', () => {
     expect(
       computeAppGate({ hasSession: false, hasMembership: false, isMembershipLoading: false, intent: null }),
     ).toBe('auth');
+  });
+
+  it('goes to auth (not customer) when signed out and renter intent was chosen', () => {
+    expect(
+      computeAppGate({
+        hasSession: false,
+        hasMembership: false,
+        isMembershipLoading: false,
+        intent: 'renter',
+      }),
+    ).toBe('auth');
+  });
+
+  it('goes straight to customer, anonymously, when signed out and customer intent was chosen', () => {
+    // PRD Prompt 5: browsing/search/listing/quote are anonymous; sign-in
+    // only happens inline at request submission, not as a route gate.
+    expect(
+      computeAppGate({
+        hasSession: false,
+        hasMembership: false,
+        isMembershipLoading: false,
+        intent: 'customer',
+      }),
+    ).toBe('customer');
   });
 
   it('goes to renter when a membership exists, regardless of intent', () => {

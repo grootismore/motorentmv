@@ -6,10 +6,10 @@ import { ErrorState } from '../../../src/components/states/ErrorState';
 import { LoadingState } from '../../../src/components/states/LoadingState';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
 import { ActionPanel } from '../../../src/features/bookings/ActionPanel';
+import { BookingTimeline } from '../../../src/features/bookings/BookingTimeline';
 import { ConflictWarning } from '../../../src/features/bookings/ConflictWarning';
 import {
   useBooking,
-  useBookingEvents,
   useBookingQuotePreview,
   useVehicleConflicts,
   type BookingQuote,
@@ -18,46 +18,6 @@ import { QuotePanel } from '../../../src/features/bookings/QuotePanel';
 import { displayBookingStatus } from '../../../src/features/bookings/status';
 import { StatusBadge } from '../../../src/features/bookings/StatusBadge';
 import { formatMaldivesDateTime } from '../../../src/lib/datetime';
-
-const sectionTitle = { fontSize: 18, fontWeight: '700' as const };
-
-const EVENT_LABEL: Record<string, string> = {
-  created: 'Requested',
-  status_change: 'Status changed',
-};
-
-function eventNote(metadata: unknown): string | null {
-  if (typeof metadata !== 'object' || metadata === null || Array.isArray(metadata)) return null;
-  const note = (metadata as Record<string, unknown>).note;
-  return typeof note === 'string' && note.length > 0 ? note : null;
-}
-
-function BookingTimeline({ bookingId }: { bookingId: string }) {
-  const theme = useTheme();
-  const events = useBookingEvents(bookingId);
-
-  if (!events.data || events.data.length === 0) return null;
-
-  return (
-    <View style={{ gap: theme.spacing.md }}>
-      <Text style={[sectionTitle, { color: theme.colors.textPrimary }]}>History</Text>
-      <View style={{ gap: theme.spacing.sm }} testID="booking-timeline">
-        {events.data.map((event) => (
-          <View key={event.id}>
-            <Text style={{ color: theme.colors.textPrimary }}>
-              {EVENT_LABEL[event.event_type] ?? event.event_type}
-              {event.to_status ? ` → ${event.to_status}` : ''}
-            </Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-              {formatMaldivesDateTime(event.created_at)}
-              {eventNote(event.metadata) ? ` — ${eventNote(event.metadata)}` : ''}
-            </Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
 
 export default function BookingDetail() {
   const theme = useTheme();

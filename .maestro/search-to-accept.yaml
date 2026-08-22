@@ -1,0 +1,14 @@
+appId: com.motorentmv.app
+---
+# Composed end-to-end flow matching the PRD Prompt 5 ask verbatim:
+# "search -> request -> renter accept". Chains the two flows below via
+# runFlow so they can also be run independently for narrower debugging.
+#
+# LIMITATION: both sub-flows type a fixed placeholder email-OTP code
+# rather than retrieving a real one — see the comment at the top of each
+# for why, and what wiring a real test-inbox integration would take.
+#
+# Run with: maestro test .maestro/search-to-accept.yaml
+
+- runFlow: customer-search-to-request.yaml
+- runFlow: renter-accept-request.yaml

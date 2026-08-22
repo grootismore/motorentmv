@@ -39,13 +39,16 @@ describe('RoleSelect', () => {
     expect(onIntent).toHaveBeenLastCalledWith('renter');
   });
 
-  it('records customer intent and navigates to sign-in when "rent a motorcycle" is tapped', async () => {
+  it('records customer intent and does not force sign-in when "rent a motorcycle" is tapped', async () => {
     const onIntent = jest.fn();
     await renderRoleSelect(onIntent);
 
     await fireEvent.press(screen.getByTestId('role-select-customer'));
 
-    expect(mockPush).toHaveBeenCalledWith({ pathname: '/sign-in', params: { role: 'customer' } });
+    // Customer browsing is anonymous (PRD Prompt 5) — setting the intent
+    // is what flips useAppGate to 'customer' on its own; there's no
+    // sign-in screen to push to here.
+    expect(mockPush).not.toHaveBeenCalled();
     expect(onIntent).toHaveBeenLastCalledWith('customer');
   });
 });
