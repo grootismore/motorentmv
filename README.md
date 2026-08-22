@@ -473,6 +473,63 @@ oceanTabBar.tsx`.
   `SearchForm.test.tsx` now drives the real `@react-native-community/
 datetimepicker` component the same way a physical device would fire it.
 
+### Ocean Glass corrective pass, round 2 (GlassSurface tint architecture)
+
+A further physical-device round (_"Its not floating menu bars? Not
+transparent glass"_) and a read-only forensic audit against the reference
+image found the actual root cause of the "flat opaque block" look, deeper
+than the round-1 color/shadow fixes above:
+
+- **`GlassSurface`'s blur overlay reused the opaque fallback tokens.** On
+  iOS, a real `BlurView` renders, then a tint `View` is drawn on top of it
+  to pull the blur toward the app's palette. That tint was
+  `glassSurface`/`glassSurfaceStrong` — the same 68–92%-opaque tokens
+  meant for the _no-blur_ fallback path (Android, or Reduce Transparency)
+  — so on every device where blur genuinely was rendering, an
+  almost-opaque flat color sat directly on top of it and hid it almost
+  entirely. Every "glass" panel and the floating tab bar read as a flat
+  block regardless of whether `BlurView` worked, which is why round 1's
+  color/shadow fixes alone weren't enough.
+- **Fix**: split the token into two pairs (`src/design-system/tokens.ts`).
+  `glassSurface`/`glassSurfaceStrong` stay high-opacity and are now used
+  _only_ on the no-blur fallback path. New `glassTint`/`glassTintStrong`
+  (22–55% opacity, calibrated separately for light and dark) are used
+  _only_ as the overlay drawn on top of a real `BlurView`, so the blur is
+  tinted rather than smothered. `GlassSurface.tsx` now reads the correct
+  pair depending on which path it's rendering.
+- **Compaction pass** against the same audit's proportion guidance: chip
+  filters (`ChipSelect`) went from a 44pt-tall pill with 16px padding to a
+  34pt visual height (touch target preserved via `hitSlop`, not chip
+  bulk); `EmptyState` gained an optional small `icon` slot, now used on
+  every list-emptying screen (bookings, fleet, calendar, notifications,
+  search, explore) instead of bare text; Search's date-range summary bar
+  switched from the long `formatMaldivesDateTime` string to the compact
+  `formatMaldivesDateShort`/`formatMaldivesTime12h` pair `DateRangeSelector`
+  already introduced; Search's results-loading state switched from a
+  blocking centered spinner to a skeleton list shaped like
+  `VehicleResultItem`'s actual row; Explore's discovery-loading skeleton
+  went from two generic full-height blocks to one skeleton shaped like the
+  real hero card.
+- **Motorcycle card field pass**: `VehicleResultItem`'s hero variant (used
+  on Explore) now also renders an "Available" capsule badge over the
+  illustration tile — every row `search_available_vehicles()` returns is,
+  by construction, bookable for the requested window, so this surfaces
+  that server-guaranteed fact rather than adding a new availability check.
+  Make/model, transmission, engine category, pickup location and MVR price
+  were already present from round 1.
+- Every change here is presentation-only: no query, RPC, route, hook
+  signature, or testID changed, and `npm run verify` (format, lint,
+  typecheck, all 19 suites / 96 tests) plus `expo export --platform ios`
+  stayed green throughout.
+- **Still not independently verified**: as in round 1, this sandbox has no
+  iOS Simulator, Android Emulator, or physical device, so the corrected
+  blur/tint rendering has not been (and cannot be) confirmed against a
+  real screenshot here — only against the code and the RGB-level reasoning
+  above. A new unsigned IPA is produced by `.github/workflows/
+ios-unsigned-ipa.yml`, which triggers automatically on push to this
+  branch; retrieve it from that workflow run's artifacts to verify on an
+  actual device.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

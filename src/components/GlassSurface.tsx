@@ -35,7 +35,6 @@ interface GlassSurfaceProps {
 export function GlassSurface({ tone = 'default', style, children, testID }: GlassSurfaceProps) {
   const theme = useTheme();
   const reduceTransparency = useReduceTransparency();
-  const backgroundColor = tone === 'strong' ? theme.colors.glassSurfaceStrong : theme.colors.glassSurface;
 
   const baseStyle: ViewStyle = {
     borderRadius: theme.radii.card,
@@ -46,13 +45,23 @@ export function GlassSurface({ tone = 'default', style, children, testID }: Glas
 
   const useBlur = Platform.OS === 'ios' && !reduceTransparency;
 
+  // No blur exists on this path (Android, or Reduce Transparency on iOS) —
+  // the panel has to read as a surface entirely on its own, so it uses the
+  // higher-opacity fallback tokens.
   if (!useBlur) {
+    const backgroundColor = tone === 'strong' ? theme.colors.glassSurfaceStrong : theme.colors.glassSurface;
     return (
       <View testID={testID} style={[baseStyle, { backgroundColor }, style]}>
         {children}
       </View>
     );
   }
+
+  // A real BlurView is rendering underneath, so the overlay only needs to
+  // tint it — the low-opacity glassTint/glassTintStrong tokens, not the
+  // opaque fallback tokens above (reusing those was the bug: it hid the
+  // blur almost entirely).
+  const tintColor = tone === 'strong' ? theme.colors.glassTintStrong : theme.colors.glassTint;
 
   return (
     <View testID={testID} style={[baseStyle, style]}>
@@ -61,7 +70,7 @@ export function GlassSurface({ tone = 'default', style, children, testID }: Glas
         intensity={tone === 'strong' ? 70 : 40}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: tintColor }]} />
       {children}
     </View>
   );

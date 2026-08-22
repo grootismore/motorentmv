@@ -5,16 +5,45 @@ import { FlatList, View } from 'react-native';
 import { Button } from '../../src/components/Button';
 import { GlassSurface } from '../../src/components/GlassSurface';
 import { Screen } from '../../src/components/Screen';
+import { Skeleton } from '../../src/components/Skeleton';
 import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
-import { LoadingState } from '../../src/components/states/LoadingState';
 import { Body } from '../../src/components/Typography';
 import { useTheme } from '../../src/design-system/ThemeProvider';
 import { FilterBar, type FilterValues } from '../../src/features/discovery/FilterBar';
 import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
 import { useSearchVehicles } from '../../src/features/discovery/queries';
 import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
-import { formatMaldivesDateTime } from '../../src/lib/datetime';
+import { formatMaldivesDateShort, formatMaldivesTime12h } from '../../src/lib/datetime';
+
+/** Mirrors VehicleResultItem's row shape (illustration tile + two text
+ * lines + price) so the loading state resembles the final layout instead
+ * of a blocking centered spinner. */
+function SearchResultsSkeleton() {
+  const theme = useTheme();
+  return (
+    <View testID="search-results-skeleton" style={{ gap: theme.spacing.sm }}>
+      {[0, 1, 2].map((i) => (
+        <GlassSurface
+          key={i}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+          }}
+        >
+          <Skeleton width={56} height={56} radius={theme.radii.control} />
+          <View style={{ flex: 1, gap: theme.spacing.xs }}>
+            <Skeleton width="70%" height={17} />
+            <Skeleton width="50%" height={13} />
+            <Skeleton width="40%" height={13} />
+          </View>
+        </GlassSurface>
+      ))}
+    </View>
+  );
+}
 
 export default function Search() {
   const theme = useTheme();
@@ -68,7 +97,7 @@ export default function Search() {
             >
               <Body testID="search-current-range" style={{ flex: 1 }}>
                 {params.startsAt && params.endsAt
-                  ? `${formatMaldivesDateTime(params.startsAt)} → ${formatMaldivesDateTime(params.endsAt)}`
+                  ? `${formatMaldivesDateShort(params.startsAt)}, ${formatMaldivesTime12h(params.startsAt)} → ${formatMaldivesDateShort(params.endsAt)}, ${formatMaldivesTime12h(params.endsAt)}`
                   : 'No dates set'}
                 {params.location ? ` · ${params.location}` : ''}
               </Body>
@@ -85,12 +114,13 @@ export default function Search() {
 
         {!isEditing && criteria ? (
           <>
-            {results.isLoading ? <LoadingState label="Searching…" /> : null}
+            {results.isLoading ? <SearchResultsSkeleton /> : null}
             {results.isError ? (
               <ErrorState message={results.error.message} onRetry={() => results.refetch()} />
             ) : null}
             {results.data && results.data.length === 0 ? (
               <EmptyState
+                icon="search-outline"
                 title="Nothing available"
                 message="No vehicles match these dates and filters. Try widening your search."
               />

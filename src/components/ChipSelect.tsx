@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { minTouchTarget } from '../design-system/tokens';
 import { useTheme } from '../design-system/ThemeProvider';
 import { Caption } from './Typography';
 
@@ -35,6 +34,7 @@ export function ChipSelect<T extends string>({
               accessibilityState={{ selected }}
               accessibilityLabel={option.label}
               onPress={() => onChange(option.value)}
+              hitSlop={6}
               style={({ pressed }) => [
                 styles.chip,
                 {
@@ -65,8 +65,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   chip: {
-    minHeight: minTouchTarget,
-    paddingHorizontal: 16,
+    // Visually compact per Ocean Glass proportions (~32-38pt chips) — the
+    // 44pt minimum touch target is preserved via hitSlop above instead of
+    // inflating the chip itself.
+    minHeight: 34,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,

@@ -57,7 +57,11 @@ export default function RenterBookings() {
       ) : null}
 
       {bookings.data && bookings.data.length === 0 ? (
-        <EmptyState title="Nothing here" message="No bookings currently match this filter." />
+        <EmptyState
+          icon="calendar-outline"
+          title="Nothing here"
+          message="No bookings currently match this filter."
+        />
       ) : null}
 
       {bookings.data && bookings.data.length > 0 ? (

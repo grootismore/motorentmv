@@ -125,8 +125,20 @@ export const lightColors = {
   lagoonPrimary: '#0E6E76',
   lagoonPressed: '#0A5259',
   pearlBackground: '#F4F7F9',
+  /** The OPAQUE fallback background — Android, or iOS with Reduce
+   * Transparency on. No blur exists in this path, so it needs to read as
+   * a surface entirely on its own. */
   glassSurface: 'rgba(255,255,255,0.68)',
   glassSurfaceStrong: 'rgba(255,255,255,0.92)',
+  /** The TINT drawn over a real BlurView on iOS. Deliberately much lower
+   * opacity than glassSurface/glassSurfaceStrong above -- those values
+   * were previously reused for this overlay too, which meant a 62-90%
+   * opaque flat-color layer sat directly on top of the blur and hid it
+   * almost entirely (every card looked like a flat opaque block
+   * regardless of whether BlurView was working). This one only tints the
+   * blur, it doesn't replace it. */
+  glassTint: 'rgba(255,255,255,0.22)',
+  glassTintStrong: 'rgba(255,255,255,0.45)',
   glassBorder: 'rgba(15,37,64,0.08)',
   textPrimary: '#12283D',
   textSecondary: '#5C7285',
@@ -175,6 +187,12 @@ export const darkColors: ColorTokens = {
    * a blur-rendering bug -- the math simply didn't separate. */
   glassSurface: 'rgba(52,72,92,0.62)',
   glassSurfaceStrong: 'rgba(52,72,92,0.90)',
+  /** The TINT drawn over a real BlurView on iOS — see the matching comment
+   * on lightColors.glassTint. Same fix, dark-mode calibration: light
+   * enough that the blur still reads through, dark enough that text
+   * placed on it stays legible against a bright background behind it. */
+  glassTint: 'rgba(52,72,92,0.30)',
+  glassTintStrong: 'rgba(52,72,92,0.55)',
   glassBorder: 'rgba(255,255,255,0.08)',
   textPrimary: '#EAF2F6',
   textSecondary: '#9FB3C2',

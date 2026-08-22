@@ -52,6 +52,7 @@ export default function Fleet() {
 
       {vehicles.data && vehicles.data.length === 0 ? (
         <EmptyState
+          icon="bicycle-outline"
           title="No motorcycles yet"
           message="Add your first vehicle to start managing availability and bookings."
           actionLabel="Add vehicle"

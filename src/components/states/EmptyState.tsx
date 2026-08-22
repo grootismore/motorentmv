@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
 
 import { useTheme } from '../../design-system/ThemeProvider';
@@ -9,9 +10,12 @@ interface EmptyStateProps {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Optional compact icon shown above the title — omit for a plain
+   * text-only empty state. */
+  icon?: keyof typeof Ionicons.glyphMap;
 }
 
-export function EmptyState({ title, message, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ title, message, actionLabel, onAction, icon }: EmptyStateProps) {
   const theme = useTheme();
 
   return (
@@ -20,6 +24,14 @@ export function EmptyState({ title, message, actionLabel, onAction }: EmptyState
       accessible
       accessibilityRole="text"
     >
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={28}
+          color={theme.colors.textTertiary}
+          style={{ marginBottom: theme.spacing.sm }}
+        />
+      ) : null}
       <SectionTitle style={{ textAlign: 'center' }}>{title}</SectionTitle>
       {message ? (
         <Body color={theme.colors.textSecondary} style={{ textAlign: 'center', marginTop: theme.spacing.xs }}>

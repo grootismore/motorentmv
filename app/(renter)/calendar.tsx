@@ -39,6 +39,7 @@ export default function Calendar() {
     return (
       <Screen title="Calendar" titleStyle="large">
         <EmptyState
+          icon="calendar-outline"
           title="Nothing scheduled"
           message="Accepted, ready and active bookings will appear here grouped by pickup date."
         />

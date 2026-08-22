@@ -127,7 +127,11 @@ export default function Notifications() {
           <ErrorState message={notifications.error.message} onRetry={() => notifications.refetch()} />
         ) : null}
         {notifications.data && notifications.data.length === 0 ? (
-          <EmptyState title="No notifications yet" message="Activity on your bookings will show up here." />
+          <EmptyState
+            icon="notifications-outline"
+            title="No notifications yet"
+            message="Activity on your bookings will show up here."
+          />
         ) : null}
         {notifications.data && notifications.data.length > 0 ? (
           <FlatList

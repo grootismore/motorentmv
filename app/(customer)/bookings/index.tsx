@@ -40,6 +40,7 @@ export default function CustomerBookings() {
       ) : null}
       {bookings.data && bookings.data.length === 0 ? (
         <EmptyState
+          icon="calendar-outline"
           title="No bookings yet"
           message="Search for a motorcycle and request a booking to see it here."
         />

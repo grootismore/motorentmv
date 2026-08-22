@@ -107,12 +107,35 @@ export function VehicleResultItem({
     </View>
   ) : null;
 
+  // search_available_vehicles() (20260821150001_customer_discovery.sql)
+  // only ever returns vehicles that are bookable for the requested window
+  // -- so every real result is, by construction, "Available" for these
+  // dates. This badge surfaces that server-guaranteed fact rather than
+  // deriving its own availability check.
+  const availabilityBadge = (
+    <View
+      style={{
+        position: 'absolute',
+        top: theme.spacing.sm,
+        insetInlineStart: theme.spacing.sm,
+        backgroundColor: theme.colors.success,
+        borderRadius: theme.radii.full,
+        paddingHorizontal: theme.spacing.sm,
+        paddingVertical: 2,
+      }}
+    >
+      <Label color={theme.colors.textInverse} style={{ fontWeight: '700' }}>
+        Available
+      </Label>
+    </View>
+  );
+
   const card =
     variant === 'hero' ? (
       <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.sm }}>
         <View>
           <VehicleIllustration size="hero" />
-          {demoBadge}
+          {demo ? demoBadge : availabilityBadge}
         </View>
         <View
           style={{

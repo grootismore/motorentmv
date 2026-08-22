@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GlassSurface } from '../../src/components/GlassSurface';
 import { Skeleton } from '../../src/components/Skeleton';
 import { EmptyState } from '../../src/components/states/EmptyState';
 import { ErrorState } from '../../src/components/states/ErrorState';
@@ -117,10 +118,18 @@ export default function Explore() {
           <SectionTitle>Available near you</SectionTitle>
 
           {discovery.isLoading ? (
-            <View style={{ gap: theme.spacing.sm }}>
+            // A single card matching VehicleResultItem's hero shape, not a
+            // stack of full-height placeholder blocks — the discovery
+            // section streams in fast, so a lighter, shape-matching
+            // skeleton reads better than a heavy loading footprint.
+            <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.sm }}>
               <Skeleton height={140} radius={theme.radii.card} />
-              <Skeleton height={140} radius={theme.radii.card} />
-            </View>
+              <View style={{ gap: theme.spacing.xs }}>
+                <Skeleton width="60%" height={20} />
+                <Skeleton width="40%" height={13} />
+                <Skeleton width="30%" height={13} />
+              </View>
+            </GlassSurface>
           ) : null}
 
           {discovery.isError ? (
@@ -156,6 +165,7 @@ export default function Explore() {
 
           {!discovery.isLoading && !discovery.isError && discovery.data?.length === 0 && !showDemoFallback ? (
             <EmptyState
+              icon="bicycle-outline"
               title="No motorcycles listed yet"
               message="Check back soon, or choose your own dates above to search a specific window."
             />
