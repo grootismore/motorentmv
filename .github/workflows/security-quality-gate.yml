@@ -1,0 +1,98 @@
+name: Security & Quality Gate
+
+# Adapted from grootismore/renata-jelly's .github/workflows/linting.yml.
+# Runs on a plain Linux runner so a PR that only touches docs/DB/non-iOS
+# code gets a fast required check without waiting on ios-unsigned-device.yml's
+# macOS runner. expo-doctor is non-blocking here (continue-on-error), same
+# choice Renata made -- ios-unsigned-device.yml already runs it as a hard
+# gate on the actual iOS build, so this is an early warning, not a second
+# required copy of that gate.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [claude/motorent-mv-architecture-review-1cwexr]
+  workflow_dispatch:
+  push:
+    branches: [claude/motorent-mv-architecture-review-1cwexr]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    name: Vulnerable Dependencies
+    # Only meaningful on a pull_request event (it diffs base..head) -- runs
+    # here on push/workflow_dispatch too would compare a ref against itself.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          base-ref: ${{ github.event.pull_request.base.sha }}
+          head-ref: ${{ github.event.pull_request.head.sha }}
+
+  expo-doctor:
+    name: Expo Doctor Check
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Expo Doctor
+        continue-on-error: true
+        run: npx expo-doctor
+
+  code_quality:
+    name: "Lint & Test (${{ matrix.command }})"
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        command:
+          - "lint"
+          - "format:check"
+          - "typecheck"
+          - "test"
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: "Run ${{ matrix.command }}"
+        run: npm run ${{ matrix.command }}

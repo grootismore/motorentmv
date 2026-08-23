@@ -1,0 +1,46 @@
+name: Lockfile Consistency Check
+
+# Adapted from grootismore/renata-jelly's .github/workflows/check-lockfile.yml.
+# Renata's version runs `bun install --frozen-lockfile --dry-run` because
+# Bun's frozen-lockfile flag doesn't itself install; npm's equivalent
+# guarantee is built into `npm ci` itself -- it refuses to run at all if
+# package.json and package-lock.json are out of sync (unlike `npm install`,
+# which would silently rewrite the lockfile to reconcile them). Running it
+# here on a plain Linux runner catches that before any PR waits on the much
+# slower/costlier macOS iOS build.
+on:
+  pull_request:
+    branches: [claude/motorent-mv-architecture-review-1cwexr]
+  push:
+    branches: [claude/motorent-mv-architecture-review-1cwexr]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-lockfile:
+    name: Check package-lock.json consistency
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          show-progress: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Verify lockfile consistency
+        run: |
+          set -euo pipefail
+          echo "Checking package-lock.json matches package.json (npm ci fails if they're out of sync)..."
+          npm ci
+          echo "Lockfile is consistent with package.json."
