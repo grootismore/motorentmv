@@ -224,6 +224,15 @@ jobs:
           echo "Wrote .env for the release bundle (values not printed)."
 
       - name: Generate native iOS project (expo prebuild)
+        # A plain Node CLI invocation in this step's own shell -- unlike
+        # the Xcode Run Script phase two steps down, this genuinely does
+        # inherit step-level env (confirmed: this is how build_number
+        # already reached CFBundleIdentifier resolution elsewhere in this
+        # job). Gives every review IPA a distinct, increasing
+        # CFBundleVersion so a sideload tool always sees a real update to
+        # install -- see app.config.ts's ios.buildNumber comment.
+        env:
+          IOS_BUILD_NUMBER: ${{ steps.meta.outputs.build_number }}
         run: |
           set -euo pipefail
           set -o pipefail

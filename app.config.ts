@@ -21,6 +21,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: BUNDLE_ID,
+    // CFBundleVersion. Left at the fixed default ('1') for local/EAS
+    // builds, but the CI-built review IPA overrides this via
+    // IOS_BUILD_NUMBER (see .github/workflows/ios-unsigned-ipa.yml) so
+    // every review build carries a distinct, increasing build number --
+    // without this, every review IPA reported the exact same
+    // CFBundleVersion, and a sideloading tool doing an in-place
+    // reinstall (rather than delete-then-install) can decide there's
+    // nothing to update and silently keep running the previous binary.
+    buildNumber: process.env.IOS_BUILD_NUMBER,
   },
   android: {
     package: BUNDLE_ID,

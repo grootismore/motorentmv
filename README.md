@@ -1238,10 +1238,50 @@ circle — which is what made it such a good match for the original
 "Renata" reference to begin with.
 
 `npm run verify` (20 suites / 97 tests) and `tsc --noEmit` are clean.
-The env fix can only be confirmed by a fresh CI-built IPA on a physical
-device (this sandbox has neither); the same job-log inspection technique
-used to diagnose it will be used again on the next run to confirm the
-new `.env` step actually lands the real values in the bundle.
+**Confirmed working**, not just assumed: the very next build's job log
+showed `@expo/cli`'s own loader printing `env: load .env` / `env: export
+EXPO_PUBLIC_APP_ENV EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL`
+immediately before "Starting Metro Bundler" — i.e. Expo's own tooling
+confirming it loaded the file and exported all three real values into
+the bundler process, which is the exact mechanism that was silently
+failing before.
+
+### Fix: every review IPA reported the same CFBundleVersion (round 11)
+
+Despite the confirmed bundle-level fix above, a device still showed
+"Supabase is not configured" after installing the round-10 IPA. Auditing
+`app.config.ts` found a second, independent bug that can produce exactly
+that symptom regardless of whether the bundle itself is correct:
+`ios` never set a `buildNumber`, so every single review build back to
+round 1 shared the same static `CFBundleVersion`. Reinstalling an IPA
+with an unchanged bundle id _and_ an unchanged build number is exactly
+the condition under which a sideloading tool (or iOS itself) can decide
+there's nothing to update and keep running the previously-installed
+binary — silently, with no error — which would reproduce this exact
+symptom independent of anything actually being wrong in the new build.
+
+**Fix**: `app.config.ts`'s `ios.buildNumber` now reads
+`process.env.IOS_BUILD_NUMBER`, and
+`.github/workflows/ios-unsigned-ipa.yml`'s "Generate native iOS project
+(expo prebuild)" step sets that to the same GitHub run number already
+used for the IPA's filename (`steps.meta.outputs.build_number`). Unlike
+the round-10 bug, this one is a plain Node CLI invocation
+(`npx expo prebuild`) reading `process.env` in its own step's shell —
+no Xcode Run Script indirection involved — verified locally:
+`IOS_BUILD_NUMBER=42 npx expo config --type public --json` resolves
+`ios.buildNumber` to `"42"`; unset, it resolves to `undefined` (Expo's
+own default applies). Every review IPA from here on carries a distinct,
+increasing build number, so reinstalling one is unambiguously a real
+update.
+
+**If a device still shows stale behavior after this**: fully delete the
+app before reinstalling the next IPA rather than reinstalling over it —
+the build-number fix makes a real update _detectable_, but a sideload
+tool that was already treating same-version reinstalls as a no-op may
+need one clean delete-and-install cycle to start honoring the new build
+numbers going forward.
+
+`npm run verify` and `tsc --noEmit` are clean.
 
 ## What's next
 
