@@ -284,8 +284,13 @@ jobs:
         run: |
           echo "IPA path: ${{ steps.build.outputs.ipa_path }}"
           echo "Bundle identifier: ${{ steps.build.outputs.bundle_id }}"
+          echo "Version: ${{ steps.build.outputs.bundle_version }}"
+          echo "Build number: ${{ steps.meta.outputs.build_number }}"
           echo "Executable: ${{ steps.build.outputs.executable_name }}"
+          echo "Platform: iOS (physical device, iphoneos)"
           echo "Architecture(s): ${{ steps.build.outputs.arch_info }}"
+          echo "SHA-256: ${{ steps.build.outputs.sha256 }}"
+          echo "Size: ${{ steps.build.outputs.size_bytes }} bytes"
           echo "Signing state: UNSIGNED (must be re-signed by Sideloadly/AltStore/SideStore before install)"
 
       - name: Upload unsigned IPA artifact
@@ -306,9 +311,13 @@ jobs:
             echo "|---|---|"
             echo "| Artifact name | \`${{ steps.meta.outputs.artifact_name }}\` |"
             echo "| IPA file | \`$(basename "${{ steps.build.outputs.ipa_path }}")\` |"
+            echo "| SHA-256 | \`${{ steps.build.outputs.sha256 }}\` |"
+            echo "| Size | \`${{ steps.build.outputs.size_bytes }}\` bytes |"
             echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Version | \`${{ steps.build.outputs.bundle_version }}\` |"
             echo "| Build number | \`${{ steps.meta.outputs.build_number }}\` |"
             echo "| Bundle identifier | \`${{ steps.build.outputs.bundle_id }}\` |"
+            echo "| Platform | iOS (physical device, iphoneos) |"
             echo "| Architecture | \`${{ steps.build.outputs.arch_info }}\` |"
             echo "| Runner | \`${{ inputs.runner || 'macos-26' }}\` |"
             echo "| Xcode / Swift | \`${{ steps.xcode_select.outputs.xcode_version }}\` / \`${{ steps.xcode_select.outputs.swift_version }}\` |"

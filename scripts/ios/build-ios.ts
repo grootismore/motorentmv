@@ -20,6 +20,7 @@
  * -- this script does not regenerate the native project itself, so it
  * always builds whatever is currently in ios/.
  */
+import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { constants as fsConstants } from 'node:fs';
 import { access, appendFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
@@ -261,6 +262,7 @@ interface AppBundleReport {
   appPath: string;
   executableName: string;
   bundleId: string;
+  bundleVersion: string;
   archs: string[];
 }
 
@@ -282,6 +284,8 @@ async function verifyAppBundle(appPath: string): Promise<AppBundleReport> {
   if (packageType !== 'APPL') {
     fail(`CFBundlePackageType is "${packageType ?? '(missing)'}", expected "APPL"`);
   }
+
+  const bundleVersion = plistRead(infoPlist, 'CFBundleShortVersionString') ?? '(unknown)';
 
   const executableName = plistRead(infoPlist, 'CFBundleExecutable');
   if (!executableName) {
@@ -378,7 +382,7 @@ async function verifyAppBundle(appPath: string): Promise<AppBundleReport> {
     }
   }
 
-  return { appPath, executableName, bundleId, archs };
+  return { appPath, executableName, bundleId, bundleVersion, archs };
 }
 
 async function packageIpa(appPath: string, ipaName: string): Promise<string> {
@@ -408,7 +412,7 @@ async function packageIpa(appPath: string, ipaName: string): Promise<string> {
   // corrupt framework content that legitimately uses them. `-X` alone
   // (present before) only strips extra file attributes; it does not
   // address symlink handling.
-  run('zip', ['-qr', '-X', '-y', ipaName, 'Payload'], { cwd: BUILD_DIR });
+  run('/usr/bin/zip', ['-qr', '-X', '-y', ipaName, 'Payload'], { cwd: BUILD_DIR });
   // Remove only the temporary Payload directory, per spec -- never the
   // archive or the IPA itself.
   await rm(PAYLOAD_DIR, { recursive: true, force: true });
@@ -470,13 +474,61 @@ async function validateIpa(ipaPath: string, report: AppBundleReport): Promise<vo
     fail(`Bundle identifier changed after packaging: archive had "${report.bundleId}", extracted IPA has "${extractedBundleId}"`);
   }
 
+  // Re-check the plist/platform/native-module facts that verifyAppBundle()
+  // already confirmed on the ARCHIVE's own .app -- ditto+zip is unlikely to
+  // corrupt these, but "unlikely" is exactly what a packaging bug would be,
+  // and this re-validation exists precisely so a packaging-step defect
+  // can't hide behind "the archive was fine." Re-checking only the fast,
+  // cheap facts here (not re-running the full strings/otool sweep) keeps
+  // this proportionate to what packaging could plausibly break.
+  const extractedPackageType = plistRead(extractedInfoPlist, 'CFBundlePackageType');
+  if (extractedPackageType !== 'APPL') {
+    fail(`Extracted IPA's CFBundlePackageType is "${extractedPackageType ?? '(missing)'}" after packaging, expected "APPL"`);
+  }
+
+  const extractedPlatformsRaw = spawnSync(
+    '/usr/libexec/PlistBuddy',
+    ['-c', 'Print :CFBundleSupportedPlatforms', extractedInfoPlist],
+    { encoding: 'utf8' },
+  ).stdout;
+  if (/simulator/i.test(extractedPlatformsRaw)) {
+    fail('Extracted IPA declares a Simulator-supported platform after packaging -- this is not a physical-device build');
+  }
+  if (!/iPhoneOS/.test(extractedPlatformsRaw)) {
+    fail('Extracted IPA does not declare iPhoneOS as a supported platform after packaging');
+  }
+
+  const extractedOtoolOutput = execFileSync('otool', ['-l', extractedExecutablePath], { encoding: 'utf8' });
+  const extractedBuildVersionMatch = /LC_BUILD_VERSION[\s\S]{0,200}?platform\s+(\d+)/.exec(extractedOtoolOutput);
+  if (extractedBuildVersionMatch?.[1] === '7') {
+    fail("Extracted IPA's executable reports Mach-O platform iOS-Simulator (7) after packaging, not a physical device");
+  }
+
+  for (const requiredModule of ['hermes', 'ExpoModulesCore']) {
+    const frameworksDir = path.join(extractedAppPath, 'Frameworks');
+    const loadCommands = execFileSync('otool', ['-L', extractedExecutablePath], { encoding: 'utf8' });
+    const present =
+      ((await exists(frameworksDir)) &&
+        (await readdir(frameworksDir)).some((entry) => entry.toLowerCase().startsWith(requiredModule.toLowerCase()))) ||
+      new RegExp(requiredModule, 'i').test(loadCommands);
+    if (!present) {
+      fail(`Extracted IPA is missing required native module "${requiredModule}" after packaging`);
+    }
+  }
+
   if (!(await exists(path.join(extractedAppPath, 'main.jsbundle')))) {
     fail('Extracted IPA is missing its embedded JavaScript bundle -- packaging dropped it');
   }
 
   await rm(VALIDATION_DIR, { recursive: true, force: true });
-  log('IPA structure, executable, architecture, bundle id, and JS bundle all confirmed intact after packaging.');
+  log('IPA structure, executable, architecture, platform, bundle id, native modules, and JS bundle all confirmed intact after packaging.');
   log('Signing state: UNSIGNED. This IPA cannot be installed directly -- it must be re-signed by Sideloadly, AltStore, or SideStore at install time.');
+}
+
+async function sha256File(filePath: string): Promise<string> {
+  const hash = createHash('sha256');
+  hash.update(await readFile(filePath));
+  return hash.digest('hex');
 }
 
 async function main(): Promise<void> {
@@ -503,7 +555,16 @@ async function main(): Promise<void> {
   const ipaPath = await packageIpa(archivedAppPath, ipaName);
   await validateIpa(ipaPath, report);
 
-  await writeGithubOutputs({ ipaPath, ...report });
+  // Computed on the FINAL, already-validated file on disk -- the same
+  // bytes actions/upload-artifact will upload -- not on any intermediate
+  // in-memory state, so this hash/size can't drift from what a reviewer
+  // downloads.
+  const finalStat = await stat(ipaPath);
+  const sha256 = await sha256File(ipaPath);
+  log(`SHA-256: ${sha256}`);
+  log(`Size: ${finalStat.size} bytes`);
+
+  await writeGithubOutputs({ ipaPath, sha256, sizeBytes: finalStat.size, ...report });
 
   log(`Done: ${ipaPath}`);
 }
@@ -512,14 +573,19 @@ async function main(): Promise<void> {
  * so a workflow can reference them -- e.g. for the job summary or to name
  * the uploaded artifact -- without re-deriving anything this script
  * already verified. A no-op when run locally. */
-async function writeGithubOutputs(values: AppBundleReport & { ipaPath: string }): Promise<void> {
+async function writeGithubOutputs(
+  values: AppBundleReport & { ipaPath: string; sha256: string; sizeBytes: number },
+): Promise<void> {
   const outputFile = process.env.GITHUB_OUTPUT;
   if (!outputFile) return;
   const lines = [
     `ipa_path=${values.ipaPath}`,
     `bundle_id=${values.bundleId}`,
+    `bundle_version=${values.bundleVersion}`,
     `executable_name=${values.executableName}`,
     `arch_info=${values.archs.join(' ')}`,
+    `sha256=${values.sha256}`,
+    `size_bytes=${values.sizeBytes}`,
   ];
   await appendFile(outputFile, lines.join('\n') + '\n', 'utf8');
 }
