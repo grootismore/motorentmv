@@ -5,18 +5,18 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GlassSurface } from '../../src/components/GlassSurface';
-import { Skeleton } from '../../src/components/Skeleton';
-import { EmptyState } from '../../src/components/states/EmptyState';
-import { ErrorState } from '../../src/components/states/ErrorState';
-import { Body, LargeTitle, SectionTitle } from '../../src/components/Typography';
-import { useTheme } from '../../src/design-system/ThemeProvider';
-import { DEMO_VEHICLES } from '../../src/features/discovery/demoData';
-import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
-import { useSearchVehicles } from '../../src/features/discovery/queries';
-import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
-import { isDemoMode } from '../../src/lib/env';
-import { isSupabaseConfigured } from '../../src/lib/supabase';
+import { GlassSurface } from '../../../src/components/GlassSurface';
+import { Skeleton } from '../../../src/components/Skeleton';
+import { EmptyState } from '../../../src/components/states/EmptyState';
+import { ErrorState } from '../../../src/components/states/ErrorState';
+import { Body, LargeTitle, SectionTitle } from '../../../src/components/Typography';
+import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { DEMO_VEHICLES } from '../../../src/features/discovery/demoData';
+import { SearchForm, type SearchFormValues } from '../../../src/features/discovery/SearchForm';
+import { useSearchVehicles } from '../../../src/features/discovery/queries';
+import { VehicleResultItem } from '../../../src/features/discovery/VehicleResultItem';
+import { isDemoMode } from '../../../src/lib/env';
+import { isSupabaseConfigured } from '../../../src/lib/supabase';
 
 /**
  * The one screen that bypasses the shared Screen shell: the Ocean Glass
@@ -74,10 +74,12 @@ export default function Explore() {
       style={{ flex: 1, backgroundColor: theme.colors.pearlBackground }}
       edges={['top', 'left', 'right']}
     >
-      {/* 132pt: same floating-tab-bar clearance as src/components/Screen.tsx
-          -- this screen bypasses that shared shell (see the doc comment
-          above), so it reserves the same amount directly. */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 132 }}>
+      {/* 96pt: same bottom clearance as src/components/Screen.tsx -- this
+          screen bypasses that shared shell (see the doc comment above), so
+          it reserves the same amount directly. The customer tab bar is now
+          a real native tab bar with its own automatic scroll-inset
+          handling, so this is breathing room, not tab-bar clearance. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
         <LinearGradient
           colors={[theme.colors.oceanBackground, theme.colors.oceanDeep]}
           style={{

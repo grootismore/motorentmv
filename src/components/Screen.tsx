@@ -22,15 +22,15 @@ interface ScreenProps extends PropsWithChildren {
 
 /**
  * Shared shell for every screen: pearl background, safe-area handling,
- * consistent title/description. Bottom padding always reserves space for
- * whichever floating tab bar sits underneath -- the customer bar
- * (src/components/CustomerGlassTabBar.tsx, capsule height 68 + a 12pt gap
- * above the home indicator) is the taller of the two, so its footprint is
- * the value used here for every screen; the renter bar
- * (src/components/oceanTabBar.tsx) is shorter, so it's always safely
- * covered by the same reserve, and the handful of (auth)/(shared) screens
- * with no floating bar at all just get a little extra breathing room,
- * which is harmless.
+ * consistent title/description. Bottom padding reserves space for the
+ * renter's floating tab bar (src/components/oceanTabBar.tsx, height 58 +
+ * a spacing.sm gap above the home indicator) -- the customer tab bar is
+ * now a real native tab bar (app/(customer)/(tabs)/_layout.tsx), which
+ * occupies its own non-overlapping layout space and gets automatic
+ * scroll-content-inset handling from the OS, so customer screens no
+ * longer need manual clearance for it. The handful of (auth)/(shared)
+ * screens with no floating bar at all just get a little extra breathing
+ * room, which is harmless.
  */
 export function Screen({
   title,
@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
   body: {
     flexGrow: 1,
     padding: 20,
-    // insets.bottom (up to ~34-40pt on notched devices) + the customer
-    // bar's 12pt gap + its 68pt capsule height + ~18pt breathing room.
-    paddingBottom: 132,
+    // insets.bottom (up to ~34-40pt on notched devices) + the renter
+    // bar's spacing.sm gap + its 58pt height + breathing room.
+    paddingBottom: 96,
   },
 });

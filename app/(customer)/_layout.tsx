@@ -1,31 +1,35 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { CustomerGlassTabBar, type CustomerGlassTabBarProps } from '../../src/components/CustomerGlassTabBar';
-
+/**
+ * Wraps the real native tab bar ((tabs)/_layout.tsx) plus the three
+ * detail routes that must NOT be tabs: listing/[vehicleId],
+ * checkout/[vehicleId], and bookings/[bookingId] are pushed to from
+ * inside a tab (a result card, a booking row) and need to render full
+ * screen, covering the tab bar -- the same "push covers the tab bar"
+ * behavior every native tab-bar app has.
+ *
+ * They can't be registered as NativeTabs children the way the old
+ * Tabs.Screen + href:null did it: a native tab that's `hidden` cannot
+ * become the focused route at all (expo-router's NativeBottomTabsNavigator
+ * throws in dev, and silently snaps back to the first tab in production,
+ * if the currently-focused route resolves to a hidden tab) -- there is no
+ * native equivalent of a JS tab silently rendering full-screen while
+ * staying out of the tab strip. A wrapping Stack is the standard, and
+ * only, way to get that behavior with a real native tab bar: Stack.Screen
+ * "(tabs)" is the 4-tab root, and the three detail routes are ordinary
+ * stack pushes on top of it.
+ *
+ * This is a route group, not a URL segment, so /explore, /search,
+ * /bookings, /profile, /listing/[id], /checkout/[id], /bookings/[id] are
+ * all unchanged.
+ */
 export default function CustomerLayout() {
   return (
-    <Tabs
-      initialRouteName="explore"
-      screenOptions={{ headerShown: false }}
-      tabBar={(props) => (
-        // React Navigation's real navigation.emit is generic over a fixed
-        // set of event-name literals ('tabPress' | 'tabLongPress' | ...);
-        // CustomerGlassTabBarProps intentionally widens that to a plain
-        // `string` so the component doesn't need to import/depend on that
-        // internal event-map type. The two call sites inside the component
-        // only ever pass 'tabPress'/'tabLongPress', both valid members of
-        // the real union, so this is a type-level widening only -- nothing
-        // unsafe happens at runtime.
-        <CustomerGlassTabBar {...(props as unknown as CustomerGlassTabBarProps)} />
-      )}
-    >
-      <Tabs.Screen name="explore" options={{ title: 'Explore' }} />
-      <Tabs.Screen name="search" options={{ title: 'Search' }} />
-      <Tabs.Screen name="bookings/index" options={{ title: 'Bookings' }} />
-      <Tabs.Screen name="profile/index" options={{ title: 'Profile' }} />
-      <Tabs.Screen name="listing/[vehicleId]" options={{ href: null }} />
-      <Tabs.Screen name="checkout/[vehicleId]" options={{ href: null }} />
-      <Tabs.Screen name="bookings/[bookingId]" options={{ href: null }} />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="listing/[vehicleId]" />
+      <Stack.Screen name="checkout/[vehicleId]" />
+      <Stack.Screen name="bookings/[bookingId]" />
+    </Stack>
   );
 }

@@ -2,15 +2,15 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button } from '../../../src/components/Button';
-import { GroupedSection } from '../../../src/components/GroupedSection';
-import { Screen } from '../../../src/components/Screen';
-import { LoadingState } from '../../../src/components/states/LoadingState';
-import { useTheme } from '../../../src/design-system/ThemeProvider';
-import { AuthPrompt } from '../../../src/features/auth/AuthPrompt';
-import { useAuth } from '../../../src/features/auth/AuthProvider';
-import { useExperienceIntent } from '../../../src/features/auth/experience-intent';
-import { signOut } from '../../../src/features/auth/session';
+import { Button } from '../../../../src/components/Button';
+import { GroupedSection } from '../../../../src/components/GroupedSection';
+import { Screen } from '../../../../src/components/Screen';
+import { LoadingState } from '../../../../src/components/states/LoadingState';
+import { useTheme } from '../../../../src/design-system/ThemeProvider';
+import { AuthPrompt } from '../../../../src/features/auth/AuthPrompt';
+import { useAuth } from '../../../../src/features/auth/AuthProvider';
+import { useExperienceIntent } from '../../../../src/features/auth/experience-intent';
+import { signOut } from '../../../../src/features/auth/session';
 
 export default function CustomerProfile() {
   const theme = useTheme();

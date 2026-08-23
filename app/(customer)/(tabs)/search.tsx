@@ -2,22 +2,22 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 
-import { Button } from '../../src/components/Button';
-import { GlassSurface } from '../../src/components/GlassSurface';
-import { Screen } from '../../src/components/Screen';
-import { Skeleton } from '../../src/components/Skeleton';
-import { EmptyState } from '../../src/components/states/EmptyState';
-import { ErrorState } from '../../src/components/states/ErrorState';
-import { Body } from '../../src/components/Typography';
-import { useTheme } from '../../src/design-system/ThemeProvider';
-import { DEMO_VEHICLES } from '../../src/features/discovery/demoData';
-import { FilterBar, type FilterValues } from '../../src/features/discovery/FilterBar';
-import { SearchForm, type SearchFormValues } from '../../src/features/discovery/SearchForm';
-import { useSearchVehicles } from '../../src/features/discovery/queries';
-import { VehicleResultItem } from '../../src/features/discovery/VehicleResultItem';
-import { formatMaldivesDateShort, formatMaldivesTime12h } from '../../src/lib/datetime';
-import { isDemoMode } from '../../src/lib/env';
-import { isSupabaseConfigured } from '../../src/lib/supabase';
+import { Button } from '../../../src/components/Button';
+import { GlassSurface } from '../../../src/components/GlassSurface';
+import { Screen } from '../../../src/components/Screen';
+import { Skeleton } from '../../../src/components/Skeleton';
+import { EmptyState } from '../../../src/components/states/EmptyState';
+import { ErrorState } from '../../../src/components/states/ErrorState';
+import { Body } from '../../../src/components/Typography';
+import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { DEMO_VEHICLES } from '../../../src/features/discovery/demoData';
+import { FilterBar, type FilterValues } from '../../../src/features/discovery/FilterBar';
+import { SearchForm, type SearchFormValues } from '../../../src/features/discovery/SearchForm';
+import { useSearchVehicles } from '../../../src/features/discovery/queries';
+import { VehicleResultItem } from '../../../src/features/discovery/VehicleResultItem';
+import { formatMaldivesDateShort, formatMaldivesTime12h } from '../../../src/lib/datetime';
+import { isDemoMode } from '../../../src/lib/env';
+import { isSupabaseConfigured } from '../../../src/lib/supabase';
 
 /** Mirrors VehicleResultItem's row shape (illustration tile + two text
  * lines + price) so the loading state resembles the final layout instead

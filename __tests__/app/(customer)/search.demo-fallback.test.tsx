@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 
 import { ThemeProvider } from '../../../src/design-system/ThemeProvider';
-import Search from '../../../app/(customer)/search';
+import Search from '../../../app/(customer)/(tabs)/search';
 
 // Simulates reviewing this build with EXPO_PUBLIC_DEMO_MODE=true and no
 // EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY set at all --

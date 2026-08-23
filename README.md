@@ -767,6 +767,102 @@ them. Renter navigation (`src/components/oceanTabBar.tsx`) is untouched.
 - `npm run verify` (22 suites / 106 tests) and `expo export --platform
 ios` stay green.
 
+### Ocean Glass corrective pass, round 8 (customer nav migrated to a real native tab bar)
+
+Round 7's capsule + detached-circle bar was a well-built visual match for
+the "Renata" reference, but it was still a JS-rendered custom `tabBar`
+(`BlurView` + absolutely-positioned `View`s). This round replaces it with
+a genuinely native tab bar, per an explicit follow-up request to use "the
+exact native architectural approach" — no custom Views recreating iOS
+glass, no manually computed safe-area offsets, no hand-rolled Search
+circle.
+
+**Compatibility check (read-only, done before any file changed):** Expo
+SDK `57.0.15`, `expo-router` `57.0.15`, React Native `0.86.2`,
+`react-native-screens` `4.26.2` — all already current. Neither
+`@bottom-tabs/react-navigation` nor `react-native-bottom-tabs` (the
+third-party packages named in the request) were installed, and this repo
+has no real `@react-navigation/*` package anywhere, even transitively —
+`expo-router` fully vendors its own internal bottom-tabs fork.
+`@bottom-tabs/react-navigation` would additionally require installing a
+genuine `@react-navigation/native@>=7`, a new dependency this project has
+never had. Rather than add that new, previously-absent dependency stack,
+this pass uses **Expo Router's own already-installed, first-party native
+tabs** — `NativeTabs`/`NativeTabs.Trigger` from
+`expo-router/unstable-native-tabs`, confirmed present and fully
+implemented in the exact `expo-router` version already in
+`package.json` (`node_modules/expo-router/build/native-tabs/`), built on
+`react-native-screens`' `TabsHost` (also already present in the installed
+`4.26.2`). Net new dependencies installed: **zero**. This satisfies "do
+not install incompatible versions blindly" more directly than the named
+third-party packages would have, while landing on the identical
+user-visible outcome: a real `UITabBarController`-backed bar on iOS with
+native SF Symbols, a native `role="search"` detached Search item, and the
+system's own glass material — matching Android's native bottom-nav
+presentation on that platform.
+
+**A real architectural constraint the request didn't anticipate, found
+while implementing:** the old `Tabs.Screen ... options={{ href: null }}`
+trick (used for the three push-only detail routes — `listing/[vehicleId]`,
+`checkout/[vehicleId]`, `bookings/[bookingId]`) has no native equivalent.
+Reading `NativeBottomTabsNavigator.js` directly: a native tab marked
+`hidden` cannot become the focused route at all — the navigator throws in
+development, and in production silently snaps back to the first tab —
+because a real `UITabBarController` tab is a persistent native slot, not
+a JS screen-swap. So the three detail routes were moved out of the tab
+navigator entirely:
+
+- `app/(customer)/_layout.tsx` is now a `Stack` (was `<Tabs>`), holding one
+  `Stack.Screen name="(tabs)"` (the 4-tab root) plus the three detail
+  routes as ordinary stack pushes on top of it — the same "push covers the
+  tab bar" behavior every native-tab-bar app already has.
+- `app/(customer)/explore.tsx`, `search.tsx`, `bookings/index.tsx`, and
+  `profile/index.tsx` moved into a new `app/(customer)/(tabs)/` route
+  group (a group adds no path segment, so `/explore`, `/search`,
+  `/bookings`, `/profile` are unchanged) with a new
+  `app/(customer)/(tabs)/_layout.tsx` rendering `<NativeTabs>`.
+  `listing/[vehicleId]`, `checkout/[vehicleId]`, and `bookings/[bookingId]`
+  did not move and keep their exact same paths.
+- Two test files that imported the moved `search.tsx` by relative path
+  (`__tests__/app/(customer)/search.test.tsx`,
+  `search.demo-fallback.test.tsx`) had that one import path updated; no
+  test assertions changed.
+
+**Tabs, in the requested order** — Explore, Bookings, Profile, then a
+separated Search: `role="search"` (the one currently-supported role that
+gives Search its detached native presentation on iOS; a normal 4th tab
+everywhere else). Icons are native, not PNGs: SF Symbols on iOS
+(`safari.fill`, `calendar`, `person.fill`, `magnifyingglass`) and Material
+Symbols on Android (`explore`, `calendar_month`, `person`, `search`) via
+`NativeTabs.Trigger.Icon`'s `sf`/`md` props — both `sf-symbols-typescript`
+and `expo-symbols` (which supply and typecheck these names) are existing
+`expo-router` dependencies already in `node_modules`, not new installs.
+`tintColor` is the app's existing `theme.colors.lagoonPrimary`.
+
+**Removed**: `src/components/CustomerGlassTabBar.tsx` and its test file —
+superseded, per the request, since a real native tab bar makes the custom
+`BlurView`-based capsule/circle unnecessary.
+
+**Screen content inset walked back**: round 7 bumped the shared bottom
+padding in `src/components/Screen.tsx` (96pt → 132pt) to clear the old
+68pt floating capsule. A native tab bar occupies its own non-overlapping
+layout space and gets automatic scroll-inset handling from the OS, so
+customer screens no longer need that manual reserve — reverted back to
+96pt, which is exactly what the renter bar (`oceanTabBar.tsx`, still
+untouched, still a floating custom bar) needs. `app/(customer)/(tabs)/
+explore.tsx`'s own matching literal was reverted the same way.
+
+**Not verifiable in this sandbox** (no iOS Simulator, Android Emulator, or
+physical device, and outbound network here is proxied/restricted, which
+also blocked `expo install --check`'s registry lookup): the actual
+on-device appearance of the native glass bar and the detached Search
+item, behavior on Android, and dark-mode readability. `npm run verify`
+(21 suites / 99 tests, one fewer suite than round 7 since
+`CustomerGlassTabBar.test.tsx` was removed) and `tsc --noEmit` are clean;
+a fresh device build via `.github/workflows/ios-unsigned-ipa.yml` is
+required to see this on an actual iPhone, since native tab bars are
+native code and cannot be evaluated from an IPA built before this change.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

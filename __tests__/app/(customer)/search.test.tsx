@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 import type { PropsWithChildren } from 'react';
 
 import { ThemeProvider } from '../../../src/design-system/ThemeProvider';
-import Search from '../../../app/(customer)/search';
+import Search from '../../../app/(customer)/(tabs)/search';
 
 const mockRpc = jest.fn();
 // isSupabaseConfigured: true makes this suite's behavior deterministic

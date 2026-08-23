@@ -1,13 +1,13 @@
 import { FlatList } from 'react-native';
 
-import { Screen } from '../../../src/components/Screen';
-import { EmptyState } from '../../../src/components/states/EmptyState';
-import { ErrorState } from '../../../src/components/states/ErrorState';
-import { LoadingState } from '../../../src/components/states/LoadingState';
-import { AuthPrompt } from '../../../src/features/auth/AuthPrompt';
-import { useAuth } from '../../../src/features/auth/AuthProvider';
-import { BookingListItem } from '../../../src/features/bookings/BookingListItem';
-import { useCustomerBookings } from '../../../src/features/bookings/queries';
+import { Screen } from '../../../../src/components/Screen';
+import { EmptyState } from '../../../../src/components/states/EmptyState';
+import { ErrorState } from '../../../../src/components/states/ErrorState';
+import { LoadingState } from '../../../../src/components/states/LoadingState';
+import { AuthPrompt } from '../../../../src/features/auth/AuthPrompt';
+import { useAuth } from '../../../../src/features/auth/AuthProvider';
+import { BookingListItem } from '../../../../src/features/bookings/BookingListItem';
+import { useCustomerBookings } from '../../../../src/features/bookings/queries';
 
 export default function CustomerBookings() {
   const { session } = useAuth();
