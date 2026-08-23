@@ -1283,6 +1283,139 @@ numbers going forward.
 
 `npm run verify` and `tsc --noEmit` are clean.
 
+### iOS build pipeline replaced with an archive-based, Renata-adapted script (round 12)
+
+Reported symptom: on-device installs still failed ("integrity cannot be
+confirmed", then "Service operation failed: Failed to install IPA") even
+though every automated structural check on the old
+`.github/workflows/ios-unsigned-ipa.yml` passed on every run — correct
+`Payload/MotoRentMV.app` root, arm64-only executable, correct Mach-O
+`iOS` (not Simulator) platform, correct bundle id, `hermes`/
+`ExpoModulesCore` present, embedded JS bundle present. A green CI run was
+treated as insufficient, per the request, and the artifact was audited
+directly against the old pipeline's own two packaging commands.
+
+**Root cause found**: two concrete, well-documented gaps in how the old
+workflow copied and zipped the `.app`, independent of anything the app's
+own code does:
+
+- `cp -R "$APP_PATH"/. "Payload/$APP.app"` — plain `cp` can silently drop
+  extended attributes/resource-fork metadata that a re-signing tool
+  depends on when it walks and re-signs every nested framework. Apple's
+  own tooling uses `ditto` for exactly this reason.
+- `zip -qr -X "$IPA_NAME" Payload` — **no `-y` flag**. BSD `zip`'s default
+  behavior _dereferences_ symlinks into full copies instead of preserving
+  them as symlinks; `-X` (present before) only strips extra file
+  attributes and does nothing for symlink handling. A `.app` with
+  framework-internal symlinks quietly corrupted or duplicated during
+  zipping is a documented, exact match for "integrity cannot be
+  confirmed" on re-sign.
+
+**Note on the reference implementation**: this session could not read
+`grootismore/renata-jelly`'s actual `scripts/ios/build-ios.ts` / workflow
+/ `eas.json` — attaching that repository required live approval that
+didn't go through, and this session's GitHub API access is scoped to
+this repository only. The rewrite below follows the architecture exactly
+as specified in the request (archive → `Products/Applications/*.app` →
+`Payload/` → zip, `CODE_SIGNING_ALLOWED=NO`/`CODE_SIGNING_REQUIRED=NO`,
+`.xcarchive`, macOS runner, physical-device destination), not a byte-for-
+byte port of Renata's file, since the literal source was never read in
+this session.
+
+**New**: `scripts/ios/build-ios.ts` (run via `npm run ios:unsigned-build`,
+executed with `tsx` — added as a devDependency alongside `@types/node`,
+since this project has no existing TypeScript-script runner and Bun
+isn't in use here). Resolves MotoRent's own workspace and scheme from
+the generated native project (`xcodebuild -list -json`, not a guessed or
+hardcoded name); archives via `xcodebuild archive` (Apple's own
+distribution-oriented packaging path, not a raw `build` action) with
+signing explicitly disabled the same way the old workflow did (`ARCHS`
+pinned to `arm64`, every signing-related build setting blanked, plus
+`AD_HOC_CODE_SIGNING_ALLOWED=YES`); verifies the archived `.app`
+(bundle id, `CFBundlePackageType`, executable present and executable,
+arm64-only via `lipo`, Mach-O platform via `otool` matches iOS not
+iOS-Simulator, `CFBundleSupportedPlatforms` has `iPhoneOS` not
+`Simulator`, `hermes`/`ExpoModulesCore` present, embedded
+`main.jsbundle` present and non-trivial, any `PlugIns/*.appex` flagged
+but never silently deleted) _before_ packaging; packages with `ditto`
+and `zip -y` (the two fixes above); then **re-validates the finished IPA
+from a completely fresh unzip** — correct `Payload/` root, exactly one
+`.app`, executable still present/executable, architecture and bundle id
+unchanged from the pre-packaging archive — so a packaging-step bug can't
+hide behind "the archive itself was fine." Exits non-zero on every
+validation failure, per the request; only cleans up its own known build
+outputs (`build/MotoRentMV.xcarchive`, `build/Payload`,
+`build/*.ipa`), never a blanket `rm -rf build`.
+
+**New**: `.github/workflows/ios-unsigned-device.yml`, replacing
+`ios-unsigned-ipa.yml` (removed, to avoid two workflows competing for the
+same macOS runner and producing duplicate/confusing artifacts). Job
+shape: checkout → resolve a Swift-6.2+/Xcode-26+ toolchain (the same
+hard-won discovery logic from the old workflow, driven by two real past
+failed runs) → `npm ci` → `npx expo-doctor` → `npm run verify` →
+`npx expo install --check` → resolve build metadata → write `.env` →
+`npx expo prebuild --platform ios --clean` → `npm run
+ios:unsigned-build` → print/record validation results → upload. Artifact
+is named `MotoRent-MV-iOS-unsigned-<run-number>`, containing
+`MotoRent-MV-unsigned-<run-number>.ipa`, matching the request.
+
+**A required manual step this pass could not do for you**: per "provide
+these through GitHub configuration rather than hardcoded into source,"
+`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` are no longer
+literal values in the workflow YAML — they're read from
+`secrets.EXPO_PUBLIC_SUPABASE_URL`/`secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY`
+and the workflow **fails closed** (before the expensive archive step) if
+either is unset. Add them under the repo's **Settings → Secrets and
+variables → Actions → New repository secret** using the same real
+project's values this session has been using all along (URL
+`https://yatizjdasoavxknynvlr.supabase.co`, the `motorentmv` project's
+publishable/anon key) — the workflow will fail at "Write production
+environment for the embedded JS bundle" with a clear error until this is
+done. This is a one-time setup step; no code change can substitute for
+it, by design.
+
+**`app.config.ts`**: added `extra.build` (`commit`, `branch`,
+`runNumber`, `profile`, `builtAt`) — safe diagnostic metadata (no
+secrets) so a sideloaded IPA can be traced back to the exact commit/run
+that produced it, sourced from GitHub Actions' own auto-populated
+`GITHUB_SHA`/`GITHUB_REF_NAME`/`GITHUB_RUN_NUMBER` plus a new
+`BUILD_PROFILE=ci` set on the prebuild step. All fields resolve to
+`undefined` outside CI, by design.
+
+**`eas.json`**: added an `environment: "production"` field to the
+`production` profile and a new `ci` profile (`extends: "production",
+autoIncrement: false`) for future EAS-based builds, alongside the
+existing `development`/`development-simulator`/`preview`/`production`
+profiles (kept as-is, including their `channel` values for EAS Update,
+which the request's abbreviated profile list didn't mention but nothing
+asked to remove).
+
+**What's verified and what isn't yet**: `npm run verify`, `tsc --noEmit`,
+and eslint/prettier are all clean on the new script and workflow; the
+new `.ts` file was smoke-tested in this sandbox (correctly refuses to
+run on non-macOS, per its own guard) and its resolve/verify/package/
+validate functions were reviewed against every check in the request's
+"IPA VALIDATION" section. What could **not** be verified in this
+sandbox (no macOS, no Xcode, no device, and this session could not
+resolve `actions/checkout`/`actions/setup-node`/`actions/upload-artifact`
+to pinned commit SHAs, since GitHub API access here is scoped to this
+repository only — the workflow still uses exact patch-version tags, not
+floating major tags, and documents this gap inline) is an actual CI run
+of the new workflow and an actual on-device sideload. Once the repository
+secrets above are added, pushing will trigger `ios-unsigned-device.yml`
+automatically; that first real run is this fix's actual proof.
+
+**Signing state, for the record**: the produced IPA is and remains
+**unsigned** — `CODE_SIGNING_ALLOWED=NO`/`CODE_SIGNING_REQUIRED=NO` make
+that impossible to change, not merely default. It cannot be installed
+directly; Sideloadly, AltStore, or SideStore must re-sign it (and every
+embedded framework) with your own Apple ID at install time. If
+installation still fails on the very next build after this fix, the
+next thing to capture is the sideloading tool's _full_ log (not just the
+final one-line error) plus device model/iOS version, since at that point
+the remaining candidates are on the signing-tool/device side, not in
+this IPA's own structure.
+
 ## What's next
 
 Finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the

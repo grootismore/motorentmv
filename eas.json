@@ -21,7 +21,12 @@
     },
     "production": {
       "channel": "production",
+      "environment": "production",
       "autoIncrement": true
+    },
+    "ci": {
+      "extends": "production",
+      "autoIncrement": false
     }
   },
   "submit": {

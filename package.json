@@ -39,6 +39,7 @@
     "@react-native/jest-preset": "^0.86.2",
     "@testing-library/react-native": "^14.0.1",
     "@types/jest": "^29.5.14",
+    "@types/node": "^22.20.1",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.1",
@@ -47,6 +48,7 @@
     "jest-expo": "~57.0.4",
     "prettier": "^3.9.6",
     "test-renderer": "^1.2.0",
+    "tsx": "^4.23.12",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -60,7 +62,8 @@
     "test:watch": "jest --watch",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "ios:unsigned-build": "tsx scripts/ios/build-ios.ts --production"
   },
   "private": true,
   "jest": {

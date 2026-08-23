@@ -1,0 +1,326 @@
+name: iOS unsigned device IPA (archive + Payload)
+
+# Builds an UNSIGNED arm64 iOS *device* archive (never a Simulator build)
+# for sideloading with Sideloadly, AltStore, or SideStore -- those tools
+# re-sign the IPA at install time. This workflow never touches Apple
+# certificates, provisioning profiles, EAS signing, or registered device
+# UDIDs; CODE_SIGNING_ALLOWED=NO makes signing impossible, not just
+# skipped.
+#
+# Replaces .github/workflows/ios-unsigned-ipa.yml, which built straight to
+# a derived-data products directory and packaged the IPA with `cp -R` +
+# `zip` (no `-y`). Every automated structural check on that workflow
+# passed on every run, but two real gaps in exactly those two commands
+# are documented, known causes of a re-signing tool reporting "integrity
+# cannot be confirmed" / "Failed to install IPA": `cp -R` can drop
+# extended attributes a bundle copy needs, and `zip` without `-y`
+# dereferences symlinks instead of preserving them. This workflow
+# archives via `xcodebuild archive` (Apple's own distribution-oriented
+# packaging path, not a raw `build` action) and delegates packaging to
+# scripts/ios/build-ios.ts, which uses `ditto` and `zip -y` and
+# re-validates the finished IPA by unzipping it fresh -- see that script
+# for the full rationale.
+#
+# Runs manually (workflow_dispatch) or automatically on a push to the
+# working branch that touches app source -- a macOS runner is expensive
+# and slow relative to Linux, so the push trigger is path-filtered to
+# skip docs-only/database-only commits that can't affect the IPA.
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: >-
+          GitHub-hosted macOS runner label. Must carry Xcode 26.4+ (Expo SDK 57
+          requirement). Override only if the default label is unavailable.
+        required: false
+        default: macos-26
+        type: string
+  push:
+    branches:
+      - claude/motorent-mv-architecture-review-1cwexr
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'scripts/ios/**'
+      - 'assets/**'
+      - 'app.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.npmrc'
+      - '.github/workflows/ios-unsigned-device.yml'
+
+# No job needs to write anything back to the repo or call the GitHub API
+# beyond uploading its own artifacts, which the default token already
+# permits -- so this is the minimum useful grant.
+permissions:
+  contents: read
+
+env:
+  CI: '1'
+  EXPO_NO_TELEMETRY: '1'
+
+jobs:
+  build-unsigned-ipa:
+    name: Build unsigned iOS device IPA
+    # macos-26 (not macos-14/15): Expo SDK 57 requires Xcode 26.4+
+    # (https://docs.expo.dev/versions/v57.0.0/ -- SDK/Xcode compatibility
+    # table), and expo-modules-jsi/apple/Package.swift declares
+    # `swift-tools-version: 6.2`, whose toolchain first ships in Xcode 26.
+    # A real run on macos-14 (whose newest Xcode is 16.2 / Swift 6.0) died
+    # at "package 'apple' is using Swift tools version 6.2.0 but the
+    # installed version is 6.0.0". The `inputs.runner ||` fallback makes
+    # this overridable from the Run workflow dialog without editing the
+    # file -- on a push event `inputs` is empty and the default applies.
+    runs-on: ${{ inputs.runner || 'macos-26' }}
+    # A cold RN 0.86 build compiles React Native and several Expo
+    # xcframeworks from source (the runner has no prebuilt-xcframework
+    # cache), which comfortably exceeds the 60 minutes this used to allow.
+    timeout-minutes: 90
+    steps:
+      # NOTE ON ACTION PINS: these use exact patch-version tags
+      # (checkout@v4.2.2, setup-node@v4.1.0, upload-artifact@v4.4.3), not
+      # floating major tags -- but this session could not resolve those
+      # tags to immutable commit SHAs (GitHub API access here is scoped to
+      # this repository only, so actions/checkout, actions/setup-node, and
+      # actions/upload-artifact could not be queried). Replace the `@vX.Y.Z`
+      # refs below with `@<full-commit-sha>` when you have a chance to
+      # resolve them (e.g. `gh api repos/actions/checkout/git/refs/tags/v4.2.2`),
+      # if literal SHA pinning is a hard requirement.
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+
+      # Two real failed runs drove the shape of this step (see the prior
+      # ios-unsigned-ipa.yml's git history for the exact failures):
+      #   1. macos-14's *default active* Xcode is 15.4, but RN 0.86's
+      #      Podfile hard-requires >= 16.1.
+      #   2. Selecting the newest Xcode on macos-14 (16.2 / Swift 6.0) got
+      #      past pods but died in xcodebuild: "package 'apple' is using
+      #      Swift tools version 6.2.0 but the installed version is 6.0.0".
+      #
+      # So the hard gate below is the Swift toolchain version (the thing
+      # that actually failed), not an Xcode version guess. Xcode paths/
+      # versions are discovered, never hardcoded -- GitHub changes which
+      # versions ship in each image over time.
+      - name: Select a compatible Xcode (Swift >= 6.2 required by expo-modules-jsi)
+        id: xcode_select
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          version_key() {
+            awk -F. '{ printf "%03d%03d%03d\n", $1, ($2==""?0:$2), ($3==""?0:$3) }' <<< "$1"
+          }
+
+          echo "Xcode installations on this runner:"
+          CANDIDATES=(/Applications/Xcode*.app)
+          if [ ${#CANDIDATES[@]} -eq 0 ]; then
+            echo "::error::No Xcode installations found under /Applications"
+            exit 1
+          fi
+
+          BEST_PATH=""
+          BEST_VERSION="0"
+          BEST_KEY="000000000"
+          for app in "${CANDIDATES[@]}"; do
+            VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" 2>/dev/null || echo "0")"
+            KEY="$(version_key "$VERSION")"
+            echo "  $app -> $VERSION"
+            if [[ "$KEY" > "$BEST_KEY" ]]; then
+              BEST_KEY="$KEY"
+              BEST_VERSION="$VERSION"
+              BEST_PATH="$app"
+            fi
+          done
+
+          echo "Newest installed Xcode: $BEST_PATH ($BEST_VERSION)"
+          sudo xcode-select -s "$BEST_PATH/Contents/Developer"
+          xcodebuild -version
+
+          SWIFT_RAW="$(swift --version 2>&1 || true)"
+          echo "Swift toolchain:"
+          echo "$SWIFT_RAW"
+          SWIFT_VERSION="$(grep -oE 'Apple Swift version [0-9]+(\.[0-9]+)*' <<< "$SWIFT_RAW" | head -1 | awk '{ print $NF }')"
+          if [ -z "$SWIFT_VERSION" ]; then
+            echo "::error::Could not determine the Swift version of $BEST_PATH"
+            exit 1
+          fi
+
+          if [[ "$(version_key "$SWIFT_VERSION")" < "$(version_key '6.2')" ]]; then
+            echo "::error::Runner '${{ inputs.runner || 'macos-26' }}' provides Swift $SWIFT_VERSION (Xcode $BEST_VERSION), but expo-modules-jsi requires Swift >= 6.2 (Xcode 26+). Re-run this workflow and set the 'runner' input to a macOS image that ships Xcode 26.4+."
+            exit 1
+          fi
+
+          if [[ "$BEST_KEY" < "$(version_key '26.4')" ]]; then
+            echo "::warning::Xcode $BEST_VERSION is below the 26.4+ that Expo documents for SDK 57. Swift $SWIFT_VERSION satisfies the toolchain requirement, so the build will proceed, but an SDK-level incompatibility later in this job may trace back to this."
+          fi
+
+          echo "xcode_version=$BEST_VERSION" >> "$GITHUB_OUTPUT"
+          echo "swift_version=$SWIFT_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4.1.0
+        with:
+          # 22, not 20: `.npmrc` sets engine-strict=true and
+          # @supabase/auth-js (pulled in transitively by
+          # @supabase/supabase-js) declares "engines": { "node": ">=22.0.0" }
+          # -- npm ci hard-fails (EBADENGINE) under Node 20.
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies (npm ci, committed lockfile)
+        run: npm ci
+
+      - name: Run Expo Doctor
+        # A broader project-health check than "expo install --check" below
+        # -- catches config/plugin/native-module inconsistencies that a
+        # pure version-mismatch check wouldn't. Non-fatal warnings are
+        # printed but don't fail the build; a hard failure here does,
+        # since it means the native project Expo generates is not
+        # trustworthy.
+        run: npx expo-doctor
+
+      - name: Format check, lint, typecheck and unit tests
+        run: npm run verify
+
+      - name: Validate Expo dependency versions
+        run: npx expo install --check
+
+      - name: Resolve build metadata (bundle id, build number)
+        id: meta
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="${{ github.run_number }}"
+          BUNDLE_ID="$(grep -oE "BUNDLE_ID = '[^']+'" app.config.ts | sed -E "s/BUNDLE_ID = '(.+)'/\1/")"
+          if [ -z "$BUNDLE_ID" ]; then
+            echo "::error::Could not resolve BUNDLE_ID from app.config.ts"
+            exit 1
+          fi
+          echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "bundle_id=${BUNDLE_ID}" >> "$GITHUB_OUTPUT"
+          echo "ipa_name=MotoRent-MV-unsigned-${BUILD_NUMBER}.ipa" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=MotoRent-MV-iOS-unsigned-${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "Resolved bundle id: ${BUNDLE_ID}"
+          echo "Build number: ${BUILD_NUMBER}"
+
+      - name: Write production environment for the embedded JS bundle
+        # These are intended client-side public values (Supabase's anon/
+        # publishable key is safe to embed by Supabase's own design -- RLS
+        # protects data, not this key), but still come from GitHub
+        # configuration, never hardcoded into source. A dedicated GitHub
+        # *Environment* named "production" is expected to hold these as
+        # repository/environment secrets in real use; this job reads them
+        # from the environment below rather than inlining literals.
+        #
+        # Written as a real .env file, not step-scoped shell env: Xcode's
+        # "Bundle React Native code and images" Run Script phase (invoked
+        # from inside xcodebuild, itself invoked from scripts/ios/build-ios.ts)
+        # does not reliably inherit the parent process's shell environment
+        # -- confirmed from this project's own build logs -- while `expo
+        # export:embed` (what that phase actually runs) loads `.env` files
+        # from the project root directly via @expo/env. This must exist
+        # before the archive step runs.
+        #
+        # Fails closed: no demo-mode fallback exists in this build, so a
+        # missing credential here must stop the workflow before an
+        # expensive archive runs, not produce an IPA that silently shows a
+        # raw "Supabase is not configured" error to a normal user.
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::EXPO_PUBLIC_SUPABASE_URL and/or EXPO_PUBLIC_SUPABASE_ANON_KEY are not set as repository/environment secrets. Set them under Settings > Secrets and variables > Actions before running this workflow."
+            exit 1
+          fi
+          {
+            echo "EXPO_PUBLIC_APP_ENV=production"
+            echo "EXPO_PUBLIC_SUPABASE_URL=${SUPABASE_URL}"
+            echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+          } > .env
+          echo "Wrote .env for the release bundle (values not printed)."
+
+      - name: Generate native iOS project (expo prebuild)
+        # A clean prebuild every run, never a reused ios/ directory --
+        # required after adding a native dependency (e.g. this project's
+        # native bottom-tabs migration), and this is a plain Node CLI
+        # invocation in its own step's shell, so IOS_BUILD_NUMBER below
+        # genuinely does reach it (unlike the Xcode Run Script phase two
+        # steps down). Gives every review IPA a distinct, increasing
+        # CFBundleVersion so a sideload tool always sees a real update --
+        # see app.config.ts's ios.buildNumber comment.
+        env:
+          IOS_BUILD_NUMBER: ${{ steps.meta.outputs.build_number }}
+          BUILD_PROFILE: ci
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Run unsigned iOS archive script
+        id: build
+        env:
+          IOS_IPA_NAME: ${{ steps.meta.outputs.ipa_name }}
+        run: npm run ios:unsigned-build
+
+      - name: Validate IPA artifact
+        # scripts/ios/build-ios.ts already unzips and re-validates the IPA
+        # internally (and exits non-zero on any failure, which would have
+        # stopped the job at the previous step) -- this step just surfaces
+        # what it found in the job log/summary for a human reviewing the
+        # run, using the outputs it wrote to GITHUB_OUTPUT.
+        run: |
+          echo "IPA path: ${{ steps.build.outputs.ipa_path }}"
+          echo "Bundle identifier: ${{ steps.build.outputs.bundle_id }}"
+          echo "Executable: ${{ steps.build.outputs.executable_name }}"
+          echo "Architecture(s): ${{ steps.build.outputs.arch_info }}"
+          echo "Signing state: UNSIGNED (must be re-signed by Sideloadly/AltStore/SideStore before install)"
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: ${{ steps.meta.outputs.artifact_name }}
+          path: ${{ steps.build.outputs.ipa_path }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Write job summary
+        if: success()
+        run: |
+          {
+            echo "## iOS unsigned device IPA"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Artifact name | \`${{ steps.meta.outputs.artifact_name }}\` |"
+            echo "| IPA file | \`$(basename "${{ steps.build.outputs.ipa_path }}")\` |"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Build number | \`${{ steps.meta.outputs.build_number }}\` |"
+            echo "| Bundle identifier | \`${{ steps.build.outputs.bundle_id }}\` |"
+            echo "| Architecture | \`${{ steps.build.outputs.arch_info }}\` |"
+            echo "| Runner | \`${{ inputs.runner || 'macos-26' }}\` |"
+            echo "| Xcode / Swift | \`${{ steps.xcode_select.outputs.xcode_version }}\` / \`${{ steps.xcode_select.outputs.swift_version }}\` |"
+            echo
+            echo "### Verification results (scripts/ios/build-ios.ts)"
+            echo "- ✅ Archived via \`xcodebuild archive\` (not a raw \`build\` action), physical-device destination"
+            echo "- ✅ Not a Simulator build (Mach-O platform, Info.plist, and archive Products/Applications checks all confirm \`iphoneos\`)"
+            echo "- ✅ Executable contains an \`arm64\` slice, no \`x86_64\` slice"
+            echo "- ✅ Bundle identifier matches \`app.config.ts\`"
+            echo "- ✅ \`hermes\`/\`ExpoModulesCore\` present; embedded JS bundle present"
+            echo "- ✅ Payload copied with \`ditto\` (not \`cp -R\`) and zipped with \`zip -y\` (symlinks preserved, not dereferenced)"
+            echo "- ✅ Re-validated from a fresh unzip of the finished IPA, not just the pre-packaging archive"
+            echo
+            echo "**This IPA is unsigned.** It cannot be installed directly -- re-sign and"
+            echo "install it with Sideloadly, AltStore, or SideStore."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write failure summary
+        if: failure()
+        run: |
+          {
+            echo "## iOS unsigned device IPA — build failed"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit SHA | \`${{ github.sha }}\` |"
+            echo "| Build number | \`${{ github.run_number }}\` |"
+            echo
+            echo "No IPA artifact was produced. See the failed step's log output above for details."
+          } >> "$GITHUB_STEP_SUMMARY"

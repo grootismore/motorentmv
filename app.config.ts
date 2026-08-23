@@ -23,7 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: BUNDLE_ID,
     // CFBundleVersion. Left at the fixed default ('1') for local/EAS
     // builds, but the CI-built review IPA overrides this via
-    // IOS_BUILD_NUMBER (see .github/workflows/ios-unsigned-ipa.yml) so
+    // IOS_BUILD_NUMBER (see .github/workflows/ios-unsigned-device.yml) so
     // every review build carries a distinct, increasing build number --
     // without this, every review IPA reported the exact same
     // CFBundleVersion, and a sideloading tool doing an in-place
@@ -68,6 +68,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Populated by `eas init`; left unset until an EAS project is created.
     eas: {
       projectId: process.env.EAS_PROJECT_ID,
+    },
+    // Safe diagnostic metadata only (no secrets, no tokens) -- lets a
+    // sideloaded IPA be traced back to the exact GitHub Actions run and
+    // commit that produced it, surfaced via Constants.expoConfig.extra.build
+    // wherever the app wants to show it (e.g. a hidden tap-to-reveal
+    // build-info row). All fields are undefined outside CI/EAS, since none
+    // of these env vars exist locally.
+    build: {
+      commit: process.env.GITHUB_SHA?.slice(0, 7),
+      branch: process.env.GITHUB_REF_NAME,
+      runNumber: process.env.GITHUB_RUN_NUMBER,
+      profile: process.env.BUILD_PROFILE,
+      builtAt: new Date().toISOString(),
     },
   },
 });
