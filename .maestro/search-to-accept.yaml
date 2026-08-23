@@ -4,9 +4,8 @@ appId: com.ridefinder.app
 # "search -> request -> renter accept". Chains the two flows below via
 # runFlow so they can also be run independently for narrower debugging.
 #
-# LIMITATION: both sub-flows type a fixed placeholder email-OTP code
-# rather than retrieving a real one — see the comment at the top of each
-# for why, and what wiring a real test-inbox integration would take.
+# See the comment at the top of each sub-flow for its own assumptions
+# about email + password authentication (src/features/auth/session.ts).
 #
 # Run with: maestro test .maestro/search-to-accept.yaml
 

@@ -3,9 +3,9 @@ appId: com.ridefinder.app
 # Renter flow (PRD Prompt 5): sign in -> open the pending booking request
 # left by the customer flow -> accept it.
 #
-# LIMITATION, documented rather than faked: same email-OTP caveat as
-# customer-search-to-request.yaml — the verification-code step types a
-# fixed placeholder value, not a code actually retrieved from an inbox.
+# Authentication is email + password (see src/features/auth/session.ts) —
+# this renter account is assumed to already exist (created once via
+# sign-in.tsx's "Create account" toggle); this flow only signs in.
 #
 # This flow assumes it runs after customer-search-to-request.yaml has
 # already created a 'requested' booking for this renter's organization
@@ -22,14 +22,10 @@ appId: com.ridefinder.app
     id: 'sign-in-email'
 - inputText: 'renter@example.com'
 - tapOn:
+    id: 'sign-in-password'
+- inputText: 'TestPassword1'
+- tapOn:
     id: 'sign-in-continue'
-
-# See the LIMITATION note above.
-- tapOn:
-    id: 'verify-code'
-- inputText: '000000'
-- tapOn:
-    id: 'verify-confirm'
 
 # The bookings inbox defaults to the "Needs action" filter (requested +
 # needs_info) — the new request is visible without changing filters.

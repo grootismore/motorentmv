@@ -109,7 +109,7 @@ npm run verify        # format:check + lint + typecheck + test, in order
 
 ```
 app/                   Expo Router routes (file-based)
-  (auth)/               Role selection, sign-in, verify (Supabase email OTP)
+  (auth)/               Role selection, sign-in/create-account (Supabase email + password)
   (customer)/           Customer tabs: explore/search, listing, checkout,
                         bookings, profile — anonymous browsing until checkout
   (renter)/             Onboarding, or the renter tabs once an org exists
@@ -198,8 +198,9 @@ Linux runner.
   test suite, and the local Postgres RLS/booking-engine suite; the CI
   workflow above produces a real device build to verify on hardware.
 - `.maestro/` E2E flows are written but not run here for the same reason;
-  they also type a fixed placeholder into the email-OTP step rather than
-  retrieving a real code, since no mail-testing integration exists yet.
+  the customer flow's sign-up step also assumes the Supabase project's
+  "Confirm email" setting is off, since no mail-testing integration exists
+  to click a real confirmation link.
 - Fleet availability-block dates use a plain text field rather than a native
   date/time picker.
 - The renter calendar is a lightweight agenda grouped by pickup date, not a

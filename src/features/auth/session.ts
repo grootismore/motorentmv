@@ -2,26 +2,25 @@ import { getSupabase } from '../../lib/supabase';
 import { err, ok, type Result } from '../../lib/result';
 
 /**
- * PRD §6.1: email magic link or OTP, phone OTP where the provider supports
- * reliable delivery. This project starts with email OTP (a 6-digit code,
- * not a deep-linked magic link) because it needs no universal-link setup
- * to work in a development build. Phone OTP is a later addition once an
- * SMS provider is confirmed for Maldivian numbers (see the Prompt 0
- * report's open assumptions) — never invent a custom password flow.
+ * Email + password authentication. Supabase's `signUp` returns a `null`
+ * session when the project requires email confirmation before first
+ * sign-in (a per-project setting this client can't see or control) --
+ * `needsEmailConfirmation` surfaces that so the UI can tell the user to
+ * check their inbox instead of assuming they're signed in.
  */
-export async function requestEmailOtp(email: string): Promise<Result<null>> {
-  const { error } = await getSupabase().auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true },
-  });
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<Result<{ needsEmailConfirmation: boolean }>> {
+  const { data, error } = await getSupabase().auth.signUp({ email, password });
   if (error) {
     return err({ message: error.message, code: error.code });
   }
-  return ok(null);
+  return ok({ needsEmailConfirmation: !data.session });
 }
 
-export async function verifyEmailOtp(email: string, token: string): Promise<Result<null>> {
-  const { error } = await getSupabase().auth.verifyOtp({ email, token, type: 'email' });
+export async function signInWithPassword(email: string, password: string): Promise<Result<null>> {
+  const { error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) {
     return err({ message: error.message, code: error.code });
   }

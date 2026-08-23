@@ -3,14 +3,15 @@ appId: com.ridefinder.app
 # Customer flow (PRD Prompt 5): anonymous browsing -> search -> listing
 # detail -> authentication gate -> rider details -> request submission.
 #
-# LIMITATION, documented rather than faked: real email-OTP retrieval
-# cannot be automated here without a test-inbox integration this project
-# doesn't have (no such integration exists anywhere in this repo). The
-# "enter code" step below types a fixed placeholder value — it only
-# succeeds against a backend/local Supabase instance configured to accept
-# a fixed test OTP for this address. Running this flow against a real
-# environment requires either wiring a mail-testing API into this step or
-# supplying the code out of band before that step runs.
+# Authentication is email + password (see src/features/auth/session.ts) —
+# this flow signs up a fresh test address inline via the auth gate, so it
+# needs no test-inbox integration or out-of-band code retrieval.
+#
+# ASSUMPTION: this only reaches rider-details-form when the Supabase
+# project's "Confirm email" setting is off, so sign-up returns a session
+# immediately. With confirmation required, sign-up instead shows
+# 'inline-auth-info' and returns to the sign-in step -- this flow does not
+# handle that case (no test-inbox integration exists to click the link).
 
 - launchApp:
     clearState: true
@@ -53,18 +54,19 @@ appId: com.ridefinder.app
     id: 'inline-auth-gate'
 
 - tapOn:
+    id: 'inline-auth-toggle-mode'
+
+- tapOn:
     id: 'inline-auth-email'
 - inputText: 'customer@example.com'
 - tapOn:
-    id: 'inline-auth-send-code'
-
-# See the LIMITATION note above — this value is a placeholder, not a code
-# actually retrieved from the inbox.
+    id: 'inline-auth-password'
+- inputText: 'TestPassword1'
 - tapOn:
-    id: 'inline-auth-code'
-- inputText: '000000'
+    id: 'inline-auth-confirm-password'
+- inputText: 'TestPassword1'
 - tapOn:
-    id: 'inline-auth-confirm'
+    id: 'inline-auth-submit'
 
 - assertVisible:
     id: 'rider-details-form'

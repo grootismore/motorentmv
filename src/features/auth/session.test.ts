@@ -1,8 +1,8 @@
-import { requestEmailOtp, signOut, verifyEmailOtp } from './session';
+import { signInWithPassword, signOut, signUpWithPassword } from './session';
 
 const mockAuth = {
-  signInWithOtp: jest.fn(),
-  verifyOtp: jest.fn(),
+  signUp: jest.fn(),
+  signInWithPassword: jest.fn(),
   signOut: jest.fn(),
 };
 
@@ -10,50 +10,53 @@ jest.mock('../../lib/supabase', () => ({
   getSupabase: () => ({ auth: mockAuth }),
 }));
 
-describe('requestEmailOtp', () => {
+describe('signUpWithPassword', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('requests an OTP and allows sign-up for a new email', async () => {
-    mockAuth.signInWithOtp.mockResolvedValue({ error: null });
-    const result = await requestEmailOtp('rider@example.com');
-    expect(result.ok).toBe(true);
-    expect(mockAuth.signInWithOtp).toHaveBeenCalledWith({
-      email: 'rider@example.com',
-      options: { shouldCreateUser: true },
-    });
+  it('creates the account and signs in immediately when no email confirmation is required', async () => {
+    mockAuth.signUp.mockResolvedValue({ data: { session: { user: { id: 'u1' } } }, error: null });
+    const result = await signUpWithPassword('rider@example.com', 'hunter22');
+    expect(result).toEqual({ ok: true, data: { needsEmailConfirmation: false } });
+    expect(mockAuth.signUp).toHaveBeenCalledWith({ email: 'rider@example.com', password: 'hunter22' });
+  });
+
+  it('reports that email confirmation is required when no session comes back', async () => {
+    mockAuth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    const result = await signUpWithPassword('rider@example.com', 'hunter22');
+    expect(result).toEqual({ ok: true, data: { needsEmailConfirmation: true } });
   });
 
   it('surfaces a Supabase error as a Result', async () => {
-    mockAuth.signInWithOtp.mockResolvedValue({
-      error: { message: 'Rate limited', code: 'over_request_rate_limit' },
+    mockAuth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: { message: 'User already registered', code: 'user_already_exists' },
     });
-    const result = await requestEmailOtp('rider@example.com');
+    const result = await signUpWithPassword('rider@example.com', 'hunter22');
     expect(result).toEqual({
       ok: false,
-      error: { message: 'Rate limited', code: 'over_request_rate_limit' },
+      error: { message: 'User already registered', code: 'user_already_exists' },
     });
   });
 });
 
-describe('verifyEmailOtp', () => {
+describe('signInWithPassword', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('verifies the code against the right email and type', async () => {
-    mockAuth.verifyOtp.mockResolvedValue({ error: null });
-    const result = await verifyEmailOtp('rider@example.com', '123456');
+  it('signs in with the given email and password', async () => {
+    mockAuth.signInWithPassword.mockResolvedValue({ error: null });
+    const result = await signInWithPassword('rider@example.com', 'hunter22');
     expect(result.ok).toBe(true);
-    expect(mockAuth.verifyOtp).toHaveBeenCalledWith({
+    expect(mockAuth.signInWithPassword).toHaveBeenCalledWith({
       email: 'rider@example.com',
-      token: '123456',
-      type: 'email',
+      password: 'hunter22',
     });
   });
 
-  it('surfaces an invalid-code error', async () => {
-    mockAuth.verifyOtp.mockResolvedValue({
-      error: { message: 'Token has expired or is invalid', code: 'otp_expired' },
+  it('surfaces an invalid-credentials error', async () => {
+    mockAuth.signInWithPassword.mockResolvedValue({
+      error: { message: 'Invalid login credentials', code: 'invalid_credentials' },
     });
-    const result = await verifyEmailOtp('rider@example.com', '000000');
+    const result = await signInWithPassword('rider@example.com', 'wrong-password');
     expect(result.ok).toBe(false);
   });
 });

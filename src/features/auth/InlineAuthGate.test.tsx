@@ -3,11 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ThemeProvider } from '../../design-system/ThemeProvider';
 import { InlineAuthGate } from './InlineAuthGate';
 
-const mockRequestEmailOtp = jest.fn();
-const mockVerifyEmailOtp = jest.fn();
+const mockSignInWithPassword = jest.fn();
+const mockSignUpWithPassword = jest.fn();
 jest.mock('./session', () => ({
-  requestEmailOtp: (...args: unknown[]) => mockRequestEmailOtp(...args),
-  verifyEmailOtp: (...args: unknown[]) => mockVerifyEmailOtp(...args),
+  signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
+  signUpWithPassword: (...args: unknown[]) => mockSignUpWithPassword(...args),
 }));
 
 function renderGate() {
@@ -21,60 +21,68 @@ function renderGate() {
 describe('InlineAuthGate', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('requests a code for the entered email and advances to the code step', async () => {
-    mockRequestEmailOtp.mockResolvedValue({ ok: true, value: null });
+  it('signs in with the entered email and password', async () => {
+    mockSignInWithPassword.mockResolvedValue({ ok: true, data: null });
     await renderGate();
 
     await fireEvent.changeText(screen.getByTestId('inline-auth-email'), 'rider@example.com');
-    await fireEvent.press(screen.getByTestId('inline-auth-send-code'));
+    await fireEvent.changeText(screen.getByTestId('inline-auth-password'), 'hunter22');
+    await fireEvent.press(screen.getByTestId('inline-auth-submit'));
 
-    expect(mockRequestEmailOtp).toHaveBeenCalledWith('rider@example.com');
-    expect(await screen.findByTestId('inline-auth-code')).toBeTruthy();
+    expect(mockSignInWithPassword).toHaveBeenCalledWith('rider@example.com', 'hunter22');
   });
 
-  it('shows an error and stays on the email step when the email is empty', async () => {
-    await renderGate();
-
-    await fireEvent.press(screen.getByTestId('inline-auth-send-code'));
-
-    expect(mockRequestEmailOtp).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('inline-auth-code')).toBeNull();
-  });
-
-  it('surfaces a request error without advancing to the code step', async () => {
-    mockRequestEmailOtp.mockResolvedValue({ ok: false, error: { message: 'Rate limited' } });
+  it('shows an error and does not call sign-in when the password is empty', async () => {
     await renderGate();
 
     await fireEvent.changeText(screen.getByTestId('inline-auth-email'), 'rider@example.com');
-    await fireEvent.press(screen.getByTestId('inline-auth-send-code'));
+    await fireEvent.press(screen.getByTestId('inline-auth-submit'));
 
-    expect(screen.queryByTestId('inline-auth-code')).toBeNull();
+    expect(mockSignInWithPassword).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('inline-auth-error')).toHaveTextContent('Enter your password.');
   });
 
-  it('verifies the code against the email that requested it', async () => {
-    mockRequestEmailOtp.mockResolvedValue({ ok: true, value: null });
-    mockVerifyEmailOtp.mockResolvedValue({ ok: true, value: null });
+  it('surfaces an invalid-credentials error from the server', async () => {
+    mockSignInWithPassword.mockResolvedValue({ ok: false, error: { message: 'Invalid login credentials' } });
     await renderGate();
 
     await fireEvent.changeText(screen.getByTestId('inline-auth-email'), 'rider@example.com');
-    await fireEvent.press(screen.getByTestId('inline-auth-send-code'));
-    await fireEvent.changeText(await screen.findByTestId('inline-auth-code'), '123456');
-    await fireEvent.press(screen.getByTestId('inline-auth-confirm'));
+    await fireEvent.changeText(screen.getByTestId('inline-auth-password'), 'wrong-password');
+    await fireEvent.press(screen.getByTestId('inline-auth-submit'));
 
-    expect(mockVerifyEmailOtp).toHaveBeenCalledWith('rider@example.com', '123456');
+    expect(await screen.findByTestId('inline-auth-error')).toHaveTextContent('Invalid login credentials');
   });
 
-  it('lets the user switch back to the email step to correct a typo', async () => {
-    mockRequestEmailOtp.mockResolvedValue({ ok: true, value: null });
+  it('switches to create-account mode and requires a matching confirmation password', async () => {
     await renderGate();
 
+    await fireEvent.press(screen.getByTestId('inline-auth-toggle-mode'));
+    expect(await screen.findByTestId('inline-auth-confirm-password')).toBeTruthy();
+
     await fireEvent.changeText(screen.getByTestId('inline-auth-email'), 'rider@example.com');
-    await fireEvent.press(screen.getByTestId('inline-auth-send-code'));
-    await screen.findByTestId('inline-auth-code');
+    await fireEvent.changeText(screen.getByTestId('inline-auth-password'), 'hunter22');
+    await fireEvent.changeText(screen.getByTestId('inline-auth-confirm-password'), 'different');
+    await fireEvent.press(screen.getByTestId('inline-auth-submit'));
 
-    await fireEvent.press(screen.getByTestId('inline-auth-change-email'));
+    expect(mockSignUpWithPassword).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('inline-auth-error')).toHaveTextContent('Passwords do not match.');
+  });
 
-    expect(screen.getByTestId('inline-auth-email')).toBeTruthy();
-    expect(screen.queryByTestId('inline-auth-code')).toBeNull();
+  it('creates the account and prompts for email confirmation when required', async () => {
+    mockSignUpWithPassword.mockResolvedValue({ ok: true, data: { needsEmailConfirmation: true } });
+    await renderGate();
+
+    await fireEvent.press(screen.getByTestId('inline-auth-toggle-mode'));
+    await fireEvent.changeText(screen.getByTestId('inline-auth-email'), 'rider@example.com');
+    await fireEvent.changeText(screen.getByTestId('inline-auth-password'), 'hunter22');
+    await fireEvent.changeText(screen.getByTestId('inline-auth-confirm-password'), 'hunter22');
+    await fireEvent.press(screen.getByTestId('inline-auth-submit'));
+
+    expect(mockSignUpWithPassword).toHaveBeenCalledWith('rider@example.com', 'hunter22');
+    expect(await screen.findByTestId('inline-auth-info')).toHaveTextContent(
+      'Account created — check your email to confirm it, then sign in below.',
+    );
+    // Back on the sign-in step, ready to sign in once confirmed.
+    expect(screen.queryByTestId('inline-auth-confirm-password')).toBeNull();
   });
 });
