@@ -9,6 +9,7 @@ import { LoadingState } from '../../../../src/components/states/LoadingState';
 import { SecondaryBody, SectionTitle } from '../../../../src/components/Typography';
 import { useTheme } from '../../../../src/design-system/ThemeProvider';
 import { AvailabilityBlocksSection } from '../../../../src/features/fleet/AvailabilityBlocksSection';
+import { MaintenanceSection } from '../../../../src/features/fleet/MaintenanceSection';
 import { PhotosSection } from '../../../../src/features/fleet/PhotosSection';
 import { useVehicle } from '../../../../src/features/fleet/queries';
 import { RatesSection } from '../../../../src/features/fleet/RatesSection';
@@ -47,8 +48,14 @@ export default function VehicleDetail() {
         <GroupedSection title="Vehicle">
           <View style={{ gap: theme.spacing.xs }}>
             <SecondaryBody>Status: {v.status}</SecondaryBody>
+            {v.internal_code ? <SecondaryBody>Internal code: {v.internal_code}</SecondaryBody> : null}
+            {v.category ? <SecondaryBody>Category: {v.category}</SecondaryBody> : null}
+            {v.engine_size_cc ? <SecondaryBody>Engine: {v.engine_size_cc} cc</SecondaryBody> : null}
             <SecondaryBody>Deposit: MVR {(v.deposit_amount_laari / 100).toFixed(2)}</SecondaryBody>
             <SecondaryBody>Odometer: {v.odometer_km.toLocaleString()} km</SecondaryBody>
+            {v.included_accessories.length > 0 ? (
+              <SecondaryBody>Accessories: {v.included_accessories.join(', ')}</SecondaryBody>
+            ) : null}
           </View>
         </GroupedSection>
 
@@ -65,6 +72,11 @@ export default function VehicleDetail() {
         <View style={{ gap: theme.spacing.md }}>
           <SectionTitle>Availability blocks</SectionTitle>
           <AvailabilityBlocksSection vehicleId={v.id} />
+        </View>
+
+        <View style={{ gap: theme.spacing.md }}>
+          <SectionTitle>Maintenance</SectionTitle>
+          <MaintenanceSection vehicleId={v.id} organizationId={v.organization_id} />
         </View>
       </View>
     </Screen>

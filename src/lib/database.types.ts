@@ -673,6 +673,67 @@ export type Database = {
           },
         ];
       };
+      vehicle_maintenance_records: {
+        Row: {
+          id: string;
+          organization_id: string;
+          vehicle_id: string;
+          description: string;
+          cost_laari: number | null;
+          odometer_km_at_service: number | null;
+          performed_on: string;
+          recorded_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          vehicle_id: string;
+          description: string;
+          cost_laari?: number | null;
+          odometer_km_at_service?: number | null;
+          performed_on: string;
+          recorded_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          vehicle_id?: string;
+          description?: string;
+          cost_laari?: number | null;
+          odometer_km_at_service?: number | null;
+          performed_on?: string;
+          recorded_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'vehicle_maintenance_records_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_maintenance_records_vehicle_id_fkey';
+            columns: ['vehicle_id'];
+            isOneToOne: false;
+            referencedRelation: 'vehicles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'vehicle_maintenance_records_recorded_by_fkey';
+            columns: ['recorded_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       vehicle_rates: {
         Row: {
           id: string;

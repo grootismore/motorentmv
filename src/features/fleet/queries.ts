@@ -7,6 +7,7 @@ export type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 export type VehicleInsert = Database['public']['Tables']['vehicles']['Insert'];
 export type VehicleRate = Database['public']['Tables']['vehicle_rates']['Row'];
 export type AvailabilityBlock = Database['public']['Tables']['availability_blocks']['Row'];
+export type MaintenanceRecord = Database['public']['Tables']['vehicle_maintenance_records']['Row'];
 
 export function useVehicles(organizationId: string | undefined) {
   return useQuery({
@@ -176,6 +177,75 @@ export function useDeleteAvailabilityBlock(vehicleId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['availability-blocks', vehicleId] });
+    },
+  });
+}
+
+export function useMaintenanceRecords(vehicleId: string | undefined) {
+  return useQuery({
+    queryKey: ['maintenance-records', vehicleId],
+    enabled: Boolean(vehicleId),
+    queryFn: async (): Promise<MaintenanceRecord[]> => {
+      const { data, error } = await getSupabase()
+        .from('vehicle_maintenance_records')
+        .select('*')
+        .eq('vehicle_id', vehicleId as string)
+        .order('performed_on', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+interface CreateMaintenanceRecordInput {
+  organizationId: string;
+  vehicleId: string;
+  description: string;
+  costLaari: number | null;
+  odometerKmAtService: number | null;
+  performedOn: string;
+}
+
+export function useCreateMaintenanceRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateMaintenanceRecordInput): Promise<MaintenanceRecord> => {
+      const supabase = getSupabase();
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session.session?.user.id;
+      if (!userId) throw new Error('Not signed in');
+
+      const { data, error } = await supabase
+        .from('vehicle_maintenance_records')
+        .insert({
+          organization_id: input.organizationId,
+          vehicle_id: input.vehicleId,
+          description: input.description,
+          cost_laari: input.costLaari,
+          odometer_km_at_service: input.odometerKmAtService,
+          performed_on: input.performedOn,
+          recorded_by: userId,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance-records', data.vehicle_id] });
+    },
+  });
+}
+
+export function useDeleteMaintenanceRecord(vehicleId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (recordId: string) => {
+      const { error } = await getSupabase().from('vehicle_maintenance_records').delete().eq('id', recordId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['maintenance-records', vehicleId] });
     },
   });
 }

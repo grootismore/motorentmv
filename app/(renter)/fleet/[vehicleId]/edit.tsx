@@ -34,14 +34,19 @@ export default function EditVehicle() {
   const v = vehicle.data;
   const initialValues: Partial<VehicleFormValues> = {
     registration_number: v.registration_number,
+    internal_code: v.internal_code ?? '',
     make: v.make ?? '',
     model: v.model ?? '',
     year: v.year?.toString() ?? '',
+    category: v.category ?? '',
+    engine_size_cc: v.engine_size_cc?.toString() ?? '',
     color: v.color ?? '',
     transmission: v.transmission ?? 'automatic',
     status: v.status,
+    odometer_km: v.odometer_km.toString(),
     deposit_amount_laari: laariToMvrText(v.deposit_amount_laari),
     location: v.location ?? '',
+    included_accessories: v.included_accessories.join(', '),
   };
 
   return (

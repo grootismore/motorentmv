@@ -25,14 +25,19 @@ const TRANSMISSION_OPTIONS: { value: Transmission; label: string }[] = [
 
 export interface VehicleFormValues {
   registration_number: string;
+  internal_code: string;
   make: string;
   model: string;
   year: string;
+  category: string;
+  engine_size_cc: string;
   color: string;
   transmission: Transmission;
   status: VehicleStatus;
+  odometer_km: string;
   deposit_amount_laari: string;
   location: string;
+  included_accessories: string;
 }
 
 interface VehicleFormProps {
@@ -46,14 +51,19 @@ interface VehicleFormProps {
 
 const DEFAULTS: VehicleFormValues = {
   registration_number: '',
+  internal_code: '',
   make: '',
   model: '',
   year: '',
+  category: '',
+  engine_size_cc: '',
   color: '',
   transmission: 'automatic',
   status: 'draft',
+  odometer_km: '0',
   deposit_amount_laari: '',
   location: '',
+  included_accessories: '',
 };
 
 export function VehicleForm({
@@ -78,6 +88,15 @@ export function VehicleForm({
         value={values.registration_number}
         onChangeText={(v) => setField('registration_number', v)}
         placeholder="P-1001-AA"
+        autoCapitalize="characters"
+        editable={!isSubmitting}
+      />
+      <TextField
+        testID={`${testIDPrefix}-internal-code`}
+        label="Internal code (optional)"
+        value={values.internal_code}
+        onChangeText={(v) => setField('internal_code', v)}
+        placeholder="BIKE-04"
         autoCapitalize="characters"
         editable={!isSubmitting}
       />
@@ -107,6 +126,23 @@ export function VehicleForm({
         editable={!isSubmitting}
       />
       <TextField
+        testID={`${testIDPrefix}-category`}
+        label="Category (optional)"
+        value={values.category}
+        onChangeText={(v) => setField('category', v)}
+        placeholder="Scooter"
+        editable={!isSubmitting}
+      />
+      <TextField
+        testID={`${testIDPrefix}-engine-size`}
+        label="Engine size (cc, optional)"
+        value={values.engine_size_cc}
+        onChangeText={(v) => setField('engine_size_cc', v)}
+        placeholder="125"
+        keyboardType="number-pad"
+        editable={!isSubmitting}
+      />
+      <TextField
         testID={`${testIDPrefix}-color`}
         label="Color"
         value={values.color}
@@ -129,6 +165,15 @@ export function VehicleForm({
         onChange={(v) => setField('status', v)}
       />
       <TextField
+        testID={`${testIDPrefix}-odometer`}
+        label="Odometer (km)"
+        value={values.odometer_km}
+        onChangeText={(v) => setField('odometer_km', v)}
+        placeholder="0"
+        keyboardType="number-pad"
+        editable={!isSubmitting}
+      />
+      <TextField
         testID={`${testIDPrefix}-deposit`}
         label="Deposit (MVR)"
         value={values.deposit_amount_laari}
@@ -143,6 +188,14 @@ export function VehicleForm({
         value={values.location}
         onChangeText={(v) => setField('location', v)}
         placeholder="Hulhumale"
+        editable={!isSubmitting}
+      />
+      <TextField
+        testID={`${testIDPrefix}-accessories`}
+        label="Included accessories (comma-separated, optional)"
+        value={values.included_accessories}
+        onChangeText={(v) => setField('included_accessories', v)}
+        placeholder="Helmet, phone mount"
         editable={!isSubmitting}
       />
       {errorMessage ? (
@@ -176,28 +229,59 @@ export function laariToMvrText(laari: number | null | undefined): string {
 
 interface VehicleFormPayload {
   registration_number: string;
+  internal_code: string | null;
   make: string | null;
   model: string | null;
   year: number | null;
+  category: string | null;
+  engine_size_cc: number | null;
   color: string | null;
   transmission: Transmission;
   status: VehicleStatus;
+  odometer_km: number;
   deposit_amount_laari: number;
   location: string | null;
+  included_accessories: string[];
+}
+
+/** A non-negative whole number entered by a human, or `null` if the field
+ * was left blank -- distinct from `mvrToLaari` in that there's no
+ * laari/MVR scaling and blank means "unset", not zero. */
+function parseNonNegativeInt(text: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  if (!Number.isInteger(value) || value < 0) return undefined;
+  return value;
 }
 
 export function vehicleFormToInsert(values: VehicleFormValues): VehicleFormPayload | null {
   const depositLaari = mvrToLaari(values.deposit_amount_laari);
   if (depositLaari === null) return null;
+
+  const engineSizeCc = parseNonNegativeInt(values.engine_size_cc);
+  if (engineSizeCc === undefined) return null;
+
+  const odometerKm = parseNonNegativeInt(values.odometer_km);
+  if (odometerKm === undefined) return null;
+
   return {
     registration_number: values.registration_number.trim(),
+    internal_code: values.internal_code.trim() || null,
     make: values.make.trim() || null,
     model: values.model.trim() || null,
     year: values.year.trim() ? Number(values.year.trim()) : null,
+    category: values.category.trim() || null,
+    engine_size_cc: engineSizeCc,
     color: values.color.trim() || null,
     transmission: values.transmission,
     status: values.status,
+    odometer_km: odometerKm ?? 0,
     deposit_amount_laari: depositLaari,
     location: values.location.trim() || null,
+    included_accessories: values.included_accessories
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean),
   };
 }
