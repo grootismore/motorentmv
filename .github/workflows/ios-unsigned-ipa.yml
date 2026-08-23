@@ -47,13 +47,6 @@ env:
   # by deriving it from that file (see "Resolve build metadata" below)
   # rather than duplicating the literal string here.
   APP_PRODUCT_DISPLAY_NAME: MotoRentMV
-  # This workflow has no EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY
-  # to give it (there's no backend behind this review build), so without
-  # this flag every screen that queries Supabase would show "Supabase is
-  # not configured" instead of anything reviewable — confirmed from a real
-  # sideloaded build. src/lib/env.ts documents this flag as visual-review
-  # only, off by default everywhere else; it is only ever set here.
-  EXPO_PUBLIC_DEMO_MODE: 'true'
 
 jobs:
   build-unsigned-ipa:
@@ -218,6 +211,20 @@ jobs:
 
       - name: Build Release for a physical iOS device (arm64, unsigned)
         id: build
+        # EXPO_PUBLIC_DEMO_MODE is scoped to this step only, not the job-wide
+        # env above: it must be present when Xcode's "Bundle React Native
+        # code and images" phase invokes Metro (this step, since xcodebuild
+        # runs synchronously here and that phase inherits this shell's
+        # environment), but must NOT be present during "Format check, lint,
+        # typecheck and unit tests" earlier in this job — a real regression
+        # from once briefly setting it at the job level: search.test.tsx's
+        # three tests all mock a specific RPC response/error, and with this
+        # flag on, src/lib/env.ts's isDemoMode + isSupabaseConfigured (no
+        # Supabase credentials exist in this workflow either) made
+        # app/(customer)/search.tsx render its demo-card fallback instead
+        # of whatever the test mocked, unconditionally, failing all three.
+        env:
+          EXPO_PUBLIC_DEMO_MODE: 'true'
         run: |
           set -euo pipefail
           set -o pipefail

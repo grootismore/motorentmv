@@ -621,6 +621,38 @@ layout bug, not a rendering glitch.
   `oceanTabBar.test.tsx` cases) and `expo export --platform ios` stayed
   green.
 
+### CI fix: `EXPO_PUBLIC_DEMO_MODE` broke `npm run verify` in the same workflow
+
+Round 5's fix set `EXPO_PUBLIC_DEMO_MODE: 'true'` at the **job-wide** `env:`
+level in `ios-unsigned-ipa.yml`, which applies to every step in the job —
+including "Format check, lint, typecheck and unit tests" earlier in the same
+job, not just the actual build. A real CI run
+(`logs_88340149295.zip`) failed all three `search.test.tsx` tests:
+`isDemoMode` (from that ambient env var) plus `isSupabaseConfigured` (no
+Supabase credentials exist in this workflow either) made
+`app/(customer)/search.tsx` render its demo-card fallback unconditionally,
+regardless of what each test's mocked RPC response was.
+
+- Moved `EXPO_PUBLIC_DEMO_MODE: 'true'` from the job-level `env:` to a
+  step-level `env:` on "Build Release for a physical iOS device" only —
+  the one step where Xcode's "Bundle React Native code and images" phase
+  actually invokes Metro and needs it. The `npm run verify` step earlier
+  in the job no longer sees it at all.
+- **`search.test.tsx` also had a latent version of this same fragility**
+  independent of the workflow: it mocked `getSupabase` but not
+  `isSupabaseConfigured`, so `isSupabaseConfigured` silently evaluated to
+  `undefined` (falsy) in that mock — meaning its three tests only ever
+  passed by coincidence of `isDemoMode` being unset in whatever
+  environment ran them, not because the test asserted anything about that
+  dependency. Now explicitly mocks `isSupabaseConfigured: true`, so this
+  suite is deterministic regardless of any ambient
+  `EXPO_PUBLIC_DEMO_MODE`/`EXPO_PUBLIC_SUPABASE_*`, in CI or anywhere else.
+  Verified locally by reproducing the exact failure with
+  `EXPO_PUBLIC_DEMO_MODE=true npx jest search.test.tsx` before the fix,
+  and confirming it passes with the same env var set after.
+- `npm run verify` (21 suites / 99 tests) is green both with and without
+  `EXPO_PUBLIC_DEMO_MODE` set in the shell now.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

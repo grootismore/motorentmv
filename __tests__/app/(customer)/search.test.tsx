@@ -6,7 +6,17 @@ import { ThemeProvider } from '../../../src/design-system/ThemeProvider';
 import Search from '../../../app/(customer)/search';
 
 const mockRpc = jest.fn();
+// isSupabaseConfigured: true makes this suite's behavior deterministic
+// regardless of any ambient EXPO_PUBLIC_DEMO_MODE/EXPO_PUBLIC_SUPABASE_*
+// in the environment these tests happen to run in -- this file tests the
+// real RPC-driven rendering path, not the demo-card fallback (that's
+// search.demo-fallback.test.tsx). A real CI regression once slipped
+// through here: EXPO_PUBLIC_DEMO_MODE briefly set job-wide in
+// ios-unsigned-ipa.yml (meant only for the actual build step) made every
+// test below render demo cards instead of whatever was mocked, since
+// isSupabaseConfigured was previously left undefined (falsy) here.
 jest.mock('../../../src/lib/supabase', () => ({
+  isSupabaseConfigured: true,
   getSupabase: () => ({ rpc: (...args: unknown[]) => mockRpc(...args) }),
 }));
 
