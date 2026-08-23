@@ -60,10 +60,29 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermission: false,
       },
     ],
-    // No icon/color override: defaults to the app icon, since no dedicated
-    // monochrome notification-icon asset exists yet (same "replace before
-    // store submission" placeholder spirit as BUNDLE_ID above).
-    'expo-notifications',
+    // NOT in this list: 'expo-notifications'. Its config plugin
+    // (node_modules/expo-notifications/plugin/build/withNotificationsIOS.js)
+    // unconditionally adds `aps-environment` to the iOS entitlements and
+    // `remote-notification` to UIBackgroundModes whenever it runs -- there
+    // is no option to suppress this. A Push Notifications entitlement can
+    // only be granted by a paid Apple Developer Program provisioning
+    // profile; a free personal-team profile (what Sideloadly/AltStore/
+    // SideStore resign with) cannot include it. The mismatch between what
+    // the app requests and what the resigning profile can grant is
+    // rejected by the device's own `installd` at install time -- this is
+    // the real cause of every "Service operation failed: Failed to install
+    // IPA" / Minimuxer.IdeviceGatewayError this project hit, on both the
+    // pre-rename and post-rename bundle identifier (the rename never could
+    // have fixed this; the entitlement issue is bundle-id-independent).
+    // The `expo-notifications` *package* is untouched and still imported
+    // directly by src/features/notifications/service.ts -- local
+    // notifications, permission requests, and the response listener all
+    // work via the native module's own autolinking, independent of this
+    // config plugin. Only real remote push delivery needs it, and this
+    // project doesn't have a paid Apple Developer account or a linked EAS
+    // project to receive real push tokens yet (see README). Re-add this
+    // plugin once both of those exist and this app is being distributed
+    // through TestFlight/App Store/EAS rather than free-account sideloading.
   ],
   experiments: {
     typedRoutes: true,
