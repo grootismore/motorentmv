@@ -19,7 +19,7 @@ export default function CustomerBookings() {
 
   if (session === null) {
     return (
-      <Screen title="My bookings" titleStyle="large" scroll>
+      <Screen title="My bookings" titleStyle="large" scroll={false}>
         <AuthPrompt
           testID="bookings-auth-prompt"
           icon="calendar-outline"

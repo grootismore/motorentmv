@@ -42,7 +42,7 @@ export default function CustomerProfile() {
 
   if (session === null) {
     return (
-      <Screen title="Profile" titleStyle="large" scroll>
+      <Screen title="Profile" titleStyle="large" scroll={false}>
         <AuthPrompt
           testID="profile-auth-prompt"
           icon="person-circle-outline"

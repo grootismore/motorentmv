@@ -1171,6 +1171,78 @@ build-version platform, an arm64-only slice, a matching bundle id, and
 that Hermes and ExpoModulesCore are actually present — and fails without
 producing an artifact if any check does not hold.
 
+### Fix: Supabase credentials never actually reached the review IPA (round 10)
+
+Every review build since round 8 still showed "Supabase is not
+configured" on a physical device, despite the workflow setting
+`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` as the
+xcodebuild step's shell env, on the documented assumption that Xcode's
+"Bundle React Native code and images" Run Script phase inherits that
+shell's environment. Pulling the actual job log for a successful run and
+inspecting the environment dump Xcode itself prints before that phase
+runs (the `export FOO=...` lines) proved that assumption wrong: neither
+variable was in it. The phase's real bundling command
+(`node .../@expo/cli/.../cli export:embed ...`) never saw them, so
+`EXPO_PUBLIC_SUPABASE_URL`/`ANON_KEY` were `undefined` in every shipped
+bundle, `isSupabaseConfigured` was `false`, and any query hit
+`getSupabase()`'s thrown error — the exact message in the screenshot.
+This also means `EXPO_PUBLIC_DEMO_MODE=true` never reached the bundle
+either, in any round: the demo-card fallback the earlier rounds'
+comments describe never actually fired on a device build.
+
+**Fix**: a new step, "Write production environment for the embedded JS
+bundle", writes a real `.env` file to the repo root before `expo
+prebuild`/pod install/xcodebuild ever run. `expo export:embed` (what the
+Xcode phase actually invokes) loads `.env`/`.env.production`/etc. from
+the project root itself via `@expo/env`, independent of whatever
+environment the parent process did or didn't pass through — this is
+what actually gets real values inlined into the bundle, verified by
+re-checking a subsequent build's own job log for the same environment
+dump.
+
+**Also per explicit request, demo mode is dropped from this build
+entirely** — this `.env` does not set `EXPO_PUBLIC_DEMO_MODE` at all, so
+it keeps its real default (`false`) from `src/lib/env.ts`. The review
+IPA is now full production against the real Supabase project only: if
+something is ever misconfigured again, it surfaces as a real, visible
+error rather than being silently papered over by demo cards (which,
+per the above, were never actually functioning anyway). The
+step-scoped `env:` block that used to sit on the xcodebuild step is
+removed as dead, misleading configuration now that it's understood not
+to work; `EXPO_PUBLIC_APP_ENV=production` was added to the new `.env`
+for correctness, though nothing currently branches on it.
+
+### Fix: unnecessary scroll indicator on two auth-gated screens (round 10)
+
+A screenshot flagged a scrollbar on the customer Bookings tab's
+signed-out state, questioning whether the screen was really native. It
+is — a translucent scroll-position indicator on the trailing edge is
+genuine `UIScrollView` chrome, not a fake one — but it had no reason to
+appear there: that screen's entire content is one small fixed-size
+`AuthPrompt` card that doesn't need to scroll at all.
+`app/(customer)/(tabs)/bookings/index.tsx` and
+`app/(customer)/(tabs)/profile/index.tsx` both passed `scroll` (Screen's
+scrollable mode) to their signed-out `AuthPrompt` branch instead of
+`scroll={false}`, unlike their own signed-in branches, which already
+correctly avoid it. Both changed to `scroll={false}`, matching every
+other short-fixed-content screen in the app.
+
+For the record, the pill-shaped tab bar with a separated Search circle
+in that same screenshot **is** the real native tab bar from rounds 8–9,
+not a reversion to the pre-migration custom one: this project's CI
+targets Xcode 26 / iOS 26 (confirmed in the build log —
+`Xcode_26.6.app`, `iPhoneOS26.5.sdk`), and Apple's iOS 26 "Liquid Glass"
+`UITabBarController` redesign renders exactly this way — a floating
+rounded bar with a `role="search"` item visually separated into its own
+circle — which is what made it such a good match for the original
+"Renata" reference to begin with.
+
+`npm run verify` (20 suites / 97 tests) and `tsc --noEmit` are clean.
+The env fix can only be confirmed by a fresh CI-built IPA on a physical
+device (this sandbox has neither); the same job-log inspection technique
+used to diagnose it will be used again on the next run to confirm the
+new `.env` step actually lands the real values in the bundle.
+
 ## What's next
 
 Finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the
