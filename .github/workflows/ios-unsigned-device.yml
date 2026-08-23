@@ -256,8 +256,20 @@ jobs:
 
       - name: Run unsigned iOS archive script
         id: build
+        # Two different consumers of the same two secrets, needing two
+        # different delivery mechanisms: the script's own pre-flight
+        # requireEnv() check runs as a plain Node process in *this* step's
+        # shell, so it reads real step-level env like any other Node
+        # script -- these are that. The actual Metro bundling happens
+        # much later, inside xcodebuild archive's own Run Script phase,
+        # which does not reliably inherit this shell's environment (see
+        # "Write production environment for the embedded JS bundle"
+        # above) -- that phase reads the .env file that step already
+        # wrote to disk, independent of what's set here.
         env:
           IOS_IPA_NAME: ${{ steps.meta.outputs.ipa_name }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run ios:unsigned-build
 
       - name: Validate IPA artifact
