@@ -103,7 +103,7 @@ export default function Explore() {
             }}
           >
             <Body color={theme.colors.oceanForeground} style={{ fontWeight: '700' }}>
-              MotoRent MV
+              RideFinder
             </Body>
             <Link href="/notifications" asChild>
               <Pressable

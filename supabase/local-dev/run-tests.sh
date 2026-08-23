@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUPABASE_DIR="$SCRIPT_DIR/.."
-DB_NAME="motorentmv_test"
+DB_NAME="ridefinder_test"
 PSQL=(sudo -u postgres psql -v ON_ERROR_STOP=1 -X -q -d "$DB_NAME")
 
 bash "$SCRIPT_DIR/run-migrations.sh" "$DB_NAME"

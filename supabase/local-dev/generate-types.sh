@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DB_NAME="${1:-motorentmv_test}"
+DB_NAME="${1:-ridefinder_test}"
 OUT_FILE="$SCRIPT_DIR/../../src/lib/database.types.ts"
 
 sudo -u postgres psql -v ON_ERROR_STOP=1 -X -q -t -A -d "$DB_NAME" -f "$SCRIPT_DIR/introspect.sql" \

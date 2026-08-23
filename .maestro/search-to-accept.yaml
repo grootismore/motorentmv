@@ -1,4 +1,4 @@
-appId: com.motorentmv.app
+appId: com.ridefinder.app
 ---
 # Composed end-to-end flow matching the PRD Prompt 5 ask verbatim:
 # "search -> request -> renter accept". Chains the two flows below via

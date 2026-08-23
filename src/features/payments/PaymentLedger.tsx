@@ -46,7 +46,7 @@ interface PaymentLedgerProps {
  * Manual payment ledger (PRD Prompt 6 / §6.4/§6.6): cash, bank transfer or
  * an external reference only. No payment-card field exists anywhere in
  * this component or the schema underneath it (transactions,
- * 20260821120015) -- MotoRent MV never touches card data.
+ * 20260821120015) -- RideFinder never touches card data.
  */
 export function PaymentLedger({ bookingId, organizationId, viewerRole }: PaymentLedgerProps) {
   const theme = useTheme();

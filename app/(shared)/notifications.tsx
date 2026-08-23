@@ -103,7 +103,7 @@ export default function Notifications() {
       return;
     }
     await expoNotificationService.scheduleTestNotification({
-      title: 'MotoRent MV',
+      title: 'RideFinder',
       body: 'This is a test notification — if you can see this, local notifications are working.',
     });
     setTestNotificationMessage('Test notification sent.');

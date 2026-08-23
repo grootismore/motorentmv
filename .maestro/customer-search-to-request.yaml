@@ -1,4 +1,4 @@
-appId: com.motorentmv.app
+appId: com.ridefinder.app
 ---
 # Customer flow (PRD Prompt 5): anonymous browsing -> search -> listing
 # detail -> authentication gate -> rider details -> request submission.

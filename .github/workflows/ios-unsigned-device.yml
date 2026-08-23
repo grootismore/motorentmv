@@ -197,8 +197,8 @@ jobs:
           fi
           echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "bundle_id=${BUNDLE_ID}" >> "$GITHUB_OUTPUT"
-          echo "ipa_name=MotoRent-MV-unsigned-${BUILD_NUMBER}.ipa" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=MotoRent-MV-iOS-unsigned-${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "ipa_name=RideFinder-unsigned-${BUILD_NUMBER}.ipa" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=RideFinder-iOS-unsigned-${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "Resolved bundle id: ${BUNDLE_ID}"
           echo "Build number: ${BUILD_NUMBER}"
 

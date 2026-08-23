@@ -6,7 +6,7 @@
 # exclusion constraint on bookings, not by luck of statement ordering.
 set -euo pipefail
 
-DB_NAME="${1:-motorentmv_test}"
+DB_NAME="${1:-ridefinder_test}"
 PSQL_SUPER=(sudo -u postgres psql -v ON_ERROR_STOP=1 -X -q -d "$DB_NAME")
 PSQL_T=(sudo -u postgres psql -X -q -t -A -d "$DB_NAME")
 

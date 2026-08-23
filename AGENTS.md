@@ -4,7 +4,7 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before 
 
 # Native-first product rules
 
-MotoRent MV must use native platform components and behavior whenever a
+RideFinder must use native platform components and behavior whenever a
 stable, Expo-compatible native option exists.
 
 The goal is not to draw controls that resemble iOS. The goal is to invoke

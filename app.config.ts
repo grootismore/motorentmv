@@ -5,15 +5,19 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  *  - `owner` / `slug` once the Expo account/org is decided
  *  - `ios.bundleIdentifier` / `android.package` once the final app id is chosen
  *  - `extra.eas.projectId` after running `eas init`
- *  - app name/branding: PRD marks "MotoRent MV" as a working title pending validation
+ *
+ * Renamed from "MotoRent MV" to "RideFinder" -- the bundle identifier
+ * changed too (com.motorentmv.app -> com.ridefinder.app), not just the
+ * display name, so a sideloading tool that had any stale state tied to
+ * the old bundle id treats this as a genuinely new, unrelated app.
  */
-const BUNDLE_ID = 'com.motorentmv.app';
+const BUNDLE_ID = 'com.ridefinder.app';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'MotoRent MV',
-  slug: 'motorentmv',
-  scheme: 'motorentmv',
+  name: 'RideFinder',
+  slug: 'ridefinder',
+  scheme: 'ridefinder',
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
@@ -51,8 +55,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-image-picker',
       {
-        photosPermission: 'Allow MotoRent MV to access your photos to add vehicle and inspection pictures.',
-        cameraPermission: 'Allow MotoRent MV to access your camera to take vehicle and inspection pictures.',
+        photosPermission: 'Allow RideFinder to access your photos to add vehicle and inspection pictures.',
+        cameraPermission: 'Allow RideFinder to access your camera to take vehicle and inspection pictures.',
         microphonePermission: false,
       },
     ],

@@ -10,7 +10,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
  */
 export const queryPersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: 'motorentmv-query-cache',
+  key: 'ridefinder-query-cache',
   throttleTime: 1000,
 });
 

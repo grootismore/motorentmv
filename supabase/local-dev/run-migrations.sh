@@ -4,7 +4,7 @@
 # directory for why this exists instead of `supabase start`/`db reset`.
 set -euo pipefail
 
-DB_NAME="${1:-motorentmv_test}"
+DB_NAME="${1:-ridefinder_test}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MIGRATIONS_DIR="$SCRIPT_DIR/../migrations"
 PSQL=(sudo -u postgres psql -v ON_ERROR_STOP=1 -X -q)

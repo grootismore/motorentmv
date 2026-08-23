@@ -1,4 +1,4 @@
-appId: com.motorentmv.app
+appId: com.ridefinder.app
 ---
 # Renter flow (PRD Prompt 5): sign in -> open the pending booking request
 # left by the customer flow -> accept it.

@@ -1,6 +1,16 @@
-# MotoRent MV
+# RideFinder
 
 Motorcycle rental operations and booking for Malé and Hulhumalé — Expo/React Native TypeScript app for iOS and Android.
+
+> **Renamed from "MotoRent MV" to "RideFinder"** (app display name, npm
+> package name, iOS bundle identifier `com.motorentmv.app` →
+> `com.ridefinder.app`, Android package, URL scheme, on-screen branding,
+> Maestro `appId`s, local dev DB/project names). Everything below this
+> point that predates the rename still says "MotoRent MV" in places —
+> that's the accurate historical record of what was built and decided
+> under that name at the time, not left over by mistake. See the "iOS
+> build pipeline replaced..." round below for why the bundle identifier
+> specifically was part of this rename, not just the display name.
 
 **Phase 0** (engineering scaffold), the **database foundation** (Supabase
 schema/RLS/migrations), **auth + renter onboarding + fleet management**, the
@@ -1415,6 +1425,68 @@ next thing to capture is the sideloading tool's _full_ log (not just the
 final one-line error) plus device model/iOS version, since at that point
 the remaining candidates are on the signing-tool/device side, not in
 this IPA's own structure.
+
+### Rebrand: MotoRent MV → RideFinder (round 13)
+
+Sideloading kept failing after round 12's pipeline fix (confirmed working
+and structurally valid — see above), now with a different, more specific
+error: `Minimuxer.IdeviceGatewayError 2` / "Service operation failed:
+Failed to install IPA". Minimuxer is SideStore's own internal device-
+communication component, not something related to the IPA's content —
+this class of error happens during SideStore's install handshake with
+the device, before it evaluates anything inside the IPA. One plausible
+cause: a stale/corrupted SideStore-side record tied to the bundle
+identifier from an earlier failed install attempt. Changing the bundle
+identifier forces SideStore to treat the app as new and unrelated to
+whatever bad state it had.
+
+Rather than a throwaway bundle-id bump, this was done as a real,
+permanent rename, at the project owner's request:
+
+- `app.config.ts`: `name` → `RideFinder`, `slug` → `ridefinder`,
+  `scheme` → `ridefinder`, `BUNDLE_ID` → `com.ridefinder.app` (was
+  `com.motorentmv.app` — both iOS and Android package derive from this
+  one constant), image-picker permission strings updated.
+- On-screen branding: the Explore header wordmark
+  (`app/(customer)/(tabs)/explore.tsx`), the role-select screen's large
+  title (`app/(auth)/role-select.tsx`), and the test-notification title
+  (`app/(shared)/notifications.tsx`) all now say "RideFinder".
+- `package.json`'s `name` field, the AsyncStorage query-cache key
+  (`src/lib/query-persister.ts`), and a couple of doc comments
+  (`src/features/payments/PaymentLedger.tsx`,
+  `app/(renter)/more/staff.tsx`) updated for consistency.
+- `.maestro/*.yaml`'s `appId: com.motorentmv.app` updated to
+  `com.ridefinder.app` in all three flows — this one is not cosmetic:
+  Maestro targets the app by bundle identifier, so leaving this stale
+  would have silently broken every E2E flow against the renamed app.
+- Local-dev-only, non-functional identifiers also updated for
+  consistency: `supabase/config.toml`'s local project id,
+  `supabase/local-dev/*.sh`'s default local test DB name, and
+  `supabase/seed.sql`'s three seed users' `@motorentmv.test` email
+  domain (a reserved, non-routable test TLD — this only affects local
+  seed data, never the real hosted project, and nothing else in the
+  codebase pattern-matches on that exact string).
+- `scripts/ios/build-ios.ts`: `EXPECTED_BUNDLE_ID` updated, and — found
+  while doing this rename — the Payload app-folder name was hardcoded to
+  a `MotoRentMV` constant; changed to derive from the actual archived
+  `.app`'s own folder name instead
+  (`path.basename(appPath)`), so this can't silently drift out of sync
+  with whatever Xcode calls the product the next time the app is
+  renamed.
+- `.github/workflows/ios-unsigned-device.yml`: artifact/IPA naming
+  (`RideFinder-unsigned-<run>.ipa`, `RideFinder-iOS-unsigned-<run>`).
+- The real hosted Supabase project (`yatizjdasoavxknynvlr.supabase.co`)
+  was **not** renamed or touched — only local/cosmetic identifiers were,
+  since the project's dashboard name has no functional effect on the app.
+
+This README's own historical entries above this point still say
+"MotoRent MV" — that's the accurate record of what was decided and built
+under that name, not an oversight.
+
+`npm run verify` and `tsc --noEmit` are clean. Whether this actually
+resolves the SideStore install error can only be confirmed by a fresh
+CI build (new bundle id → genuinely new archive) and a real install
+attempt on-device — that's the next thing to try.
 
 ## What's next
 

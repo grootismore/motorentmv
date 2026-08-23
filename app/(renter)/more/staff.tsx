@@ -23,7 +23,7 @@ const ROLE_OPTIONS: { value: OrgRole; label: string }[] = [
 
 /**
  * "Placeholder-level" per the brief: this only adds someone who already
- * has a MotoRent MV account — there's no invite-by-email-before-signup
+ * has a RideFinder account — there's no invite-by-email-before-signup
  * flow yet (see invite_org_member_by_email in the schema). Owner/manager
  * only, enforced server-side regardless of what this screen shows.
  */

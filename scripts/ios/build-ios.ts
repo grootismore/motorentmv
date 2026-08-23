@@ -7,7 +7,7 @@
  * profiles, or EAS signing).
  *
  * Adapted from the archive-then-Payload-then-zip shape used by
- * grootismore/renata-jelly's scripts/ios/build-ios.ts, with MotoRent's own
+ * grootismore/renata-jelly's scripts/ios/build-ios.ts, with RideFinder's own
  * workspace/scheme/bundle id resolved from the generated native project
  * rather than assumed, and two concrete packaging fixes this project's own
  * build was missing -- see the `ditto` and `zip -y` calls in packageIpa()
@@ -28,11 +28,10 @@ import path from 'node:path';
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const IOS_DIR = path.join(REPO_ROOT, 'ios');
 const BUILD_DIR = path.join(REPO_ROOT, 'build');
-const ARCHIVE_PATH = path.join(BUILD_DIR, 'MotoRentMV.xcarchive');
+const ARCHIVE_PATH = path.join(BUILD_DIR, 'RideFinder.xcarchive');
 const PAYLOAD_DIR = path.join(BUILD_DIR, 'Payload');
 const VALIDATION_DIR = path.join(BUILD_DIR, 'validation');
-const EXPECTED_BUNDLE_ID = 'com.motorentmv.app';
-const APP_PRODUCT_NAME = 'MotoRentMV';
+const EXPECTED_BUNDLE_ID = 'com.ridefinder.app';
 
 function fail(message: string): never {
   console.error(`\n::error::${message}\n`);
@@ -142,7 +141,7 @@ async function resolveScheme(workspacePath: string): Promise<string> {
 }
 
 async function cleanPriorBuildOutputs(): Promise<void> {
-  // Only ever removes MotoRent's own known build outputs -- never a blanket
+  // Only ever removes RideFinder's own known build outputs -- never a blanket
   // `rm -rf build`, in case something unrelated ever lands in that folder.
   await mkdir(BUILD_DIR, { recursive: true });
   await rm(ARCHIVE_PATH, { recursive: true, force: true });
@@ -151,7 +150,7 @@ async function cleanPriorBuildOutputs(): Promise<void> {
   const entries = await readdir(BUILD_DIR);
   await Promise.all(
     entries
-      .filter((name) => name.startsWith('MotoRent-MV-unsigned') && name.endsWith('.ipa'))
+      .filter((name) => name.startsWith('RideFinder-unsigned') && name.endsWith('.ipa'))
       .map((name) => rm(path.join(BUILD_DIR, name), { force: true })),
   );
 }
@@ -210,7 +209,7 @@ async function locateArchivedApp(): Promise<string> {
   }
   if (apps.length > 1) {
     fail(
-      `Expected exactly one .app bundle under ${applicationsDir} (MotoRent MV has a single app target), found: ${apps.join(', ')}`,
+      `Expected exactly one .app bundle under ${applicationsDir} (RideFinder has a single app target), found: ${apps.join(', ')}`,
     );
   }
   const appPath = path.join(applicationsDir, apps[0]!);
@@ -335,7 +334,7 @@ async function verifyAppBundle(appPath: string): Promise<AppBundleReport> {
   if (await exists(path.join(appPath, 'PlugIns'))) {
     const plugins = (await readdir(path.join(appPath, 'PlugIns'))).filter((name) => name.endsWith('.appex'));
     if (plugins.length > 0) {
-      log(`::warning::Found ${plugins.length} app extension(s) under PlugIns/ -- MotoRent MV is not expected to have any: ${plugins.join(', ')}. Not deleting them automatically; verify they're expected before shipping this build.`);
+      log(`::warning::Found ${plugins.length} app extension(s) under PlugIns/ -- RideFinder is not expected to have any: ${plugins.join(', ')}. Not deleting them automatically; verify they're expected before shipping this build.`);
     }
   }
 
@@ -345,7 +344,11 @@ async function verifyAppBundle(appPath: string): Promise<AppBundleReport> {
 async function packageIpa(appPath: string, ipaName: string): Promise<string> {
   await rm(PAYLOAD_DIR, { recursive: true, force: true });
   await mkdir(PAYLOAD_DIR, { recursive: true });
-  const destAppPath = path.join(PAYLOAD_DIR, `${APP_PRODUCT_NAME}.app`);
+  // Named after the archive's own .app, not a hardcoded product-name
+  // constant -- avoids this drifting out of sync with whatever Xcode
+  // actually calls the product (which follows app.config.ts's `name`)
+  // the next time the app is renamed.
+  const destAppPath = path.join(PAYLOAD_DIR, path.basename(appPath));
 
   // `ditto`, not `cp -R`: Apple's own tooling uses ditto specifically
   // because plain cp can silently drop extended attributes/resource-fork
@@ -448,7 +451,7 @@ async function main(): Promise<void> {
   await requireMacOS();
   await requireEnv(['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY']);
 
-  const ipaName = process.env.IOS_IPA_NAME ?? 'MotoRent-MV-unsigned.ipa';
+  const ipaName = process.env.IOS_IPA_NAME ?? 'RideFinder-unsigned.ipa';
 
   await cleanPriorBuildOutputs();
   const workspacePath = await resolveWorkspace();

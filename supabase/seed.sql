@@ -10,9 +10,9 @@
 -- demo user, exactly as it would for a real signed-in request.
 
 insert into auth.users (id, email) values
-  ('00000000-0000-0000-0000-000000000001', 'owner@motorentmv.test'),
-  ('00000000-0000-0000-0000-000000000002', 'staff@motorentmv.test'),
-  ('00000000-0000-0000-0000-000000000003', 'customer@motorentmv.test')
+  ('00000000-0000-0000-0000-000000000001', 'owner@ridefinder.test'),
+  ('00000000-0000-0000-0000-000000000002', 'staff@ridefinder.test'),
+  ('00000000-0000-0000-0000-000000000003', 'customer@ridefinder.test')
 on conflict (id) do nothing;
 
 update public.profiles set full_name = 'Aishath Owner' where id = '00000000-0000-0000-0000-000000000001';

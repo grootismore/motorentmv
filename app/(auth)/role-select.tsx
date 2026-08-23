@@ -45,7 +45,7 @@ export default function RoleSelect() {
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'left', 'right']}>
         <View style={{ flex: 1, padding: 20, justifyContent: 'center', gap: theme.spacing.xxl }}>
           <View style={{ gap: theme.spacing.xs }}>
-            <LargeTitle color={theme.colors.oceanForeground}>MotoRent MV</LargeTitle>
+            <LargeTitle color={theme.colors.oceanForeground}>RideFinder</LargeTitle>
             <SecondaryBody color="rgba(244,249,252,0.75)">
               Choose how you&apos;ll use the app. You can add the other role later.
             </SecondaryBody>
