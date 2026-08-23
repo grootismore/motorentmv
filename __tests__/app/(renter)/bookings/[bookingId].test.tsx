@@ -151,7 +151,7 @@ describe('Renter booking detail — handover lifecycle gate', () => {
     await renderScreen();
     await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 });
 
-    fireEvent.press(screen.getByTestId('booking-action-activate'));
+    await fireEvent.press(screen.getByTestId('booking-action-activate'));
 
     expect(await screen.findByTestId('booking-action-error')).toHaveTextContent(
       'booking booking-1 cannot start (active) without a recorded pickup inspection',
@@ -164,9 +164,42 @@ describe('Renter booking detail — handover lifecycle gate', () => {
     await renderScreen();
     await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 });
 
-    fireEvent.changeText(screen.getByTestId('inspection-odometer-pickup'), '1200');
-    fireEvent.press(screen.getByTestId('inspection-submit-pickup'));
+    await fireEvent.changeText(screen.getByTestId('inspection-odometer-pickup'), '1200');
+    await fireEvent.press(screen.getByTestId('inspection-submit-pickup'));
 
     await waitFor(() => expect(mockFrom).toHaveBeenCalledWith('inspections'));
+  });
+});
+
+/**
+ * Prompt 9 ("complete booking lifecycle"): no_show is only reachable from
+ * a confirmed/ready booking (see the booking_no_show migration), which
+ * READY_BOOKING already is -- this proves the ActionPanel wiring for the
+ * new action end to end, not just the pure actionsFor()/status.ts mapping
+ * already covered by ActionPanel's own inline logic and status.test.ts.
+ */
+describe('Renter booking detail — no-show', () => {
+  it('marks a ready booking as a no-show with an optional note', async () => {
+    mockNoInspectionsYet();
+    mockRpc.mockImplementation((fn: string) => {
+      if (fn === 'mark_booking_no_show') {
+        return Promise.resolve({ data: { ...READY_BOOKING, status: 'no_show' }, error: null });
+      }
+      return Promise.reject(new Error(`unexpected rpc in test: ${fn}`));
+    });
+
+    await renderScreen();
+    await screen.findByTestId('inspection-form-pickup', {}, { timeout: 5000 });
+
+    await fireEvent.press(screen.getByTestId('booking-action-no_show'));
+    await fireEvent.changeText(await screen.findByTestId('booking-action-note'), 'Customer never arrived');
+    await fireEvent.press(screen.getByTestId('booking-action-confirm'));
+
+    await waitFor(() =>
+      expect(mockRpc).toHaveBeenCalledWith('mark_booking_no_show', {
+        p_booking_id: 'booking-1',
+        p_reason: 'Customer never arrived',
+      }),
+    );
   });
 });

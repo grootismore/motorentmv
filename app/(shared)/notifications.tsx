@@ -29,6 +29,7 @@ const TYPE_LABEL: Record<string, string> = {
   booking_active: 'Rental started',
   booking_completed: 'Rental completed',
   booking_cancelled: 'Booking cancelled',
+  booking_no_show: 'Marked as a no-show',
   inspection_recorded: 'Inspection recorded',
   payment_recorded: 'Payment received',
   refund_recorded: 'Refund issued',

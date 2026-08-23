@@ -44,6 +44,9 @@ describe('describeActivityEvent', () => {
     expect(describeActivityEvent(eventOf({ event_type: 'status_change', to_status: 'active' }))).toBe(
       'Handover completed for Honda PCX 160',
     );
+    expect(describeActivityEvent(eventOf({ event_type: 'status_change', to_status: 'no_show' }))).toBe(
+      'Marked as a no-show for Honda PCX 160',
+    );
   });
 
   it('describes payment, refund and adjustment events distinctly', () => {

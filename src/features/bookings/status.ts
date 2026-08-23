@@ -3,17 +3,24 @@ import type { Booking, BookingStatus } from './queries';
 
 export type StatusTone = 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'overdue';
 
+// Labels here follow Prompt 9's vocabulary (draft, requested, confirmed,
+// rejected, cancelled, ready_for_pickup, active, overdue, completed,
+// no_show) even though the underlying enum keeps its original PRD names
+// (accepted, declined, ready, ...) -- see the booking_no_show migration's
+// doc comment for why the schema itself isn't being renamed. `needs_info`
+// has no Prompt 9 equivalent and keeps its existing label unchanged.
 export const STATUS_LABEL: Record<BookingStatus, string> = {
   draft: 'Draft',
   requested: 'Requested',
-  accepted: 'Accepted',
-  declined: 'Declined',
+  accepted: 'Confirmed',
+  declined: 'Rejected',
   needs_info: 'Needs info',
-  ready: 'Ready',
+  ready: 'Ready for pickup',
   active: 'Active',
   completed: 'Completed',
   cancelled: 'Cancelled',
   overdue: 'Overdue',
+  no_show: 'No-show',
 };
 
 const STATUS_TONE: Record<BookingStatus, StatusTone> = {
@@ -27,6 +34,7 @@ const STATUS_TONE: Record<BookingStatus, StatusTone> = {
   completed: 'neutral',
   cancelled: 'neutral',
   overdue: 'overdue',
+  no_show: 'danger',
 };
 
 /**

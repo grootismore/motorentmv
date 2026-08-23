@@ -102,6 +102,8 @@ function describeStatusChange(
       return `Rental completed for ${vehicleLabel}`;
     case 'cancelled':
       return `Booking cancelled for ${vehicleLabel}`;
+    case 'no_show':
+      return `Marked as a no-show for ${vehicleLabel}`;
     default:
       return `Status updated for ${vehicleLabel}`;
   }

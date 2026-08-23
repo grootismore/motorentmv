@@ -204,6 +204,13 @@ out += `    }
         }
         Returns: Database['public']['Tables']['bookings']['Row']
       }
+      mark_booking_no_show: {
+        Args: {
+          p_booking_id: string
+          p_reason?: string | null
+        }
+        Returns: Database['public']['Tables']['bookings']['Row']
+      }
       search_available_vehicles: {
         Args: {
           p_starts_at: string

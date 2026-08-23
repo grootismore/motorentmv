@@ -287,6 +287,25 @@ export function useCompleteBooking() {
   });
 }
 
+/** Marks a confirmed ('accepted'/'ready') booking as a no-show -- the
+ * customer never came to collect the vehicle. See the booking_no_show
+ * migration for why this is a genuinely new capability rather than a
+ * display-layer relabeling of an existing status. */
+export function useMarkBookingNoShow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { bookingId: string; reason?: string }): Promise<Booking> => {
+      const { data, error } = await getSupabase().rpc('mark_booking_no_show', {
+        p_booking_id: input.bookingId,
+        p_reason: input.reason ?? null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => invalidateBooking(queryClient, data),
+  });
+}
+
 export function useCancelBooking() {
   const queryClient = useQueryClient();
   return useMutation({

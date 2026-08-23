@@ -12,11 +12,12 @@ import {
   useCompleteBooking,
   useDeclineBooking,
   useMarkBookingNeedsInfo,
+  useMarkBookingNoShow,
   useReadyBooking,
   type Booking,
 } from './queries';
 
-type NotedAction = 'decline' | 'needs_info' | 'cancel';
+type NotedAction = 'decline' | 'needs_info' | 'cancel' | 'no_show';
 
 /**
  * Which actions make sense from each status. `needs_info` has no "accept"
@@ -24,7 +25,10 @@ type NotedAction = 'decline' | 'needs_info' | 'cancel';
  * back to requested — which only the customer can do by resubmitting, and
  * there's no customer app yet (out of scope, PRD Prompt 3) — so an org
  * member can decline or cancel a needs_info booking but not accept it
- * directly.
+ * directly. `no_show` is only reachable from 'accepted'/'ready' — a
+ * confirmed booking the customer never showed up for (see the
+ * booking_no_show migration); once a booking is 'active' the vehicle was
+ * actually handed over, so it can no longer become a no-show.
  */
 function actionsFor(status: Booking['status']): {
   direct: ('ready' | 'activate' | 'complete')[];
@@ -37,9 +41,9 @@ function actionsFor(status: Booking['status']): {
     case 'needs_info':
       return { direct: [], noted: ['decline', 'cancel'], canAccept: false };
     case 'accepted':
-      return { direct: ['ready'], noted: ['cancel'], canAccept: false };
+      return { direct: ['ready'], noted: ['cancel', 'no_show'], canAccept: false };
     case 'ready':
-      return { direct: ['activate'], noted: ['cancel'], canAccept: false };
+      return { direct: ['activate'], noted: ['cancel', 'no_show'], canAccept: false };
     case 'active':
       return { direct: ['complete'], noted: ['cancel'], canAccept: false };
     default:
@@ -51,6 +55,7 @@ const NOTED_LABEL: Record<NotedAction, string> = {
   decline: 'Decline',
   needs_info: 'Ask for more info',
   cancel: 'Cancel booking',
+  no_show: 'Mark no-show',
 };
 
 export function ActionPanel({ booking }: { booking: Booking }) {
@@ -62,6 +67,7 @@ export function ActionPanel({ booking }: { booking: Booking }) {
   const activate = useActivateBooking();
   const complete = useCompleteBooking();
   const cancel = useCancelBooking();
+  const noShow = useMarkBookingNoShow();
 
   const [notedAction, setNotedAction] = useState<NotedAction | null>(null);
   const [note, setNote] = useState('');
@@ -75,7 +81,8 @@ export function ActionPanel({ booking }: { booking: Booking }) {
     ready.isPending ||
     activate.isPending ||
     complete.isPending ||
-    cancel.isPending;
+    cancel.isPending ||
+    noShow.isPending;
 
   if (!canAccept && direct.length === 0 && noted.length === 0) {
     return null;
@@ -94,6 +101,8 @@ export function ActionPanel({ booking }: { booking: Booking }) {
       needsInfo.mutate({ bookingId: booking.id, note: note || undefined }, { onSuccess, onError });
     } else if (notedAction === 'cancel') {
       cancel.mutate({ bookingId: booking.id, reason: note || undefined }, { onSuccess, onError });
+    } else if (notedAction === 'no_show') {
+      noShow.mutate({ bookingId: booking.id, reason: note || undefined }, { onSuccess, onError });
     }
   }
 
@@ -118,7 +127,11 @@ export function ActionPanel({ booking }: { booking: Booking }) {
             <Button
               testID="booking-action-confirm"
               label={`Confirm ${NOTED_LABEL[notedAction].toLowerCase()}`}
-              variant={notedAction === 'decline' || notedAction === 'cancel' ? 'danger' : 'primary'}
+              variant={
+                notedAction === 'decline' || notedAction === 'cancel' || notedAction === 'no_show'
+                  ? 'danger'
+                  : 'primary'
+              }
               loading={busy}
               onPress={runNotedAction}
             />
@@ -186,7 +199,9 @@ export function ActionPanel({ booking }: { booking: Booking }) {
               key={action}
               testID={`booking-action-${action}`}
               label={NOTED_LABEL[action]}
-              variant={action === 'decline' || action === 'cancel' ? 'danger' : 'secondary'}
+              variant={
+                action === 'decline' || action === 'cancel' || action === 'no_show' ? 'danger' : 'secondary'
+              }
               onPress={() => {
                 setErrorMessage(undefined);
                 setNotedAction(action);

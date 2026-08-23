@@ -934,6 +934,13 @@ export type Database = {
         };
         Returns: Database['public']['Tables']['bookings']['Row'];
       };
+      mark_booking_no_show: {
+        Args: {
+          p_booking_id: string;
+          p_reason?: string | null;
+        };
+        Returns: Database['public']['Tables']['bookings']['Row'];
+      };
       search_available_vehicles: {
         Args: {
           p_starts_at: string;
@@ -1043,7 +1050,8 @@ export type Database = {
         | 'active'
         | 'completed'
         | 'cancelled'
-        | 'overdue';
+        | 'overdue'
+        | 'no_show';
       payment_method: 'cash' | 'bank_transfer' | 'external_reference';
       payment_status: 'unpaid' | 'partially_paid' | 'paid' | 'partially_refunded' | 'refunded';
       vehicle_status: 'draft' | 'available' | 'reserved' | 'rented' | 'maintenance' | 'inactive';
