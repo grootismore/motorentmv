@@ -8,7 +8,7 @@ name: PR Title Comment
 # grootismore/renata-jelly's .github/workflows/pr-title-comment.yml.
 on:
   workflow_run:
-    workflows: ["PR Title"]
+    workflows: ['PR Title']
     types: [completed]
 
 permissions:
