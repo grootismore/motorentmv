@@ -109,7 +109,15 @@ export function oceanTabBarButton(outline: OceanTabIconName, filled: OceanTabIco
   function TabButton(props: OceanTabButtonProps) {
     const theme = useTheme();
     const focused = props['aria-selected'] === true;
-    const color = focused ? theme.colors.lagoonPrimary : theme.colors.textTertiary;
+    // textSecondary, not textTertiary: a physical-device screenshot showed
+    // inactive tabs' outline icons/labels reading as barely-visible thin
+    // gray marks against the glass bar. Outline Ionicons are already a
+    // thinner stroke than the active tab's filled glyph by design, on top
+    // of a small 20pt size -- textTertiary's contrast made that combination
+    // nearly illegible. The active/inactive distinction still isn't color
+    // alone: the pill background and bold vs. regular weight (below) carry
+    // it too.
+    const color = focused ? theme.colors.lagoonPrimary : theme.colors.textSecondary;
 
     return (
       <Pressable

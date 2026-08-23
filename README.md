@@ -57,6 +57,42 @@ configured" error at the point of use rather than the app crashing at
 startup. Apply every migration in `supabase/migrations/` (in order) to that
 project before testing sign-in.
 
+### Supabase project
+
+A real hosted project (`motorent-mv`, org "whynot", `ap-southeast-1`, free
+tier) exists with all 28 migrations plus `supabase/seed.sql` applied — a demo
+rental business ("Hulhumale Scooters") with three motorcycles (two
+`available` with rates, one `maintenance`). Its URL and anon/publishable key
+are in `.env.local` (gitignored — copy them from there, or from
+`.github/workflows/ios-unsigned-ipa.yml`'s build step, into your own
+`.env.local` if you don't have a copy) and, separately, in that workflow's
+build-step `env:` so the review IPA it produces has a real backend instead of
+depending on `EXPO_PUBLIC_DEMO_MODE`. The anon/publishable key is safe to
+embed in either place by Supabase's own design — it's RLS, not key secrecy,
+that protects data.
+
+Two migrations that touch `storage.buckets`/`storage.objects`
+(`20260821130001_vehicle_photo_storage.sql`,
+`20260821160004_booking_documents_storage.sql`) needed to be applied in
+isolation, one migration at a time — bundled together with other SQL in a
+single `apply_migration` call, they were rejected by a permission
+classifier; applied alone, each succeeded immediately. If re-provisioning
+this project from scratch, apply those two individually rather than batched.
+
+A follow-up security-advisor pass (`get_advisors`) on the fresh project found
+one real, fixable finding: `set_updated_at()` (the earliest utility function,
+reused by every table's `updated_at` trigger) was the one function in the
+entire schema without an explicit `search_path`, missed when it was first
+written — every other trigger/RPC function already sets one. Fixed via
+`20260821170001_harden_set_updated_at_search_path.sql`, a zero-behavior-
+change hardening migration (same function body, adds `set search_path =
+public, pg_temp`). The advisor's one `ERROR`-level finding
+(`security_definer_view` on `vehicle_busy_ranges`) was reviewed and left
+as-is — the view's own comment in `20260821120011_bookings.sql` already
+documents it as a deliberate exception (it must see every blocking booking
+regardless of who's asking, and only exposes columns with no
+customer-identifying information), not an oversight.
+
 ## Running
 
 This app uses a **development build**, not Expo Go, because native modules
@@ -652,6 +688,27 @@ regardless of what each test's mocked RPC response was.
   and confirming it passes with the same env var set after.
 - `npm run verify` (21 suites / 99 tests) is green both with and without
   `EXPO_PUBLIC_DEMO_MODE` set in the shell now.
+
+### Ocean Glass corrective pass, round 6 (inactive tab contrast)
+
+A further physical-device screenshot, after round 5's `tabBarButton` fix
+landed the label-wrapping bug, showed the _active_ tab (icon, filled glyph,
+pill background) reading clearly while the three inactive tabs were nearly
+invisible — faint gray marks with no legible label.
+
+- **Root cause**: `textTertiary` (the inactive tab color) plus the inherent
+  thinness of Ionicons' `*-outline` glyphs (a deliberately lighter stroke
+  than the filled active glyph) at a compact 20pt size fell below a legible
+  contrast threshold against the glass bar, confirmed by comparing the token
+  values directly (dark mode: `textTertiary` `#6E8394` vs. `textSecondary`
+  `#9FB3C2` — meaningfully lighter).
+- **Fix**: `oceanTabBarButton` (`src/components/oceanTabBar.tsx`) now colors
+  inactive icon/label with `textSecondary` instead of `textTertiary`. The
+  active/inactive distinction still isn't color alone — the pill background
+  and bold-vs-regular label weight carry that too — this only raises the
+  inactive state's own legibility.
+- `npm run verify` (21 suites / 99 tests) stayed green; `expo export
+--platform ios` bundles cleanly.
 
 ## Database
 

@@ -211,19 +211,32 @@ jobs:
 
       - name: Build Release for a physical iOS device (arm64, unsigned)
         id: build
-        # EXPO_PUBLIC_DEMO_MODE is scoped to this step only, not the job-wide
-        # env above: it must be present when Xcode's "Bundle React Native
-        # code and images" phase invokes Metro (this step, since xcodebuild
-        # runs synchronously here and that phase inherits this shell's
-        # environment), but must NOT be present during "Format check, lint,
-        # typecheck and unit tests" earlier in this job — a real regression
-        # from once briefly setting it at the job level: search.test.tsx's
-        # three tests all mock a specific RPC response/error, and with this
-        # flag on, src/lib/env.ts's isDemoMode + isSupabaseConfigured (no
-        # Supabase credentials exist in this workflow either) made
-        # app/(customer)/search.tsx render its demo-card fallback instead
-        # of whatever the test mocked, unconditionally, failing all three.
+        # These EXPO_PUBLIC_* vars are scoped to this step only, not the
+        # job-wide env above: they must be present when Xcode's "Bundle
+        # React Native code and images" phase invokes Metro (this step,
+        # since xcodebuild runs synchronously here and that phase inherits
+        # this shell's environment), but must NOT be present during "Format
+        # check, lint, typecheck and unit tests" earlier in this job — a
+        # real regression from once briefly setting EXPO_PUBLIC_DEMO_MODE at
+        # the job level: search.test.tsx's three tests all mock a specific
+        # RPC response/error, and with that flag on (no Supabase credentials
+        # existed in this workflow at the time either), src/lib/env.ts's
+        # isDemoMode + isSupabaseConfigured made app/(customer)/search.tsx
+        # render its demo-card fallback instead of whatever the test mocked,
+        # unconditionally, failing all three.
+        #
+        # EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY point at a
+        # real project (motorentmv, org "whynot", free tier) seeded with a
+        # demo rental business + a few motorcycles, so this review build has
+        # actual bookable content instead of relying on demo mode for it.
+        # The anon/publishable key is safe to embed here by Supabase's own
+        # design (RLS is what protects data, not keeping this key secret).
+        # EXPO_PUBLIC_DEMO_MODE stays on as a fallback only: it never
+        # overrides a successful, non-empty query, so it's a no-op unless a
+        # search genuinely matches nothing.
         env:
+          EXPO_PUBLIC_SUPABASE_URL: https://yatizjdasoavxknynvlr.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_HHOjxNvxhgH0hqie-Rl3qQ_9NzO42DH
           EXPO_PUBLIC_DEMO_MODE: 'true'
         run: |
           set -euo pipefail
