@@ -1,120 +1,100 @@
 # RideFinder
 
-Motorcycle rental operations and booking for Malé and Hulhumalé — Expo/React Native TypeScript app for iOS and Android.
+Motorcycle rental operations and booking for Malé and Hulhumalé — an Expo /
+React Native app for iOS and Android, backed by Supabase.
 
-> **Renamed from "MotoRent MV" to "RideFinder"** (app display name, npm
-> package name, iOS bundle identifier `com.motorentmv.app` →
-> `com.ridefinder.app`, Android package, URL scheme, on-screen branding,
-> Maestro `appId`s, local dev DB/project names). Everything below this
-> point that predates the rename still says "MotoRent MV" in places —
-> that's the accurate historical record of what was built and decided
-> under that name at the time, not left over by mistake. See the "iOS
-> build pipeline replaced..." round below for why the bundle identifier
-> specifically was part of this rename, not just the display name.
+RideFinder has two experiences in one app: a **customer** side (browse
+available motorcycles, request a booking, track it through pickup and
+return) and a **renter** side (fleet management, booking inbox, handover
+inspections, a manual payment ledger, and staff invites) for the rental
+business itself.
 
-**Phase 0** (engineering scaffold), the **database foundation** (Supabase
-schema/RLS/migrations), **auth + renter onboarding + fleet management**, the
-**customer experience** (anonymous search, listing, request-to-book,
-My Bookings — Prompt 5), **handover, payments and notifications**
-(pickup/return inspections, a manual cash/bank/reference payment ledger, and
-in-app + push notifications — Prompt 6), and a visual-only **"Ocean Glass"
-UI/UX redesign** of every screen above (see
-[Ocean Glass design system](#ocean-glass-design-system-uiux-redesign) below)
-are done.
-See [`docs/architecture/0001-foundation-decisions.md`](./docs/architecture/0001-foundation-decisions.md)
-for what was decided and why, and the PRD for what comes next.
+## Features
 
-## Stack
+- **Anonymous browsing, gated sign-in** — customers can search, view
+  listings, and see quotes without an account; sign-in is only required to
+  submit a booking request.
+- **Request-to-book workflow** — a customer's request lands in the renter's
+  inbox for acceptance, not an instant booking. The full state machine
+  (requested → accepted/declined/needs-info → ready → active → completed,
+  plus cancellation) is enforced server-side.
+- **Real-time availability** — search excludes any vehicle with an
+  overlapping accepted booking or a manual maintenance block, computed with
+  correct half-open time-range logic (back-to-back bookings never falsely
+  collide).
+- **Fleet management** — full CRUD for vehicles, per-vehicle hourly/daily
+  rates, manual availability blocks, and photo uploads.
+- **Pickup/return inspections** — a structured checklist (odometer,
+  fuel/battery, condition notes, before/after photos) recorded at both ends
+  of a rental, with lifecycle gates that block starting or completing a
+  booking without one on file.
+- **Manual payment ledger** — cash, bank transfer, or an external reference;
+  no card data is collected or stored anywhere in this app.
+- **Notifications** — in-app and push notifications on every booking status
+  change, inspection record, and payment entry, deep-linking straight to the
+  relevant booking.
+- **Native navigation** — both the customer and renter tab bars use Expo
+  Router's native tabs (`expo-router/unstable-native-tabs`), rendered by the
+  OS's own `UITabBarController` / Material bottom-nav, not a JS-drawn
+  imitation.
 
-- Expo SDK 57, React Native 0.86, React 19.2, TypeScript (strict)
-- Expo Router (file-based navigation) + development builds (`expo-dev-client`)
-- Zod for environment validation
-- `@supabase/supabase-js` client boundary, typed against the generated schema — real auth (email OTP) and fleet CRUD are wired, inert only until `EXPO_PUBLIC_SUPABASE_*` point at a real project
-- Supabase Postgres schema: 13 tables, RLS on every one, server-side booking-overlap protection, private vehicle-photo and booking-document storage — see [Database](#database) below
-- TanStack Query for server state, with an AsyncStorage cache persister for offline-read
-- expo-image-picker + expo-image + expo-image-manipulator for vehicle/inspection photos (compression, retryable upload — see `src/lib/uploads.ts`)
-- expo-notifications for in-app + local test notifications, behind a `NotificationService` interface (`src/features/notifications/service.ts`)
-- ESLint (`eslint-config-expo`, flat config) + Prettier
-- Jest (`jest-expo` preset) + React Native Testing Library
-- Maestro flow files (`.maestro/`) for on-device/simulator E2E — see
-  [Known, accepted issues](#known-accepted-issues) below for why they
-  aren't runnable in this sandbox
+## Tech stack
 
-## Prerequisites
+- **Expo SDK 57**, React Native 0.86, React 19, TypeScript (strict)
+- **Expo Router** (file-based navigation) with development builds
+  (`expo-dev-client`) — this app uses native modules, so Expo Go isn't
+  sufficient
+- **Supabase** — Postgres with row-level security on every table, storage
+  buckets for photos/documents, and RPC functions as the sole write path for
+  anything business-critical
+- **TanStack Query**, with an AsyncStorage persister for offline-read
+- **Zod** for environment validation
+- ESLint (`eslint-config-expo`) + Prettier, Jest + React Native Testing
+  Library, Maestro for on-device E2E flows
 
-- Node.js 22+ and npm (`.npmrc` sets `engine-strict=true`, and
-  `@supabase/auth-js`, pulled in transitively by `@supabase/supabase-js`,
-  declares `"engines": { "node": ">=22.0.0" }` — `npm ci`/`npm install`
-  hard-fail on Node 20)
-- Xcode 26.4+ for iOS builds (Expo SDK 57's documented minimum; separately,
-  `expo-modules-jsi/apple/Package.swift` declares `swift-tools-version: 6.2`,
-  so any Xcode older than 26 fails the build outright at SwiftPM resolution)
-  and/or Android Studio for Android emulator builds
-- An Expo account + the [EAS CLI](https://docs.expo.dev/eas/) (`npm i -g eas-cli`) once you're building with EAS
+## Getting started
 
-## Setup
+### Prerequisites
+
+- Node.js 22+ (see `.npmrc`'s `engine-strict=true`)
+- Xcode 26.4+ for iOS builds (Expo SDK 57 requires Swift 6.2+) and/or
+  Android Studio for Android
+- A [Supabase](https://supabase.com) project
+- An Expo account + [EAS CLI](https://docs.expo.dev/eas/) if you plan to
+  build with EAS
+
+### Setup
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in values as they become available
+cp .env.example .env.local
 ```
 
-The app boots without `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`
-set — `EXPO_PUBLIC_APP_ENV` defaults to `development` — but auth, org creation,
-and fleet management all need a real Supabase project behind those two vars to
-actually do anything; without them `getSupabase()` throws a clear "not
-configured" error at the point of use rather than the app crashing at
-startup. Apply every migration in `supabase/migrations/` (in order) to that
-project before testing sign-in.
+Fill in `.env.local` with your own Supabase project's URL and anon key:
 
-### Supabase project
+```
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-A real hosted project (`motorent-mv`, org "whynot", `ap-southeast-1`, free
-tier) exists with all 28 migrations plus `supabase/seed.sql` applied — a demo
-rental business ("Hulhumale Scooters") with three motorcycles (two
-`available` with rates, one `maintenance`). Its URL and anon/publishable key
-are in `.env.local` (gitignored — copy them from there, or from
-`.github/workflows/ios-unsigned-ipa.yml`'s build step, into your own
-`.env.local` if you don't have a copy) and, separately, in that workflow's
-build-step `env:` so the review IPA it produces has a real backend instead of
-depending on `EXPO_PUBLIC_DEMO_MODE`. The anon/publishable key is safe to
-embed in either place by Supabase's own design — it's RLS, not key secrecy,
-that protects data.
+Then apply every migration in `supabase/migrations/` (in order) to that
+project. The anon/publishable key is safe to embed client-side by Supabase's
+own design — row-level security, not key secrecy, is what protects data.
 
-Two migrations that touch `storage.buckets`/`storage.objects`
-(`20260821130001_vehicle_photo_storage.sql`,
-`20260821160004_booking_documents_storage.sql`) needed to be applied in
-isolation, one migration at a time — bundled together with other SQL in a
-single `apply_migration` call, they were rejected by a permission
-classifier; applied alone, each succeeded immediately. If re-provisioning
-this project from scratch, apply those two individually rather than batched.
+The app boots without these set (`EXPO_PUBLIC_APP_ENV` defaults to
+`development`), but auth, booking, and fleet management all need a real
+project behind them to do anything useful — without it, requests fail with a
+clear "Supabase is not configured" message rather than the app crashing.
 
-A follow-up security-advisor pass (`get_advisors`) on the fresh project found
-one real, fixable finding: `set_updated_at()` (the earliest utility function,
-reused by every table's `updated_at` trigger) was the one function in the
-entire schema without an explicit `search_path`, missed when it was first
-written — every other trigger/RPC function already sets one. Fixed via
-`20260821170001_harden_set_updated_at_search_path.sql`, a zero-behavior-
-change hardening migration (same function body, adds `set search_path =
-public, pg_temp`). The advisor's one `ERROR`-level finding
-(`security_definer_view` on `vehicle_busy_ranges`) was reviewed and left
-as-is — the view's own comment in `20260821120011_bookings.sql` already
-documents it as a deliberate exception (it must see every blocking booking
-regardless of who's asking, and only exposes columns with no
-customer-identifying information), not an oversight.
-
-## Running
-
-This app uses a **development build**, not Expo Go, because native modules
-(`expo-dev-client`, and later `expo-notifications`/`expo-secure-store`) require one.
+### Running
 
 ```bash
-npx expo run:ios       # builds and launches a dev build on the iOS Simulator
-npx expo run:android   # builds and launches a dev build on an Android emulator
-npx expo start         # starts Metro once a dev build is installed
+npx expo run:ios       # build + launch a dev build on the iOS Simulator
+npx expo run:android   # build + launch a dev build on an Android emulator
+npx expo start         # start Metro once a dev build is installed
 ```
 
-## Scripts
+### Scripts
 
 ```bash
 npm run lint          # ESLint
@@ -125,1374 +105,114 @@ npm run format:check  # Prettier --check
 npm run verify        # format:check + lint + typecheck + test, in order
 ```
 
-All four gates (`format:check`, `lint`, `typecheck`, `test`) pass as of this
-commit.
-
 ## Project structure
 
 ```
-.maestro/              E2E flow files (search -> request -> renter accept)
-                       — see Known, accepted issues for the email-OTP caveat
-app/                  Expo Router routes (file-based)
-  (auth)/              Role selection, sign-in, verify — real Supabase OTP auth
-  (customer)/          Customer tabs: explore/search, listing, checkout,
-                       My Bookings, profile — anonymous browsing, auth gate
-                       only at request-to-book (PRD Prompt 5)
-  (renter)/            Onboarding (no org yet) or the renter tabs (org exists)
-    fleet/              List, detail, create, edit — real Supabase CRUD
-    more/staff.tsx       Staff invitation (placeholder-level, see Database below)
-  (shared)/            notifications.tsx (real inbox, Prompt 6), support and
-                       legal are still shells
-__tests__/            Tests for files under app/ — Expo Router's require.context
-                       sweeps every file under app/ into the bundle, so a
-                       colocated *.test.tsx there breaks `expo export`/builds;
-                       these mirror the app/ path they cover instead.
+app/                   Expo Router routes (file-based)
+  (auth)/               Role selection, sign-in, verify (Supabase email OTP)
+  (customer)/           Customer tabs: explore/search, listing, checkout,
+                        bookings, profile — anonymous browsing until checkout
+  (renter)/             Onboarding, or the renter tabs once an org exists
+    fleet/               Vehicle list/detail/create/edit
+    more/staff.tsx       Staff invitation
+  (shared)/             Notifications inbox; support/legal are placeholders
+__tests__/             Tests for files under app/ (kept out of app/ itself —
+                        Expo Router's require.context would otherwise bundle
+                        them into the app)
 src/
-  components/          ErrorBoundary, Screen, Button, TextField, ChipSelect,
-                       LoadingState/EmptyState/ErrorState
-  design-system/        tokens.ts, ThemeProvider
-  features/
-    auth/                AuthProvider (session restore), session.ts (OTP),
-                         experience-intent.tsx + useAppGate (routing gate),
-                         InlineAuthGate (in-screen sign-in, no route change)
-    organizations/        CreateOrganizationScreen, membership/invite queries
-    fleet/                vehicle/rate/availability-block queries, photo
-                         upload, VehicleForm + Rates/Photos/AvailabilityBlocks
-                         sections
-    discovery/            search/listing/quote queries, SearchForm,
-                         VehicleResultItem, FilterBar (customer-facing)
-    checkout/             request-submission mutation, RiderDetailsForm
-    profile/              customer's own profile query/update
-    inspections/           pickup/return checklist queries, InspectionForm/
-                         Summary/Section (record, view, acknowledge)
-    payments/              manual ledger queries, PaymentLedger (record,
-                         view — cash/bank/reference, no card fields)
-    notifications/         NotificationService interface + expo-notifications
-                         implementation, inbox queries, deep-link listener
-  lib/                  env.ts, supabase.ts, database.types.ts, query-client.ts,
-                       query-persister.ts, result.ts, datetime.ts (Maldives
-                       UTC+5 conversions), uploads.ts (compression + retry)
+  components/           Shared UI primitives (Button, TextField, states, ...)
+  design-system/        Design tokens, ThemeProvider
+  features/             One folder per domain: auth, organizations, fleet,
+                        discovery, checkout, profile, inspections, payments,
+                        notifications, bookings
+  lib/                   env, supabase client, generated database types,
+                        query client/persister, datetime helpers, uploads
+scripts/ios/            Unsigned device-IPA build script (see CI below)
+supabase/
+  migrations/            Ordered SQL schema/RLS/RPC migrations
+  local-dev/             A Docker-free local Postgres harness + test runner
+  seed.sql               Demo data
+.maestro/               On-device E2E flow files
 ```
-
-## App config and EAS
-
-- `app.config.ts` — TypeScript app config. `ios.bundleIdentifier` / `android.package`
-  are placeholders (`com.motorentmv.app`) — replace before any store submission or
-  `eas init`. App name "MotoRent MV" is a working title per the PRD, pending
-  branding validation.
-- `eas.json` build profiles:
-  - `development` — internal distribution, dev client, for physical devices
-  - `development-simulator` — same, targeting the iOS Simulator
-  - `preview` — internal distribution, production-like, for stakeholder testing
-  - `production` — store-bound build
-
-No EAS project is linked yet (`extra.eas.projectId` is unset) — run `eas init`
-when ready to build.
-
-## Auth, routing, fleet and bookings
-
-- **Auth**: email OTP (a 6-digit code, not a magic link — see
-  `src/features/auth/session.ts` for why) via Supabase Auth. `AuthProvider`
-  restores the session on launch and stays in sync with
-  `supabase.auth.onAuthStateChange` — nothing re-derives "am I signed in"
-  itself.
-- **Routing gate**: `useAppGate()` (`src/features/auth/useAppGate.ts`,
-  decision table in `computeAppGate.ts`) is the single source of truth
-  `app/_layout.tsx` and `app/index.tsx` both read: `loading` while the
-  session/membership are resolving, `auth` when signed out, `renter` when an
-  organization membership exists, `customer` otherwise (if that's the role
-  the user picked on the role-select screen — tracked only as a UI hint in
-  `experience-intent.tsx`, never as an authorization decision; real
-  authorization is always server-side, see Database below). A signed-in
-  renter with no organization yet sees `CreateOrganizationScreen` in place of
-  the tab bar, rendered directly by `(renter)/_layout.tsx`.
-- **Fleet**: `(renter)/fleet/` is full CRUD against the real schema —
-  list/detail/create/edit, per-vehicle hourly/daily rates (via the
-  `set_vehicle_rate` RPC, since a naive close-then-insert from the client
-  could race), manual availability blocks, and photo upload/delete through
-  the private `vehicle-photos` Storage bucket. Every mutation validates
-  nothing client-side beyond form UX — the server/database is the actual
-  authority (see "Enforce authorization on server/database" below).
-- **Staff invitation is placeholder-level by design**: `invite_org_member_by_email`
-  only adds someone who already has a MotoRent MV account (the schema's
-  `organization_members.user_id` is `NOT NULL`) — there's no
-  invite-by-email-before-signup flow yet. Inviting an unregistered email
-  fails with a clear, distinguishable error rather than silently doing
-  nothing.
-- **Offline-read**: `PersistQueryClientProvider` persists the TanStack Query
-  cache to AsyncStorage, so a previously loaded screen (e.g. the fleet list)
-  still renders on next launch even with no connectivity (PRD §11). Anything
-  backed by a signed URL (vehicle photos) opts out via
-  `meta: { persist: false }` — a cached signed URL would just be expired.
-- **Enforce authorization on server/database, treat client checks as UX
-  only**: every table-level grant is scoped and column-restricted (see
-  Database below), and every RPC re-implements its own authorization check
-  rather than relying on the caller having done the right thing — a
-  screen's disabled button or hidden section is a courtesy, not a boundary.
-- **Booking engine**: `(renter)/today.tsx` (pickups/returns/active/overdue
-  stats plus fleet status — deliberately no unpaid-amount stat, payments
-  aren't built yet), `(renter)/calendar.tsx` (a lightweight agenda grouped
-  by pickup date, not a calendar-grid library — see Known issues), and
-  `(renter)/bookings/` (inbox list with a needs-action/upcoming/active/history
-  filter, plus a detail screen). The detail screen shows a live quote
-  preview (`compute_booking_quote`, same server-side rounding rule the
-  eventual `accept_booking` call uses) before acceptance, the frozen
-  `quote_snapshot` after, a conflict warning sourced only from
-  `vehicle_busy_ranges`/`availability_blocks` (never another customer's
-  booking row), and the eight state-machine actions
-  (`src/features/bookings/ActionPanel.tsx`) wired straight to their RPCs —
-  no client-side status field is ever written directly.
-
-## Customer experience
-
-- **Anonymous browsing**: `computeAppGate` lets a signed-out user who picked
-  "customer" on role-select go straight into search/listing/quote — no
-  sign-in required until they actually try to request a booking. The
-  underlying RPCs (`search_available_vehicles`, `get_vehicle_listing`,
-  `get_listing_quote`, `is_vehicle_bookable`) are granted to the Postgres
-  `anon` role directly, with a narrowly-scoped RLS policy exposing only
-  `vehicle_photo` documents/storage objects for `available` vehicles — never
-  direct table access to `vehicles`/`organizations`.
-- **Search correctness**: `search_available_vehicles` excludes a vehicle for
-  a requested interval if it overlaps an accepted booking
-  (`vehicle_busy_ranges`) or a manual `availability_blocks` row, using
-  half-open UTC range overlap — proven with a fixture in
-  `supabase/tests/06_customer_discovery.sql` covering both a same-instant
-  request expressed as a different UTC offset and a window that no longer
-  overlaps.
-- **Maldives time display**: all customer-facing dates render via
-  `formatMaldivesDateTime`/round-trip through `maldivesInputToUtcIso` /
-  `utcIsoToMaldivesInput` (`src/lib/datetime.ts`) — fixed UTC+5, no DST, pure
-  arithmetic rather than IANA zone-string parsing. Every RPC and stored
-  timestamp is still UTC; the conversion is display/input-only.
-- **Request-to-book, not instant booking**: submitting checkout calls
-  `request_booking`, landing the customer on that booking's own detail
-  screen showing status "Requested" — a renter still has to accept it (see
-  Auth/routing/bookings above). Nothing about submission charges a payment
-  method.
-- **Retry-safe submission**: `useSubmitBookingRequest` sets `retry: 1`;
-  `request_booking` itself de-duplicates on
-  `(vehicle_id, customer_id, starts_at, ends_at)`, so the automatic retry
-  and a customer's own "Try again" tap after a failure are both safe to
-  replay with identical params — verified in
-  `__tests__/app/(customer)/checkout.test.tsx` by asserting all attempts
-  carry byte-identical params.
-- **Gateway-agnostic checkout**: no payment SDK is integrated. The checkout
-  and listing screens both carry an explicit, always-visible notice
-  (`checkout-payment-notice` / `listing-payment-notice`) that the request is
-  free to submit and payment is handled separately, later — deliberately
-  not wired to any specific processor yet.
-- **Rider details / documents**: `RiderDetailsForm` collects name/phone only
-  and shows a clearly-labeled placeholder
-  (`rider-details-document-placeholder`) explaining that license/ID upload
-  isn't built yet — bring documents to pickup — the same "visible
-  placeholder, not a silent gap" approach as the Prompt 3 staff-invitation
-  flow.
-- **E2E flows**: `.maestro/customer-search-to-request.yaml`,
-  `.maestro/renter-accept-request.yaml`, and the composed
-  `.maestro/search-to-accept.yaml` drive the full search → request → renter
-  accept path via the app's existing testIDs. See Known, accepted issues for
-  why they can't actually be run in this sandbox and the email-OTP caveat
-  baked into both flows.
-
-## Handover, payments and notifications
-
-- **Pickup/return inspections** (`src/features/inspections/`): a checklist
-  (odometer, fuel/battery %, an accessories toggle set, condition notes,
-  before/after photos) recorded by org staff for pickup and again for
-  return, shown inline on both the renter and customer booking-detail
-  screens (`InspectionSection`). Photos upload through the shared
-  `src/lib/uploads.ts` (compressed client-side via `expo-image-manipulator`,
-  retried with backoff, distinguishing a permission/validation rejection —
-  which retrying can't fix — from a genuinely transient failure) into the
-  private `booking-documents` Storage bucket.
-- **Customer acknowledgement**: the customer can confirm ("I agree with
-  this record") an inspection once it's recorded, via the
-  `acknowledge_inspection` RPC — customer-only, idempotent, and the
-  checklist becomes immutable once acknowledged
-  (20260821160001_inspections_lifecycle.sql).
-- **Real lifecycle gates, enforced in the database**: `activate_booking`
-  (start the rental) is rejected without a recorded pickup inspection on
-  file, and `complete_booking` is rejected without a recorded return
-  inspection — enforced in `bookings_guard()`, the same trigger that already
-  enforces the state machine and overlap protection, so no client code path
-  can bypass it. Deliberately gated on the inspection being _recorded_, not
-  the customer's _acknowledgement_ of it — see that migration's own comment
-  for why (an unresponsive customer must never be able to block their own
-  vehicle's return).
-- **Manual payment ledger** (`src/features/payments/PaymentLedger.tsx`):
-  cash, bank transfer, or an external reference only — no card field exists
-  anywhere in this app or its schema. Supports partial payments, refunds and
-  non-payment adjustments (e.g. a late fee). A refund can never exceed what
-  was actually received, enforced by a database trigger
-  (`transactions_guard`) regardless of insert path, not just a client-side
-  check.
-- **Audit trail**: every inspection record/acknowledgement and every ledger
-  entry is mirrored into the same append-only `booking_events` timeline
-  status changes already use (`BookingTimeline`), via `AFTER INSERT`
-  triggers — one choke point, not fan-out logic duplicated per writer.
-- **Notifications**: `notify_on_booking_event()` (a trigger on
-  `booking_events`) generates `notifications` rows for the relevant
-  audience — org staff on a new/resubmitted request, the customer on every
-  other status change, inspection record, and payment/refund — while never
-  self-notifying whoever caused the event. `src/features/notifications/
-service.ts` defines a `NotificationService` interface around
-  expo-notifications (permission, a local "send test notification" path,
-  and a response listener) so no screen imports expo-notifications
-  directly. A root-level listener (`useNotificationDeepLinks`,
-  `app/_layout.tsx`) deep-links a tapped notification into
-  `/bookings/[bookingId]`, resolving to whichever of the renter/customer
-  apps is mounted, cold-start included.
-- **Private documents and short-lived access, still**: the same rule as
-  vehicle photos (Prompt 3/5) — the `booking-documents` bucket is private,
-  RLS-scoped to the booking's own customer or org members, and every
-  signed URL this app requests is fetched fresh (60 min TTL) rather than
-  cached, since a cached one would just be an expired one.
-
-## Ocean Glass design system (UI/UX redesign)
-
-A visual-only redesign of every implemented screen (Prompt 1–6 functionality
-unchanged — see [Known, accepted issues](#known-accepted-issues) for the one
-tone-mapping exception) to a flat, translucent "glass" iOS-style system:
-deep-ocean gradient headers, one saturated teal "lagoon" accent, inset
-grouped lists, capsule status chips, KPI tiles — never embossed, bevelled,
-or neumorphic.
-
-- **Tokens** (`src/design-system/tokens.ts`): a full semantic palette (`ocean
-background`/`ocean deep`, `lagoon primary`/`pressed`, `pearl background`,
-  `glass surface`/`glass surface strong`, `glass border`, text
-  primary/secondary/tertiary, `divider`, `success`/`warning`/`destructive`/
-  `information`/`overdue`/`disabled`), an 11-step typography hierarchy
-  (`largeTitle` → `buttonLabel`), a spacing scale, per-component-class radii,
-  minimal elevation, and Reduce-Motion-aware motion durations. Every
-  pre-redesign token name (`background`, `primary`, `danger`, `radii.md`,
-  etc.) is kept as an alias onto the new palette, so nothing not yet
-  migrated silently breaks — new code should read the semantic names, not
-  the aliases.
-- **`GlassSurface`** (`src/components/GlassSurface.tsx`): the one place that
-  renders a blurred/translucent panel. iOS: a real `expo-blur` `BlurView`
-  plus a thin token-tint layer. Android **always** renders the flat
-  opaque/semi-opaque fallback instead of blurring — `expo-blur`'s native
-  blur methods on Android are off by default and its own types document
-  "decreased performance" for the opt-in ones, so this app never opts in;
-  the fallback preserves the same spacing/radius/border/color, just without
-  the blur. The same fallback also serves iOS when the user has Reduce
-  Transparency on (`useReduceTransparency()`), satisfying the Increased
-  Contrast requirement with one code path instead of two.
-- **Shared primitives added**: `Typography` (variant components:
-  `LargeTitle`, `NavigationTitle`, `SectionTitle`, `CardTitle`, `Body`,
-  `SecondaryBody`, `Label`, `Caption`, `KPIText`, `PriceText`,
-  `ButtonLabel`), `GroupedSection`/`GroupedRow` (inset grouped-list card),
-  `KPITile` (flat frosted stat tile), `Skeleton` (shimmer placeholder,
-  respects Reduce Motion), `oceanTabBar.tsx` (the floating translucent tab
-  bar, via Expo Router's public `tabBarBackground` option — not a custom
-  `tabBar` render prop, so it stays off `expo-router`'s unvendored
-  react-navigation internals).
-- **Screens**: every customer screen (Explore, Search, Listing detail,
-  Checkout, My Bookings, Booking detail, Profile, role-select/sign-in/verify)
-  and every renter screen (Today, Calendar, Bookings inbox/detail, Fleet
-  list/detail/edit/new, More/Staff) now render through these primitives.
-  Four screens got full bespoke layouts matching the reference image
-  (Customer Explore, Customer Vehicle Detail, Renter Today, Renter Booking
-  Detail); every other screen got the same primitives and tokens applied to
-  its existing structure (a "cascade" pass) rather than a from-scratch
-  bespoke layout — this is a deliberate scope split given the size of the
-  screen inventory, not an inconsistency to be fixed silently later.
-- **Intentionally changed visual behavior** (flagged per the "stop and
-  report a visual change that needs a functional change" instruction,
-  rather than silently altering anything underneath):
-  - `StatusTone` gained a new `'overdue'` member; `displayBookingStatus`'s
-    overdue case now maps to it instead of reusing `'danger'`
-    (`src/features/bookings/status.ts`, test updated to match). This is a
-    color/tone-only change — the underlying `booking_status` enum, the
-    "overdue is computed for display, never stored" behavior, and every
-    status transition rule are all unchanged.
-  - The vehicle listing screen's reference-image star rating and
-    share/favorite hero buttons are **not** implemented — there is no
-    reviews/ratings or sharing/favoriting feature anywhere in the schema or
-    app, and fabricating the UI for a feature that doesn't exist would
-    misrepresent what the app does. Likewise, the reference's vehicle
-    attribute chips only render fields that are real in `VehicleListing`
-    (transmission, category, color, year) — no invented "160cc"/"seats"/
-    "fuel" chips.
-  - **Not built this pass, by explicit choice**: a dual-role mode switcher
-    UI. Today, `computeAppGate()` still derives customer-vs-renter purely
-    from `experience-intent` + organization membership, exactly as it did
-    before this redesign — a signed-in user who is both a customer and org
-    member has no in-app control to switch modes; they'd need to sign out
-    and re-choose at role-select. Building that switcher is real, scoped
-    product/nav work (where does it live, what does it do to `intent` and
-    routing) and was deferred rather than bolted on as a purely visual
-    afterthought. `useAppGate`/`computeAppGate` were not touched.
-- **Accessibility pass**: every interactive control keeps its 44×44pt
-  minimum touch target (`minTouchTarget`, already enforced by `Button`,
-  `ChipSelect`, and the tab bar); `Typography` leaves `allowFontScaling` at
-  RN's default (`true`) so every variant respects Dynamic Type; status is
-  still conveyed by label text plus an icon/tone, never color alone;
-  `useReduceMotion()`/`useReduceTransparency()` gate all animation and
-  blur; the two horizontal photo-carousel layouts
-  (`PhotosSection`, `InspectionSummary`) use logical `marginEnd` rather than
-  `marginRight` for RTL/Dhivehi readiness. Not independently machine-audited
-  for contrast ratio on every glass-surface/text-color combination — flagged
-  here rather than asserted as verified.
-- **What "screenshots for every principal screen" means here**: this
-  sandbox has no iOS Simulator, Android Emulator, or physical device (see
-  [Known, accepted issues](#known-accepted-issues)), so no screenshots were
-  generated — the same limitation that already applies to Maestro/on-device
-  verification for Prompts 5–6. Verification here is static code review,
-  `expo export --platform ios`/`--platform android` (both bundle cleanly),
-  and the full `npm run verify` (format, lint, typecheck, all tests — see
-  the corrective pass below for what changed since).
-
-### Ocean Glass corrective pass (post physical-device review)
-
-A round of real physical-device screenshots (dark mode) surfaced several
-concrete bugs and gaps the first Ocean Glass pass missed. Each was
-root-caused against the actual code, not guessed at, before fixing:
-
-- **Explore's title was nearly invisible in dark mode** — `LargeTitle` on
-  the ocean-gradient hero used `theme.colors.textInverse`, which is the
-  _scheme-adaptive_ inverse of body text (white in light mode, near-black
-  in dark mode — correct for e.g. a button label on `lagoonPrimary`, which
-  itself lightens in dark mode). The ocean gradient never lightens with
-  scheme, so in dark mode this resolved to near-black text on a near-black
-  background. Fixed by adding `oceanForeground` (`src/design-system/
-tokens.ts`) — always light, in both schemes — for anything sitting
-  directly on the ocean gradient (Explore's hero, `role-select`'s hero).
-  `textInverse` itself was left alone; it's correctly used elsewhere (e.g.
-  an icon on the `lagoonPrimary` circle in `role-select`).
-- **Raw truncated date/time text** — the pickup/return fields were free-text
-  `TextField`s bound to a `"YYYY-MM-DD HH:mm"` string, two side-by-side at
-  half width; the string visibly truncated on a physical device. Replaced
-  with `DateRangeSelector` (`src/components/DateRangeSelector.tsx`), backed
-  by `@react-native-community/datetimepicker@9.1.0` (the exact version
-  Expo SDK 57 pins in `bundledNativeModules.json`), showing readable,
-  non-truncated text (`Sat, 23 Aug` / `7:00 PM`). The Maldives-local
-  conversion this replaces (`maldivesInputToUtcIso`/`utcIsoToMaldivesInput`)
-  is completely unchanged — the picker's wall-clock digits are read back
-  and re-interpreted as Maldives-local exactly as the free-text field
-  already did, regardless of the device's own time zone.
-- **Explore and Search rendered near-identically** — both showed the same
-  `SearchForm` with nothing else. Explore now also has a discovery section
-  below the hero (`Available near you`, real `useSearchVehicles` results
-  rendered as `VehicleResultItem variant="hero"` cards, with loading
-  skeletons and an honest empty state); Search's default state is the
-  compact criteria bar (already how it behaved once dates existed) rather
-  than the full form.
-- **No vehicle imagery anywhere** — `VehicleResultItem` had no image slot
-  at all. It now renders a flat vector illustration tile (a motorcycle
-  `Ionicon` on an ocean-gradient tile), not a fabricated photo. **Hard
-  constraint found during this pass**: `vehicle_photos_select`
-  (`20260821130001_vehicle_photo_storage.sql`) is `to authenticated` only
-  — an anonymous customer's signed-URL fetch for a real vehicle photo would
-  fail today regardless of any client-side change, and changing that RLS
-  policy was explicitly out of scope. The illustration tile is the honest
-  answer to "no real photo is available here, and no fabricated one will
-  stand in for it."
-- **Deterministic demo-preview content** (`EXPO_PUBLIC_DEMO_MODE=true`,
-  validated in `src/lib/env.ts`, off by default): if Explore's real search
-  genuinely returns zero vehicles (e.g. an empty/unseeded database) _and_
-  this flag is set, a small fixed set of clearly-labeled "Demo" cards
-  (`src/features/discovery/demoData.ts`) renders instead of an empty
-  section, so the screen can be reviewed with realistic content. These
-  cards never navigate anywhere (`VehicleResultItem`'s `demo` prop swaps
-  the `Link` wrapper for a plain non-interactive `View`, since a demo
-  `vehicle_id` has no real listing behind it) and never appear when real
-  data exists or the flag is unset.
-- **Role-select redesigned**, not just recolored: the same ocean-gradient
-  hero treatment as Explore (bypassing the shared `Screen` shell), a
-  per-role icon in a `lagoonPrimary` circle, and a forward chevron, instead
-  of two plain text rectangles.
-- **`AuthPrompt`** (`src/features/auth/AuthPrompt.tsx`): Bookings and
-  Profile's signed-out states were never literally duplicated code — both
-  already routed into the one shared `InlineAuthGate` — but that component
-  always rendered its full email field immediately, so both screens read as
-  "a giant form and nothing else." `AuthPrompt` wraps it with progressive
-  disclosure: an icon, a short heading, one "Sign in" button; the real form
-  only appears once that's pressed.
-- **Tab bar tightened**: height 60→52, label 11px→10px, icon size fixed at
-  22pt (down from React Navigation's own ~25pt default) — `src/components/
-oceanTabBar.tsx`.
-- Every change above kept its existing test coverage passing and, where the
-  interaction model itself changed (`SearchForm`'s date fields), the test
-  was rewritten to exercise the new interaction rather than deleted —
-  `SearchForm.test.tsx` now drives the real `@react-native-community/
-datetimepicker` component the same way a physical device would fire it.
-
-### Ocean Glass corrective pass, round 2 (GlassSurface tint architecture)
-
-A further physical-device round (_"Its not floating menu bars? Not
-transparent glass"_) and a read-only forensic audit against the reference
-image found the actual root cause of the "flat opaque block" look, deeper
-than the round-1 color/shadow fixes above:
-
-- **`GlassSurface`'s blur overlay reused the opaque fallback tokens.** On
-  iOS, a real `BlurView` renders, then a tint `View` is drawn on top of it
-  to pull the blur toward the app's palette. That tint was
-  `glassSurface`/`glassSurfaceStrong` — the same 68–92%-opaque tokens
-  meant for the _no-blur_ fallback path (Android, or Reduce Transparency)
-  — so on every device where blur genuinely was rendering, an
-  almost-opaque flat color sat directly on top of it and hid it almost
-  entirely. Every "glass" panel and the floating tab bar read as a flat
-  block regardless of whether `BlurView` worked, which is why round 1's
-  color/shadow fixes alone weren't enough.
-- **Fix**: split the token into two pairs (`src/design-system/tokens.ts`).
-  `glassSurface`/`glassSurfaceStrong` stay high-opacity and are now used
-  _only_ on the no-blur fallback path. New `glassTint`/`glassTintStrong`
-  (22–55% opacity, calibrated separately for light and dark) are used
-  _only_ as the overlay drawn on top of a real `BlurView`, so the blur is
-  tinted rather than smothered. `GlassSurface.tsx` now reads the correct
-  pair depending on which path it's rendering.
-- **Compaction pass** against the same audit's proportion guidance: chip
-  filters (`ChipSelect`) went from a 44pt-tall pill with 16px padding to a
-  34pt visual height (touch target preserved via `hitSlop`, not chip
-  bulk); `EmptyState` gained an optional small `icon` slot, now used on
-  every list-emptying screen (bookings, fleet, calendar, notifications,
-  search, explore) instead of bare text; Search's date-range summary bar
-  switched from the long `formatMaldivesDateTime` string to the compact
-  `formatMaldivesDateShort`/`formatMaldivesTime12h` pair `DateRangeSelector`
-  already introduced; Search's results-loading state switched from a
-  blocking centered spinner to a skeleton list shaped like
-  `VehicleResultItem`'s actual row; Explore's discovery-loading skeleton
-  went from two generic full-height blocks to one skeleton shaped like the
-  real hero card.
-- **Motorcycle card field pass**: `VehicleResultItem`'s hero variant (used
-  on Explore) now also renders an "Available" capsule badge over the
-  illustration tile — every row `search_available_vehicles()` returns is,
-  by construction, bookable for the requested window, so this surfaces
-  that server-guaranteed fact rather than adding a new availability check.
-  Make/model, transmission, engine category, pickup location and MVR price
-  were already present from round 1.
-- Every change here is presentation-only: no query, RPC, route, hook
-  signature, or testID changed, and `npm run verify` (format, lint,
-  typecheck, all 19 suites / 96 tests) plus `expo export --platform ios`
-  stayed green throughout.
-- **Still not independently verified**: as in round 1, this sandbox has no
-  iOS Simulator, Android Emulator, or physical device, so the corrected
-  blur/tint rendering has not been (and cannot be) confirmed against a
-  real screenshot here — only against the code and the RGB-level reasoning
-  above. A new unsigned IPA is produced by `.github/workflows/
-ios-unsigned-ipa.yml`, which triggers automatically on push to this
-  branch; retrieve it from that workflow run's artifacts to verify on an
-  actual device.
-
-### Ocean Glass corrective pass, round 3 (demo fallback on unconfigured backend)
-
-Physical-device screenshots from a build with no `EXPO_PUBLIC_SUPABASE_URL`/
-`EXPO_PUBLIC_SUPABASE_ANON_KEY` set showed Explore's discovery section and
-Search's results both surfacing a raw `"Supabase is not configured. Set
-EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY."` error — a real,
-correct error (the backend genuinely isn't configured in that build), but not
-a useful screen for reviewing the redesign itself.
-
-- **`isSupabaseConfigured`** (`src/lib/supabase.ts`) exposes the same
-  "is there a client at all" check `getSupabase()` already made internally,
-  as a plain boolean a screen can read before querying, instead of every
-  caller string-matching the thrown error message.
-- **Explore and Search now extend the existing demo-mode fallback** to this
-  condition: with `EXPO_PUBLIC_DEMO_MODE=true`, an unconfigured backend now
-  renders the same clearly-labeled, non-bookable demo cards
-  (`DEMO_VEHICLES`) that already covered "the real search returned zero
-  vehicles." Search's results list gained a demo branch the same shape as
-  Explore's. With the flag unset (the default in every real environment)
-  the raw configuration error still surfaces exactly as before — this only
-  changes what a `EXPO_PUBLIC_DEMO_MODE=true` review build shows.
-  `search.demo-fallback.test.tsx` covers the new branch directly.
-- Everything else about this round is unchanged from round 2: no query,
-  RPC, route, or testID touched; `npm run verify` (20 suites / 97 tests) and
-  `expo export --platform ios` stayed green.
-
-### Ocean Glass corrective pass, round 4 (segmented-pill tab bar)
-
-Requested against a tvOS-style reference: a floating glass tab bar whose
-active item sits inside its own distinct rounded pill (icon + label
-together), rather than differentiating tabs by tint color alone.
-
-- **`oceanTabBarIcon`** (`src/components/oceanTabBar.tsx`) now renders icon
-  and label together as one unit and takes an explicit `label` argument
-  (all 9 call sites across the customer/renter tab layouts updated). The
-  active tab wraps both in a new `tabActivePill` token — the `lagoonPrimary`
-  accent at 14–20% opacity — so it reads as a soft tinted capsule sitting
-  inside the outer floating bar, matching the reference's highlighted
-  "Home" pill; inactive tabs keep icon+label with no background.
-- `tabBarShowLabel` switched off — the label is drawn inside
-  `oceanTabBarIcon` now instead of React Navigation's separate default
-  label element, which is what lets one pill wrap both pieces together
-  instead of tinting two disconnected elements the same color.
-- Bar height went from 52→58pt (still within the compact tab bar
-  guidance) to give the pill's own padding room without crowding the
-  56–68pt target.
-- Everything else is unchanged: no query, RPC, route, hook signature, or
-  testID touched (labels were already the same strings as each screen's
-  `title`); `npm run verify` (20 suites / 97 tests) and
-  `expo export --platform ios` stayed green.
-
-### Ocean Glass corrective pass, round 5 (tab bar label wrapping + review-build content)
-
-A physical-device screenshot of round 4's tab bar showed every label reduced
-to vertical single/double-letter columns ("Explore" as "E"/"x"/"p") — a real
-layout bug, not a rendering glitch.
-
-- **Root cause, found by reading expo-router's vendored react-navigation
-  source** (`node_modules/expo-router/build/react-navigation/bottom-tabs`):
-  whatever a `tabBarIcon` option returns is rendered inside `TabBarIcon`'s
-  fixed-size wrapper (`wrapperUikit`/`wrapperUikitCompact`, ~20-31pt wide)
-  — a container sized for an icon alone. Round 4 rendered icon **and**
-  label together from `tabBarIcon`, so the label text was forced into that
-  ~20pt box and wrapped letter-by-letter.
-- **Fix**: switched from `tabBarIcon` to `tabBarButton` (`oceanTabBarButton`,
-  `src/components/oceanTabBar.tsx`), which replaces the entire per-tab
-  button and receives the real evenly-divided `flex: 1` slot the default
-  button gets (confirmed from the same source: `BottomTabBar`'s
-  `styles.bottomItem` is `{ flex: 1 }`, passed straight through to
-  whatever `tabBarButton` renders). The active-tab pill highlight is
-  unchanged in appearance; `numberOfLines={1}` was added as defense in
-  depth. `oceanTabBar.test.tsx` (new) renders the button directly and
-  asserts the full label text is present on one line, and that
-  `aria-selected`/`onPress` wire through `accessibilityState`/press
-  handling correctly — a regression back to `tabBarIcon` for this would
-  fail the same way the physical device did.
-- **A second, unrelated finding from the same screenshot**: Explore still
-  showed "Supabase is not configured" even though `EXPO_PUBLIC_DEMO_MODE`'s
-  fallback for that (round 3, above) was already live in this build. Root
-  cause: `EXPO_PUBLIC_DEMO_MODE` is inlined into the JS bundle at build
-  time, and `.github/workflows/ios-unsigned-ipa.yml` (the only pipeline
-  that produces a build for physical-device review here) never set it —
-  every review IPA it produces genuinely has no Supabase credentials _and_
-  demo mode off, so the raw configuration error was the only possible
-  outcome regardless of what application code did. Fixed by setting
-  `EXPO_PUBLIC_DEMO_MODE: 'true'` in that workflow's `env:` block — scoped
-  to this one review-build workflow only, not a default anywhere else.
-- `npm run verify` (21 suites / 99 tests, including the two new
-  `oceanTabBar.test.tsx` cases) and `expo export --platform ios` stayed
-  green.
-
-### CI fix: `EXPO_PUBLIC_DEMO_MODE` broke `npm run verify` in the same workflow
-
-Round 5's fix set `EXPO_PUBLIC_DEMO_MODE: 'true'` at the **job-wide** `env:`
-level in `ios-unsigned-ipa.yml`, which applies to every step in the job —
-including "Format check, lint, typecheck and unit tests" earlier in the same
-job, not just the actual build. A real CI run
-(`logs_88340149295.zip`) failed all three `search.test.tsx` tests:
-`isDemoMode` (from that ambient env var) plus `isSupabaseConfigured` (no
-Supabase credentials exist in this workflow either) made
-`app/(customer)/search.tsx` render its demo-card fallback unconditionally,
-regardless of what each test's mocked RPC response was.
-
-- Moved `EXPO_PUBLIC_DEMO_MODE: 'true'` from the job-level `env:` to a
-  step-level `env:` on "Build Release for a physical iOS device" only —
-  the one step where Xcode's "Bundle React Native code and images" phase
-  actually invokes Metro and needs it. The `npm run verify` step earlier
-  in the job no longer sees it at all.
-- **`search.test.tsx` also had a latent version of this same fragility**
-  independent of the workflow: it mocked `getSupabase` but not
-  `isSupabaseConfigured`, so `isSupabaseConfigured` silently evaluated to
-  `undefined` (falsy) in that mock — meaning its three tests only ever
-  passed by coincidence of `isDemoMode` being unset in whatever
-  environment ran them, not because the test asserted anything about that
-  dependency. Now explicitly mocks `isSupabaseConfigured: true`, so this
-  suite is deterministic regardless of any ambient
-  `EXPO_PUBLIC_DEMO_MODE`/`EXPO_PUBLIC_SUPABASE_*`, in CI or anywhere else.
-  Verified locally by reproducing the exact failure with
-  `EXPO_PUBLIC_DEMO_MODE=true npx jest search.test.tsx` before the fix,
-  and confirming it passes with the same env var set after.
-- `npm run verify` (21 suites / 99 tests) is green both with and without
-  `EXPO_PUBLIC_DEMO_MODE` set in the shell now.
-
-### Ocean Glass corrective pass, round 6 (inactive tab contrast)
-
-A further physical-device screenshot, after round 5's `tabBarButton` fix
-landed the label-wrapping bug, showed the _active_ tab (icon, filled glyph,
-pill background) reading clearly while the three inactive tabs were nearly
-invisible — faint gray marks with no legible label.
-
-- **Root cause**: `textTertiary` (the inactive tab color) plus the inherent
-  thinness of Ionicons' `*-outline` glyphs (a deliberately lighter stroke
-  than the filled active glyph) at a compact 20pt size fell below a legible
-  contrast threshold against the glass bar, confirmed by comparing the token
-  values directly (dark mode: `textTertiary` `#6E8394` vs. `textSecondary`
-  `#9FB3C2` — meaningfully lighter).
-- **Fix**: `oceanTabBarButton` (`src/components/oceanTabBar.tsx`) now colors
-  inactive icon/label with `textSecondary` instead of `textTertiary`. The
-  active/inactive distinction still isn't color alone — the pill background
-  and bold-vs-regular label weight carry that too — this only raises the
-  inactive state's own legibility.
-- `npm run verify` (21 suites / 99 tests) stayed green; `expo export
---platform ios` bundles cleanly.
-
-### Ocean Glass corrective pass, round 7 (customer nav restructured: capsule + detached Search)
-
-Requested against a second reference ("Renata"): the customer bottom
-navigation is now two separate glass surfaces, not one continuous bar —
-a segmented capsule (Explore, Bookings, Profile) plus a visually detached
-circular Search button, with real background visible in the gap between
-them. Renter navigation (`src/components/oceanTabBar.tsx`) is untouched.
-
-- **New component**: `src/components/CustomerGlassTabBar.tsx`, wired via
-  `<Tabs tabBar={(props) => <CustomerGlassTabBar {...props} />}>` in
-  `app/(customer)/_layout.tsx` — a full custom `tabBar`, not
-  `tabBarBackground`/`tabBarButton`. Those two escape hatches (used by the
-  renter bar and round 5's fix) render every route inside one shared
-  background/row; they structurally cannot express two independently-
-  shaped surfaces with a real gap between them, which this reference
-  requires. `state.routes` still contains the three `href: null` detail
-  screens (`listing/[vehicleId]`, `checkout/[vehicleId]`,
-  `bookings/[bookingId]`) — confirmed by reading expo-router's `href`
-  shortcut implementation, which hides a route from the default tab bar by
-  wrapping its `tabBarButton` to return `null`, not by removing it from
-  `state.routes` — so this component filters to its own explicit
-  route-name allowlist rather than assuming the navigator pre-filters
-  hidden routes for it.
-- **Layout**: capsule and circle are two separate `GlassSurface`s (same
-  material as everywhere else in the app — real iOS blur, a low-opacity
-  tint, a hairline border, Android/Reduce-Transparency fallback), each with
-  its own non-clipping shadow wrapper, laid out in one `flexDirection:
-'row'` container — 24pt side margins, a 12pt gap above the home indicator
-  (`insets.bottom` + 12, never a hardcoded guess), 68pt height (capsule
-  radius = height/2), a 12pt gap between capsule and circle, 24pt capsule
-  icons / 26pt search icon / 11pt labels — all within the requested
-  proportion ranges.
-- **Screen content inset**: `src/components/Screen.tsx`'s shared bottom
-  padding (used by both customer and renter screens) went from a flat 96pt
-  to 132pt (`insets.bottom` up to ~34-40pt + the 12pt gap + 68pt capsule +
-  ~18pt breathing room) so scrollable content can clear the taller bar;
-  `app/(customer)/explore.tsx` (the one screen that bypasses `Screen`)
-  updated its own matching literal to the same value. This is a padding
-  number only — no renter navigation behavior changed, and the renter
-  bar's shorter footprint is safely covered by the same, larger reserve.
-- **Route safety**: no `Tabs.Screen` was added, removed, or renamed; every
-  existing route/testID/business-logic path is untouched. Tapping each
-  visible tab calls the real `navigation.navigate(route.name, ...)` via
-  the standard React-Navigation `tabPress` emit/defaultPrevented dance
-  (not a hand-rolled router bypass), so back navigation, deep links, and
-  any future `tabPress` listener all keep working exactly as before.
-- `CustomerGlassTabBar.test.tsx` (new) covers: exactly 3 capsule tabs + 1
-  detached Search render with intact one-line labels; hidden routes never
-  render as tabs even though they're present in `state.routes`; the
-  focused route's `accessibilityState` is `{ selected: true }` and every
-  other route's is `{ selected: false }`; pressing a tab navigates to it;
-  pressing the already-focused tab is a no-op; a `tabPress` listener that
-  calls `preventDefault` blocks navigation; pressing the detached Search
-  circle navigates to `search`.
-- `npm run verify` (22 suites / 106 tests) and `expo export --platform
-ios` stay green.
-
-### Ocean Glass corrective pass, round 8 (customer nav migrated to a real native tab bar)
-
-Round 7's capsule + detached-circle bar was a well-built visual match for
-the "Renata" reference, but it was still a JS-rendered custom `tabBar`
-(`BlurView` + absolutely-positioned `View`s). This round replaces it with
-a genuinely native tab bar, per an explicit follow-up request to use "the
-exact native architectural approach" — no custom Views recreating iOS
-glass, no manually computed safe-area offsets, no hand-rolled Search
-circle.
-
-**Compatibility check (read-only, done before any file changed):** Expo
-SDK `57.0.15`, `expo-router` `57.0.15`, React Native `0.86.2`,
-`react-native-screens` `4.26.2` — all already current. Neither
-`@bottom-tabs/react-navigation` nor `react-native-bottom-tabs` (the
-third-party packages named in the request) were installed, and this repo
-has no real `@react-navigation/*` package anywhere, even transitively —
-`expo-router` fully vendors its own internal bottom-tabs fork.
-`@bottom-tabs/react-navigation` would additionally require installing a
-genuine `@react-navigation/native@>=7`, a new dependency this project has
-never had. Rather than add that new, previously-absent dependency stack,
-this pass uses **Expo Router's own already-installed, first-party native
-tabs** — `NativeTabs`/`NativeTabs.Trigger` from
-`expo-router/unstable-native-tabs`, confirmed present and fully
-implemented in the exact `expo-router` version already in
-`package.json` (`node_modules/expo-router/build/native-tabs/`), built on
-`react-native-screens`' `TabsHost` (also already present in the installed
-`4.26.2`). Net new dependencies installed: **zero**. This satisfies "do
-not install incompatible versions blindly" more directly than the named
-third-party packages would have, while landing on the identical
-user-visible outcome: a real `UITabBarController`-backed bar on iOS with
-native SF Symbols, a native `role="search"` detached Search item, and the
-system's own glass material — matching Android's native bottom-nav
-presentation on that platform.
-
-**A real architectural constraint the request didn't anticipate, found
-while implementing:** the old `Tabs.Screen ... options={{ href: null }}`
-trick (used for the three push-only detail routes — `listing/[vehicleId]`,
-`checkout/[vehicleId]`, `bookings/[bookingId]`) has no native equivalent.
-Reading `NativeBottomTabsNavigator.js` directly: a native tab marked
-`hidden` cannot become the focused route at all — the navigator throws in
-development, and in production silently snaps back to the first tab —
-because a real `UITabBarController` tab is a persistent native slot, not
-a JS screen-swap. So the three detail routes were moved out of the tab
-navigator entirely:
-
-- `app/(customer)/_layout.tsx` is now a `Stack` (was `<Tabs>`), holding one
-  `Stack.Screen name="(tabs)"` (the 4-tab root) plus the three detail
-  routes as ordinary stack pushes on top of it — the same "push covers the
-  tab bar" behavior every native-tab-bar app already has.
-- `app/(customer)/explore.tsx`, `search.tsx`, `bookings/index.tsx`, and
-  `profile/index.tsx` moved into a new `app/(customer)/(tabs)/` route
-  group (a group adds no path segment, so `/explore`, `/search`,
-  `/bookings`, `/profile` are unchanged) with a new
-  `app/(customer)/(tabs)/_layout.tsx` rendering `<NativeTabs>`.
-  `listing/[vehicleId]`, `checkout/[vehicleId]`, and `bookings/[bookingId]`
-  did not move and keep their exact same paths.
-- Two test files that imported the moved `search.tsx` by relative path
-  (`__tests__/app/(customer)/search.test.tsx`,
-  `search.demo-fallback.test.tsx`) had that one import path updated; no
-  test assertions changed.
-
-**Tabs, in the requested order** — Explore, Bookings, Profile, then a
-separated Search: `role="search"` (the one currently-supported role that
-gives Search its detached native presentation on iOS; a normal 4th tab
-everywhere else). Icons are native, not PNGs: SF Symbols on iOS
-(`safari.fill`, `calendar`, `person.fill`, `magnifyingglass`) and Material
-Symbols on Android (`explore`, `calendar_month`, `person`, `search`) via
-`NativeTabs.Trigger.Icon`'s `sf`/`md` props — both `sf-symbols-typescript`
-and `expo-symbols` (which supply and typecheck these names) are existing
-`expo-router` dependencies already in `node_modules`, not new installs.
-`tintColor` is the app's existing `theme.colors.lagoonPrimary`.
-
-**Removed**: `src/components/CustomerGlassTabBar.tsx` and its test file —
-superseded, per the request, since a real native tab bar makes the custom
-`BlurView`-based capsule/circle unnecessary.
-
-**Screen content inset walked back**: round 7 bumped the shared bottom
-padding in `src/components/Screen.tsx` (96pt → 132pt) to clear the old
-68pt floating capsule. A native tab bar occupies its own non-overlapping
-layout space and gets automatic scroll-inset handling from the OS, so
-customer screens no longer need that manual reserve — reverted back to
-96pt, which is exactly what the renter bar (`oceanTabBar.tsx`, still
-untouched, still a floating custom bar) needs. `app/(customer)/(tabs)/
-explore.tsx`'s own matching literal was reverted the same way.
-
-**Not verifiable in this sandbox** (no iOS Simulator, Android Emulator, or
-physical device, and outbound network here is proxied/restricted, which
-also blocked `expo install --check`'s registry lookup): the actual
-on-device appearance of the native glass bar and the detached Search
-item, behavior on Android, and dark-mode readability. `npm run verify`
-(21 suites / 99 tests, one fewer suite than round 7 since
-`CustomerGlassTabBar.test.tsx` was removed) and `tsc --noEmit` are clean;
-a fresh device build via `.github/workflows/ios-unsigned-ipa.yml` is
-required to see this on an actual iPhone, since native tab bars are
-native code and cannot be evaluated from an IPA built before this change.
-
-### Native-first product rules + full audit (round 9)
-
-A standing rule set was adopted (see `AGENTS.md`): use real native
-platform components wherever a stable, Expo-compatible option exists —
-native tabs, alerts, pickers, pull-to-refresh, system glass — rather than
-redrawing them out of arbitrary Views. This pass audited the whole app
-against it and fixed every gap found.
-
-**Renter tab bar migrated to a real native tab bar** (the same move
-round 8 made for customer nav): `src/components/oceanTabBar.tsx` — a
-custom `tabBarBackground`/`tabBarButton` floating bar, the same
-"recreate a native control with arbitrary Views" pattern round 8 replaced
-on the customer side — is removed, along with its test file.
-`app/(renter)/_layout.tsx` is now a `Stack` (was `<Tabs>`) holding a new
-`app/(renter)/(tabs)/_layout.tsx` (`NativeTabs`: Today, Calendar,
-Bookings, Fleet, then More — 5 tabs, all natively visible with no
-overflow) plus the renter's detail routes (`bookings/[bookingId]`,
-`fleet/[vehicleId]` view/edit, `fleet/new`, `more/staff`) as ordinary
-stack pushes over it, for the identical native-tabs-can't-host-hidden-
-push-only-screens reason documented in round 8. `today.tsx`,
-`calendar.tsx`, `bookings/index.tsx`, `fleet/index.tsx`, and `more/index.tsx`
-moved into that `(tabs)` group (a route group — every path is unchanged);
-the membership-gate logic (loading / create-organization /
-`CurrentOrganizationProvider`) in `_layout.tsx` is untouched. Icons are
-native SF Symbols on iOS / Material Symbols on Android via
-`NativeTabs.Trigger.Icon`, not the previous `Ionicons` glyphs: Today
-(`house.fill` / `dashboard`), Calendar (`calendar` / `calendar_month`),
-Bookings (`list.bullet` / `list_alt`), Fleet (`car.fill` /
-`directions_car`), More (`ellipsis.circle.fill` / `more_horiz` — a plain
-tab, not `role="more"`, since this "More" screen is the app's own
-settings content, not Apple's system-generated aggregator list).
-
-**Screen content inset, now genuinely just breathing room**: with both
-tab bars native, `src/components/Screen.tsx`'s bottom padding no longer
-clears anything (native tab bars reserve their own layout space and get
-automatic scroll-inset handling from the OS) — dropped from 96pt to a
-plain 32pt, and the doc comment rewritten to stop describing it as
-tab-bar clearance. `app/(customer)/(tabs)/explore.tsx`'s matching literal
-(it bypasses the shared `Screen` shell) was updated the same way.
-
-**Native confirmation dialogs added** where a destructive or disruptive
-action had _no_ confirmation at all — not even a custom one — before
-this pass: deleting a vehicle photo
-(`src/features/fleet/PhotosSection.tsx`), removing an availability block
-(`src/features/fleet/AvailabilityBlocksSection.tsx`), and signing out
-(`app/(renter)/(tabs)/more/index.tsx`,
-`app/(customer)/(tabs)/profile/index.tsx`) all now confirm through
-`Alert.alert` — the OS's own `UIAlertController`/`AlertDialog` — before
-acting, instead of running immediately on tap. (Booking actions in
-`src/features/bookings/ActionPanel.tsx` — decline/cancel/ask-for-info —
-were deliberately left as their existing inline note-plus-confirm panel
-rather than converted to a plain alert: they collect an optional note
-alongside the confirmation, which a simple alert can't do, so this is a
-different affordance, not an arbitrary-Views stand-in for one.)
-
-**Native pull-to-refresh added** to the two screens that had a live
-query and a scrollable view but no way to refresh it:
-`app/(renter)/(tabs)/today.tsx` and `app/(customer)/(tabs)/explore.tsx`
-(both plain `ScrollView`s, not `FlatList`/`SectionList`), plus
-`app/(shared)/notifications.tsx`'s list and
-`app/(renter)/more/staff.tsx`. `src/components/Screen.tsx` gained
-optional `refreshing`/`onRefresh` props, wired to `RefreshControl` on its
-internal `ScrollView` only when `scroll` is true, for screens that use
-the shared shell instead of their own `ScrollView`. Every other
-`FlatList`/`SectionList` in the app (fleet, both bookings lists, search
-results, calendar) already had `onRefresh`/`refreshing` wired — these
-five were the only real gaps found.
-
-**Audited and confirmed already compliant, no change made**:
-`src/components/GlassSurface.tsx` already renders a genuine native
-`BlurView` (`expo-blur`, a real `UIVisualEffectView` on iOS) for the
-"glass" material itself, with Android correctly falling back to an
-opaque surface rather than forcing the iOS look onto it — the material is
-native; only the _tab bar chrome_ built on top of it (both bars) was the
-violation, now fixed. `src/components/DateRangeSelector.tsx` already
-uses `@react-native-community/datetimepicker` — the real native
-`UIDatePicker` on iOS (`display="inline"`/`"spinner"`) and the real
-native Android date/time dialogs (`DateTimePickerAndroid.open`) — not a
-custom wheel.
-
-**Not applicable / no existing violation to fix**: the app has no custom
-toast notifications, no custom dropdown menus, no custom date/time
-wheels, and doesn't currently use haptics, the share sheet, or context
-menus anywhere — there's nothing custom-built in those categories to
-replace. `AGENTS.md`'s new rules mean any of those, if a feature calls
-for one later, should reach for the native API (`expo-haptics`,
-`Share.share`, `ContextMenuView`/native `Pressable` context menus, a
-native sheet) rather than a custom equivalent.
-
-Net dependency changes: **zero** — same as round 8, this uses
-`expo-router`'s already-installed `NativeTabs` and React Native's own
-built-in `Alert`/`RefreshControl`. `npm run verify` (20 suites / 97
-tests, two fewer suites than round 8 since `oceanTabBar.test.tsx` was
-removed) and `tsc --noEmit` are clean. Not verifiable in this sandbox,
-same limitations as round 8: on-device appearance of the renter's native
-bar, the new alerts, and pull-to-refresh — a fresh device build is
-required.
 
 ## Database
 
-Schema lives in `supabase/migrations/` (30 ordered files) — profiles,
-organizations, organization_members, vehicles, vehicle_rates,
-availability_blocks, bookings, booking_events, inspections, transactions,
-expenses, documents, notifications, private `vehicle-photos` and
-`booking-documents` Storage buckets + their `storage.objects` policies, and
-the helper functions/RPCs/triggers that enforce the rules below at the
+Schema lives in `supabase/migrations/`: profiles, organizations, membership,
+vehicles, rates, availability blocks, bookings, booking events, inspections,
+transactions, expenses, notifications, and two private storage buckets —
+plus the functions/RPCs/triggers that enforce the rules below at the
 database level, not just in application code.
 
-- **Money**: every amount is an integer `*_laari` column (1 MVR = 100 laari),
-  never floating point.
-- **Time**: every timestamp is `timestamptz` (UTC); display formatting to
-  `Indian/Maldives` is an application concern, not a storage one.
-- **Overlap protection**: a GiST exclusion constraint makes two
-  accepted/ready/active bookings for the same vehicle over overlapping ranges
-  impossible to commit — enforced by Postgres itself, not application logic.
-  Bounds are half-open (`'[)'`, matching `vehicle_rates`'s existing
-  convention) so a booking ending at 14:00 and one starting at 14:00 for the
-  same vehicle are correctly treated as back-to-back, not overlapping — an
-  earlier closed-bound (`'[]'`) version of this constraint would have
-  falsely rejected that case (see `supabase/tests/05_booking_engine.sql`).
-  A paired trigger + advisory lock closes the one gap a single-table
-  exclusion constraint can't cover: a booking vs. a maintenance
-  (`availability_blocks`) entry.
-- **Pricing**: `compute_booking_quote()` picks hourly vs. daily by duration
-  (24h+ bills daily, rounding any partial day up to a full day; shorter
-  bills hourly, rounding any partial hour up to a full hour) from the
-  vehicle's live `vehicle_rates`, never a client-supplied number.
-  `compute_booking_policy_snapshot()` reads the organization's current
-  `policies` jsonb. Both are called only from inside `accept_booking()` —
-  see Idempotency below for why they're not parameters.
-- **Idempotency**: `transition_booking_status()` (called only through the
-  eight named wrappers — `request_booking`, `accept_booking`,
-  `decline_booking`, `mark_booking_needs_info`, `ready_booking`,
-  `activate_booking`, `complete_booking`, `cancel_booking`) short-circuits
-  to a no-op when a booking is already at the target status, so a retried
-  network call never double-writes an audit event or errors as an "invalid
-  transition." `accept_booking` no longer takes quote/policy/total
-  parameters at all (a Prompt 2 gap: whoever could call the RPC controlled
-  the accepted price) — they're computed server-side, from the vehicle's
-  actual rates, at the instant of acceptance. Booking creation is
-  idempotent too: a partial unique index plus a check-then-insert-or-return
-  in `request_booking()` means a retried "request" tap returns the existing
-  open request instead of creating a duplicate.
-- **Immutability**: a booking's `quote_snapshot`/`policy_snapshot` can never
-  change once set (trigger-enforced), and neither can its `starts_at`/
-  `ends_at` once it's left draft/requested — a direct client UPDATE that
-  changed dates on a confirmed booking could otherwise hit the exclusion
-  constraint and surface Postgres's own conflict detail, which names the
-  other booking's exact date range. Corrections are new `transactions`
-  rows, not snapshot edits.
-- **Non-leaking conflict errors**: the one case that really could expose
-  another customer's booking window — the bookings table's own GiST
-  exclusion constraint rejecting an accept/ready/activate — is caught in
-  `transition_booking_status()` and replaced with a fixed, non-leaking
-  message (PRD §6.4); verified in `05_booking_engine.sql` by asserting on
-  the exact message text, not just that an error was raised.
-- **Audit trail**: `booking_events` is insert-only, written by
-  `transition_booking_status()` for every status change and by a
-  dedicated `AFTER INSERT` trigger for a booking's own creation (a Prompt 2
-  gap — a fresh INSERT previously left the timeline starting mid-story) —
-  no client has a direct write grant to it either way.
-- **RLS**: every table has row-level security enabled, keyed off
-  `auth.uid()` via `is_org_member()`/`has_org_role()`, never a client-supplied
-  organization id. Financial tables (`transactions`, `expenses`) default to
-  owner/manager visibility only, matching the PRD's "staff permissions must
-  be explicit." A narrow `profiles` policy lets an org member see the
-  profile (name/phone/email) of a customer who has a booking with their
-  organization — needed for the booking inbox — without granting any
-  broader cross-user visibility.
+- **Money** is always an integer `*_laari` column (never floating point);
+  **time** is always `timestamptz` (UTC), with Maldives-local (UTC+5)
+  formatting handled entirely at the display layer.
+- **Booking overlap** is prevented by a Postgres GiST exclusion constraint
+  with half-open bounds, so back-to-back bookings are correctly allowed.
+- **Pricing and policy** are computed server-side at the moment of
+  acceptance (`compute_booking_quote`), never taken from the client, and are
+  frozen onto the booking once set.
+- **Idempotency**: every state transition and the booking-creation RPC are
+  safe to retry — a duplicate network call never double-writes or errors.
+- **Row-level security** is enabled on every table, scoped by organization
+  membership; financial tables default to owner/manager-only visibility.
+- **Conflict errors never leak another customer's booking window** — a
+  rejected overlap is replaced with a fixed, non-leaking message.
 
-### Running it locally
+### Running the database tests locally
 
-The full Supabase CLI local stack (`supabase start`) needs Docker, which
-isn't available in every environment (including the one this was built in).
-`supabase/local-dev/` is a stand-in harness that runs the same migrations
-against a plain Postgres instance instead — see its README for how each
-piece works. Once Docker is available, prefer the real thing.
+The full Supabase CLI stack (`supabase start`) needs Docker. If that's not
+available, `supabase/local-dev/` runs the same migrations and test suite
+against a plain local Postgres instance instead:
 
 ```bash
-# Requires a local PostgreSQL 16 server (e.g. `pg_ctlcluster 16 main start`)
-bash supabase/local-dev/run-tests.sh          # migrations -> seed -> RLS/overlap test suite
+# Requires a local PostgreSQL 16 server
+bash supabase/local-dev/run-tests.sh          # migrations -> seed -> test suite
 bash supabase/local-dev/generate-types.sh     # regenerate src/lib/database.types.ts
 ```
 
-`run-tests.sh` proves, with real assertions (not just "it compiles"): tenant
-isolation, customer ownership, owner/manager-vs-staff financial visibility
-and role-escalation restrictions, vehicle-photo storage scoping (draft vs.
-available vehicles) plus every RPC's authorization checks, the booking
-engine (`05_booking_engine.sql` — half-open boundary adjacency, time-zone
-equivalence, hourly/daily rounding at exact and partial-unit boundaries,
-idempotent cancel/accept, and that a genuine overlap is rejected with a
-non-leaking message), and — via two genuinely concurrent psql sessions —
-that exactly one of two simultaneous accept attempts on overlapping
-bookings ever succeeds. The storage half of that runs against
-`supabase/local-dev/storage-shim.sql`, a minimal
-`storage.buckets`/`storage.objects` stand-in — same reasoning as the auth
-shim, see that file's header comment.
+This proves, with real assertions: tenant isolation, ownership and
+role-based visibility, storage scoping, the full booking engine (boundary
+adjacency, time-zone equivalence, rounding, idempotency, non-leaking
+conflicts), and — via two genuinely concurrent sessions — that exactly one
+of two simultaneous accept attempts on overlapping bookings ever succeeds.
 
-## Known, accepted issues
+## CI: unsigned iOS device build
 
-- `npm audit` reports a moderate `uuid` advisory nested under Expo's own CLI/build
-  tooling (`@expo/config-plugins` → `xcode` → `uuid`). This is a build-time
-  dependency, never bundled into the app, and the only fix npm offers is a
-  breaking downgrade to `expo@46`. Left as-is; revisit when upstream updates.
-- `expo-doctor`'s two network-dependent checks (Expo config schema validation
-  against a remote schema, and React Native Directory package metadata) fail in
-  network-restricted environments. The other 19/21 checks pass. `app.config.ts`
-  was independently validated locally via `expo config --type public`.
-- `jest-expo@57.0.4`'s own transitive dependencies (`jest-environment-jsdom`,
-  `@jest/globals`) are still on the Jest 29 line, so the project pins `jest` and
-  `@types/jest` to `^29.7.0`/`^29.5.0` rather than the Jest 30 that `expo install`
-  resolves by default — installing Jest 30 here causes a version-skewed
-  `jest-mock` (nested vs. hoisted) and Jest crashes at the first test run.
-- `.npmrc` sets `legacy-peer-deps=true`. `expo-router`'s optional web-preview
-  dependencies (`@expo/ui`, `vaul`, `@radix-ui/*`) pin an exact `react-dom` patch
-  that conflicts with npm's default (strict) peer resolution on a pure
-  native project. This is a known ecosystem issue, not a project-specific bug.
-- `supabase gen types typescript --db-url` shells out to Docker on this CLI
-  version even with an explicit connection string, which isn't available in
-  every environment. `src/lib/database.types.ts` is instead generated by
-  `supabase/local-dev/generate-types.sh`, a small introspection query + Node
-  script — functionally equivalent for this schema, but not byte-identical
-  to the CLI's own output (`Functions` is hand-written rather than
-  introspected, though it does now include a real `Relationships` array per
-  table).
-- Real Supabase Auth (email OTP delivery, a live session round-trip) can't be
-  exercised end-to-end without a live Supabase project, which doesn't exist
-  in this sandbox. `src/features/auth/session.ts` is written against the
-  real `@supabase/supabase-js` Auth API and unit-tested with a mocked
-  client; the two new RPCs it depends on indirectly (`invite_org_member_by_email`,
-  `set_vehicle_rate`) are proven against the local Postgres harness instead.
-- Availability-block dates use a plain `YYYY-MM-DD HH:mm` text field
-  (`src/features/fleet/AvailabilityBlocksSection.tsx`) rather than a native
-  date/time picker, to avoid a new dependency for a Prompt-3-scoped feature.
-  Functionally complete and validated, just not the eventual UX.
-- Expo Router's `require.context` sweeps every file under `app/` into the
-  bundle regardless of whether it's a valid route, so a colocated
-  `*.test.tsx` there breaks `expo export`/production builds (confirmed:
-  `@testing-library/react-native`'s Node-only `console` import doesn't
-  resolve for the RN platform). Tests for files under `app/` live in a
-  mirrored `__tests__/app/` tree instead — see Project structure above.
-- No iOS Simulator or Android Emulator is available in this sandbox (no
-  Xcode/Android SDK). Verification here is `expo export --platform ios`
-  and `--platform android` (both bundle cleanly, 1548 modules as of the
-  Ocean Glass redesign) plus the full unit/component/RLS test suites — not
-  an on-device or in-simulator run. Real device/simulator verification is
-  still needed before treating this as done.
-- The `.maestro/` flow files are written and reviewed but **not run** in
-  this sandbox for the same reason — `maestro test` needs a booted
-  simulator/emulator or connected device, neither available here. They're
-  provided ready to run once one is.
-- Both Maestro flows type a fixed placeholder value into the email-OTP
-  step rather than a code retrieved from a real inbox — there's no
-  test-inbox/mail-testing integration in this project to fetch one, and
-  fabricating success there would misrepresent what's actually verified.
-  Running either flow against a real backend needs either that OTP step
-  wired to a mail-testing API, or the code supplied out of band before the
-  flow reaches it.
-- `(renter)/calendar.tsx` is a lightweight agenda (bookings grouped by
-  pickup date), not a calendar-grid view — no date/calendar library was
-  added for it, per the same "prefer Expo-supported packages, avoid
-  unnecessary native dependencies" constraint as Prompt 0. A grid view can
-  replace it later without changing the data underneath.
-- `overdue` is a real `booking_status` enum value but nothing writes it:
-  there's no scheduled-job runner in this sandbox to flip an `active`
-  booking automatically once its return time passes. The UI computes
-  "overdue" for display (an active booking whose `ends_at` is in the past)
-  without changing the stored status; wiring an actual scheduled transition
-  (e.g. `pg_cron` or an Edge Function on a timer) is future-phase work.
-- An org member can decline or cancel a `needs_info` booking but not accept
-  it directly — the state machine only allows `needs_info → requested` (the
-  customer resubmitting). The customer app (Prompt 5) can now do this via
-  the customer booking-detail screen's own resubmission path.
-- Real push notification delivery (an Expo push token round-tripping
-  through Expo's push service to a physical device) can't be verified in
-  this sandbox — no physical device, and `extra.eas.projectId` is still the
-  placeholder noted in `app.config.ts` (no EAS project linked yet).
-  `expoNotificationService.getExpoPushToken()` is written to fail
-  gracefully (returns `null`, never throws) when no project is linked,
-  precisely for this reason. What _is_ verified here: permission requests,
-  local test-notification scheduling and foreground presentation, the
-  notification-tap response listener, and the deep link it drives into
-  booking detail — see `src/features/notifications/service.test.ts`.
-- The iOS CI workflow pins `runs-on: macos-26` because Expo SDK 57 needs
-  Xcode 26.4+ / Swift 6.2. `macos-14` (whose newest Xcode is 16.2) fails
-  twice over: RN 0.86's Podfile rejects Xcode < 16.1, and `expo-modules-jsi`
-  then fails SwiftPM resolution with "package 'apple' is using Swift tools
-  version 6.2.0 but the installed version is 6.0.0". Both were confirmed by
-  real runs. The workflow discovers and selects the newest Xcode on whatever
-  runner it lands on rather than hardcoding a path, and its `runner` input
-  allows overriding the label from the Run workflow dialog if GitHub's image
-  lineup changes again.
+`.github/workflows/ios-unsigned-device.yml` builds an **unsigned** arm64
+iOS device archive on every push and on manual dispatch, for sideloading
+with Sideloadly, AltStore, or SideStore (which re-sign it at install time —
+it cannot be installed as-is, and no Apple certificates or provisioning
+profiles are ever used). `scripts/ios/build-ios.ts` drives the archive,
+packaging, and a full structural re-validation of the finished `.ipa`
+(architecture, bundle identifier, embedded JS bundle, required native
+modules) before it's uploaded as a workflow artifact.
 
-## CI: unsigned iOS device IPA
+Two smaller workflows enforce PR hygiene: Conventional Commits-style PR
+titles, and a lockfile-consistency + lint/typecheck/test gate on a fast
+Linux runner.
 
-`.github/workflows/ios-unsigned-ipa.yml` builds an **unsigned** arm64
-device IPA for sideloading (Sideloadly/AltStore re-sign it at install
-time — it cannot be installed as-is). It runs on manual dispatch and on
-pushes to the working branch that touch app source. No Apple certificates,
-provisioning profiles, device UDIDs or EAS signing are involved anywhere:
-`CODE_SIGNING_ALLOWED=NO` makes signing impossible rather than skipped.
+## Known limitations
 
-Before packaging, it verifies the built `.app` is genuinely a device
-build — products directory, `CFBundleSupportedPlatforms`, the Mach-O
-build-version platform, an arm64-only slice, a matching bundle id, and
-that Hermes and ExpoModulesCore are actually present — and fails without
-producing an artifact if any check does not hold.
+- No iOS Simulator/Android Emulator/physical device in this development
+  environment — verification here is `expo export`, the full unit/component
+  test suite, and the local Postgres RLS/booking-engine suite; the CI
+  workflow above produces a real device build to verify on hardware.
+- `.maestro/` E2E flows are written but not run here for the same reason;
+  they also type a fixed placeholder into the email-OTP step rather than
+  retrieving a real code, since no mail-testing integration exists yet.
+- Fleet availability-block dates use a plain text field rather than a native
+  date/time picker.
+- The renter calendar is a lightweight agenda grouped by pickup date, not a
+  calendar-grid view.
+- There's no scheduled job to automatically flip a booking to "overdue" —
+  it's computed for display only, from the stored return time.
+- Real push-notification delivery to a physical device isn't verified here
+  (no EAS project linked yet); permission requests, local notifications, and
+  the deep-link handler are.
+- A dual-role (customer + renter) in-app mode switcher isn't built yet — a
+  signed-in user who is both would need to sign out and re-choose a role.
 
-### Fix: Supabase credentials never actually reached the review IPA (round 10)
+## Roadmap
 
-Every review build since round 8 still showed "Supabase is not
-configured" on a physical device, despite the workflow setting
-`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` as the
-xcodebuild step's shell env, on the documented assumption that Xcode's
-"Bundle React Native code and images" Run Script phase inherits that
-shell's environment. Pulling the actual job log for a successful run and
-inspecting the environment dump Xcode itself prints before that phase
-runs (the `export FOO=...` lines) proved that assumption wrong: neither
-variable was in it. The phase's real bundling command
-(`node .../@expo/cli/.../cli export:embed ...`) never saw them, so
-`EXPO_PUBLIC_SUPABASE_URL`/`ANON_KEY` were `undefined` in every shipped
-bundle, `isSupabaseConfigured` was `false`, and any query hit
-`getSupabase()`'s thrown error — the exact message in the screenshot.
-This also means `EXPO_PUBLIC_DEMO_MODE=true` never reached the bundle
-either, in any round: the demo-card fallback the earlier rounds'
-comments describe never actually fired on a device build.
-
-**Fix**: a new step, "Write production environment for the embedded JS
-bundle", writes a real `.env` file to the repo root before `expo
-prebuild`/pod install/xcodebuild ever run. `expo export:embed` (what the
-Xcode phase actually invokes) loads `.env`/`.env.production`/etc. from
-the project root itself via `@expo/env`, independent of whatever
-environment the parent process did or didn't pass through — this is
-what actually gets real values inlined into the bundle, verified by
-re-checking a subsequent build's own job log for the same environment
-dump.
-
-**Also per explicit request, demo mode is dropped from this build
-entirely** — this `.env` does not set `EXPO_PUBLIC_DEMO_MODE` at all, so
-it keeps its real default (`false`) from `src/lib/env.ts`. The review
-IPA is now full production against the real Supabase project only: if
-something is ever misconfigured again, it surfaces as a real, visible
-error rather than being silently papered over by demo cards (which,
-per the above, were never actually functioning anyway). The
-step-scoped `env:` block that used to sit on the xcodebuild step is
-removed as dead, misleading configuration now that it's understood not
-to work; `EXPO_PUBLIC_APP_ENV=production` was added to the new `.env`
-for correctness, though nothing currently branches on it.
-
-### Fix: unnecessary scroll indicator on two auth-gated screens (round 10)
-
-A screenshot flagged a scrollbar on the customer Bookings tab's
-signed-out state, questioning whether the screen was really native. It
-is — a translucent scroll-position indicator on the trailing edge is
-genuine `UIScrollView` chrome, not a fake one — but it had no reason to
-appear there: that screen's entire content is one small fixed-size
-`AuthPrompt` card that doesn't need to scroll at all.
-`app/(customer)/(tabs)/bookings/index.tsx` and
-`app/(customer)/(tabs)/profile/index.tsx` both passed `scroll` (Screen's
-scrollable mode) to their signed-out `AuthPrompt` branch instead of
-`scroll={false}`, unlike their own signed-in branches, which already
-correctly avoid it. Both changed to `scroll={false}`, matching every
-other short-fixed-content screen in the app.
-
-For the record, the pill-shaped tab bar with a separated Search circle
-in that same screenshot **is** the real native tab bar from rounds 8–9,
-not a reversion to the pre-migration custom one: this project's CI
-targets Xcode 26 / iOS 26 (confirmed in the build log —
-`Xcode_26.6.app`, `iPhoneOS26.5.sdk`), and Apple's iOS 26 "Liquid Glass"
-`UITabBarController` redesign renders exactly this way — a floating
-rounded bar with a `role="search"` item visually separated into its own
-circle — which is what made it such a good match for the original
-"Renata" reference to begin with.
-
-`npm run verify` (20 suites / 97 tests) and `tsc --noEmit` are clean.
-**Confirmed working**, not just assumed: the very next build's job log
-showed `@expo/cli`'s own loader printing `env: load .env` / `env: export
-EXPO_PUBLIC_APP_ENV EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_SUPABASE_URL`
-immediately before "Starting Metro Bundler" — i.e. Expo's own tooling
-confirming it loaded the file and exported all three real values into
-the bundler process, which is the exact mechanism that was silently
-failing before.
-
-### Fix: every review IPA reported the same CFBundleVersion (round 11)
-
-Despite the confirmed bundle-level fix above, a device still showed
-"Supabase is not configured" after installing the round-10 IPA. Auditing
-`app.config.ts` found a second, independent bug that can produce exactly
-that symptom regardless of whether the bundle itself is correct:
-`ios` never set a `buildNumber`, so every single review build back to
-round 1 shared the same static `CFBundleVersion`. Reinstalling an IPA
-with an unchanged bundle id _and_ an unchanged build number is exactly
-the condition under which a sideloading tool (or iOS itself) can decide
-there's nothing to update and keep running the previously-installed
-binary — silently, with no error — which would reproduce this exact
-symptom independent of anything actually being wrong in the new build.
-
-**Fix**: `app.config.ts`'s `ios.buildNumber` now reads
-`process.env.IOS_BUILD_NUMBER`, and
-`.github/workflows/ios-unsigned-ipa.yml`'s "Generate native iOS project
-(expo prebuild)" step sets that to the same GitHub run number already
-used for the IPA's filename (`steps.meta.outputs.build_number`). Unlike
-the round-10 bug, this one is a plain Node CLI invocation
-(`npx expo prebuild`) reading `process.env` in its own step's shell —
-no Xcode Run Script indirection involved — verified locally:
-`IOS_BUILD_NUMBER=42 npx expo config --type public --json` resolves
-`ios.buildNumber` to `"42"`; unset, it resolves to `undefined` (Expo's
-own default applies). Every review IPA from here on carries a distinct,
-increasing build number, so reinstalling one is unambiguously a real
-update.
-
-**If a device still shows stale behavior after this**: fully delete the
-app before reinstalling the next IPA rather than reinstalling over it —
-the build-number fix makes a real update _detectable_, but a sideload
-tool that was already treating same-version reinstalls as a no-op may
-need one clean delete-and-install cycle to start honoring the new build
-numbers going forward.
-
-`npm run verify` and `tsc --noEmit` are clean.
-
-### iOS build pipeline replaced with an archive-based, Renata-adapted script (round 12)
-
-Reported symptom: on-device installs still failed ("integrity cannot be
-confirmed", then "Service operation failed: Failed to install IPA") even
-though every automated structural check on the old
-`.github/workflows/ios-unsigned-ipa.yml` passed on every run — correct
-`Payload/MotoRentMV.app` root, arm64-only executable, correct Mach-O
-`iOS` (not Simulator) platform, correct bundle id, `hermes`/
-`ExpoModulesCore` present, embedded JS bundle present. A green CI run was
-treated as insufficient, per the request, and the artifact was audited
-directly against the old pipeline's own two packaging commands.
-
-**Root cause found**: two concrete, well-documented gaps in how the old
-workflow copied and zipped the `.app`, independent of anything the app's
-own code does:
-
-- `cp -R "$APP_PATH"/. "Payload/$APP.app"` — plain `cp` can silently drop
-  extended attributes/resource-fork metadata that a re-signing tool
-  depends on when it walks and re-signs every nested framework. Apple's
-  own tooling uses `ditto` for exactly this reason.
-- `zip -qr -X "$IPA_NAME" Payload` — **no `-y` flag**. BSD `zip`'s default
-  behavior _dereferences_ symlinks into full copies instead of preserving
-  them as symlinks; `-X` (present before) only strips extra file
-  attributes and does nothing for symlink handling. A `.app` with
-  framework-internal symlinks quietly corrupted or duplicated during
-  zipping is a documented, exact match for "integrity cannot be
-  confirmed" on re-sign.
-
-**Note on the reference implementation**: this session could not read
-`grootismore/renata-jelly`'s actual `scripts/ios/build-ios.ts` / workflow
-/ `eas.json` — attaching that repository required live approval that
-didn't go through, and this session's GitHub API access is scoped to
-this repository only. The rewrite below follows the architecture exactly
-as specified in the request (archive → `Products/Applications/*.app` →
-`Payload/` → zip, `CODE_SIGNING_ALLOWED=NO`/`CODE_SIGNING_REQUIRED=NO`,
-`.xcarchive`, macOS runner, physical-device destination), not a byte-for-
-byte port of Renata's file, since the literal source was never read in
-this session.
-
-**New**: `scripts/ios/build-ios.ts` (run via `npm run ios:unsigned-build`,
-executed with `tsx` — added as a devDependency alongside `@types/node`,
-since this project has no existing TypeScript-script runner and Bun
-isn't in use here). Resolves MotoRent's own workspace and scheme from
-the generated native project (`xcodebuild -list -json`, not a guessed or
-hardcoded name); archives via `xcodebuild archive` (Apple's own
-distribution-oriented packaging path, not a raw `build` action) with
-signing explicitly disabled the same way the old workflow did (`ARCHS`
-pinned to `arm64`, every signing-related build setting blanked, plus
-`AD_HOC_CODE_SIGNING_ALLOWED=YES`); verifies the archived `.app`
-(bundle id, `CFBundlePackageType`, executable present and executable,
-arm64-only via `lipo`, Mach-O platform via `otool` matches iOS not
-iOS-Simulator, `CFBundleSupportedPlatforms` has `iPhoneOS` not
-`Simulator`, `hermes`/`ExpoModulesCore` present, embedded
-`main.jsbundle` present and non-trivial, any `PlugIns/*.appex` flagged
-but never silently deleted) _before_ packaging; packages with `ditto`
-and `zip -y` (the two fixes above); then **re-validates the finished IPA
-from a completely fresh unzip** — correct `Payload/` root, exactly one
-`.app`, executable still present/executable, architecture and bundle id
-unchanged from the pre-packaging archive — so a packaging-step bug can't
-hide behind "the archive itself was fine." Exits non-zero on every
-validation failure, per the request; only cleans up its own known build
-outputs (`build/MotoRentMV.xcarchive`, `build/Payload`,
-`build/*.ipa`), never a blanket `rm -rf build`.
-
-**New**: `.github/workflows/ios-unsigned-device.yml`, replacing
-`ios-unsigned-ipa.yml` (removed, to avoid two workflows competing for the
-same macOS runner and producing duplicate/confusing artifacts). Job
-shape: checkout → resolve a Swift-6.2+/Xcode-26+ toolchain (the same
-hard-won discovery logic from the old workflow, driven by two real past
-failed runs) → `npm ci` → `npx expo-doctor` → `npm run verify` →
-`npx expo install --check` → resolve build metadata → write `.env` →
-`npx expo prebuild --platform ios --clean` → `npm run
-ios:unsigned-build` → print/record validation results → upload. Artifact
-is named `MotoRent-MV-iOS-unsigned-<run-number>`, containing
-`MotoRent-MV-unsigned-<run-number>.ipa`, matching the request.
-
-**A required manual step this pass could not do for you**: per "provide
-these through GitHub configuration rather than hardcoded into source,"
-`EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` are no longer
-literal values in the workflow YAML — they're read from
-`secrets.EXPO_PUBLIC_SUPABASE_URL`/`secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY`
-and the workflow **fails closed** (before the expensive archive step) if
-either is unset. Add them under the repo's **Settings → Secrets and
-variables → Actions → New repository secret** using the same real
-project's values this session has been using all along (URL
-`https://yatizjdasoavxknynvlr.supabase.co`, the `motorentmv` project's
-publishable/anon key) — the workflow will fail at "Write production
-environment for the embedded JS bundle" with a clear error until this is
-done. This is a one-time setup step; no code change can substitute for
-it, by design.
-
-**`app.config.ts`**: added `extra.build` (`commit`, `branch`,
-`runNumber`, `profile`, `builtAt`) — safe diagnostic metadata (no
-secrets) so a sideloaded IPA can be traced back to the exact commit/run
-that produced it, sourced from GitHub Actions' own auto-populated
-`GITHUB_SHA`/`GITHUB_REF_NAME`/`GITHUB_RUN_NUMBER` plus a new
-`BUILD_PROFILE=ci` set on the prebuild step. All fields resolve to
-`undefined` outside CI, by design.
-
-**`eas.json`**: added an `environment: "production"` field to the
-`production` profile and a new `ci` profile (`extends: "production",
-autoIncrement: false`) for future EAS-based builds, alongside the
-existing `development`/`development-simulator`/`preview`/`production`
-profiles (kept as-is, including their `channel` values for EAS Update,
-which the request's abbreviated profile list didn't mention but nothing
-asked to remove).
-
-**What's verified and what isn't yet**: `npm run verify`, `tsc --noEmit`,
-and eslint/prettier are all clean on the new script and workflow; the
-new `.ts` file was smoke-tested in this sandbox (correctly refuses to
-run on non-macOS, per its own guard) and its resolve/verify/package/
-validate functions were reviewed against every check in the request's
-"IPA VALIDATION" section. What could **not** be verified in this
-sandbox (no macOS, no Xcode, no device, and this session could not
-resolve `actions/checkout`/`actions/setup-node`/`actions/upload-artifact`
-to pinned commit SHAs, since GitHub API access here is scoped to this
-repository only — the workflow still uses exact patch-version tags, not
-floating major tags, and documents this gap inline) is an actual CI run
-of the new workflow and an actual on-device sideload. Once the repository
-secrets above are added, pushing will trigger `ios-unsigned-device.yml`
-automatically; that first real run is this fix's actual proof.
-
-**Signing state, for the record**: the produced IPA is and remains
-**unsigned** — `CODE_SIGNING_ALLOWED=NO`/`CODE_SIGNING_REQUIRED=NO` make
-that impossible to change, not merely default. It cannot be installed
-directly; Sideloadly, AltStore, or SideStore must re-sign it (and every
-embedded framework) with your own Apple ID at install time. If
-installation still fails on the very next build after this fix, the
-next thing to capture is the sideloading tool's _full_ log (not just the
-final one-line error) plus device model/iOS version, since at that point
-the remaining candidates are on the signing-tool/device side, not in
-this IPA's own structure.
-
-### Rebrand: MotoRent MV → RideFinder (round 13)
-
-Sideloading kept failing after round 12's pipeline fix (confirmed working
-and structurally valid — see above), now with a different, more specific
-error: `Minimuxer.IdeviceGatewayError 2` / "Service operation failed:
-Failed to install IPA". Minimuxer is SideStore's own internal device-
-communication component, not something related to the IPA's content —
-this class of error happens during SideStore's install handshake with
-the device, before it evaluates anything inside the IPA. One plausible
-cause: a stale/corrupted SideStore-side record tied to the bundle
-identifier from an earlier failed install attempt. Changing the bundle
-identifier forces SideStore to treat the app as new and unrelated to
-whatever bad state it had.
-
-Rather than a throwaway bundle-id bump, this was done as a real,
-permanent rename, at the project owner's request:
-
-- `app.config.ts`: `name` → `RideFinder`, `slug` → `ridefinder`,
-  `scheme` → `ridefinder`, `BUNDLE_ID` → `com.ridefinder.app` (was
-  `com.motorentmv.app` — both iOS and Android package derive from this
-  one constant), image-picker permission strings updated.
-- On-screen branding: the Explore header wordmark
-  (`app/(customer)/(tabs)/explore.tsx`), the role-select screen's large
-  title (`app/(auth)/role-select.tsx`), and the test-notification title
-  (`app/(shared)/notifications.tsx`) all now say "RideFinder".
-- `package.json`'s `name` field, the AsyncStorage query-cache key
-  (`src/lib/query-persister.ts`), and a couple of doc comments
-  (`src/features/payments/PaymentLedger.tsx`,
-  `app/(renter)/more/staff.tsx`) updated for consistency.
-- `.maestro/*.yaml`'s `appId: com.motorentmv.app` updated to
-  `com.ridefinder.app` in all three flows — this one is not cosmetic:
-  Maestro targets the app by bundle identifier, so leaving this stale
-  would have silently broken every E2E flow against the renamed app.
-- Local-dev-only, non-functional identifiers also updated for
-  consistency: `supabase/config.toml`'s local project id,
-  `supabase/local-dev/*.sh`'s default local test DB name, and
-  `supabase/seed.sql`'s three seed users' `@motorentmv.test` email
-  domain (a reserved, non-routable test TLD — this only affects local
-  seed data, never the real hosted project, and nothing else in the
-  codebase pattern-matches on that exact string).
-- `scripts/ios/build-ios.ts`: `EXPECTED_BUNDLE_ID` updated, and — found
-  while doing this rename — the Payload app-folder name was hardcoded to
-  a `MotoRentMV` constant; changed to derive from the actual archived
-  `.app`'s own folder name instead
-  (`path.basename(appPath)`), so this can't silently drift out of sync
-  with whatever Xcode calls the product the next time the app is
-  renamed.
-- `.github/workflows/ios-unsigned-device.yml`: artifact/IPA naming
-  (`RideFinder-unsigned-<run>.ipa`, `RideFinder-iOS-unsigned-<run>`).
-- The real hosted Supabase project (`yatizjdasoavxknynvlr.supabase.co`)
-  was **not** renamed or touched — only local/cosmetic identifiers were,
-  since the project's dashboard name has no functional effect on the app.
-
-This README's own historical entries above this point still say
-"MotoRent MV" — that's the accurate record of what was decided and built
-under that name, not an oversight.
-
-`npm run verify` and `tsc --noEmit` are clean. Whether this actually
-resolves the SideStore install error can only be confirmed by a fresh
-CI build (new bundle id → genuinely new archive) and a real install
-attempt on-device — that's the next thing to try.
-
-## What's next
-
-Finance/reports (Prompt 7), CI/EAS automation (Prompt 8), and the
-release-candidate/pilot handoff (Prompt 9) — see the PRD for full scope per
-phase. A dual-role mode switcher (see
-[Ocean Glass design system](#ocean-glass-design-system-uiux-redesign) above)
-remains unbuilt and is a candidate for whichever future phase takes on
-multi-role navigation.
+Reporting/finance tooling, deeper CI/EAS automation, and a release-candidate
+pilot handoff are the next phases planned.
