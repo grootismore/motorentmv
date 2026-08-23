@@ -22,12 +22,13 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { constants as fsConstants } from 'node:fs';
-import { access, appendFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { access, appendFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const IOS_DIR = path.join(REPO_ROOT, 'ios');
 const BUILD_DIR = path.join(REPO_ROOT, 'build');
+const ENV_FILE = path.join(REPO_ROOT, '.env');
 const ARCHIVE_PATH = path.join(BUILD_DIR, 'RideFinder.xcarchive');
 const PAYLOAD_DIR = path.join(BUILD_DIR, 'Payload');
 const VALIDATION_DIR = path.join(BUILD_DIR, 'validation');
@@ -80,11 +81,50 @@ async function requireMacOS(): Promise<void> {
   }
 }
 
+/** Minimal KEY=VALUE parser for the plain `.env` file this project's own
+ * workflow writes (no quoting/multiline/expansion needed -- see the
+ * "Write production environment" workflow step). */
+function parseEnvFile(contents: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of contents.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    values[trimmed.slice(0, eq)] = trimmed.slice(eq + 1);
+  }
+  return values;
+}
+
+/**
+ * Validates that the Release bundle's public runtime variables are present
+ * in the `.env` file on disk -- deliberately NOT `process.env`.
+ *
+ * These names must never be set as this script's own process environment:
+ * `@expo/env`'s loader (node_modules/@expo/env/build/index.js's `load()`)
+ * only assigns a value from `.env` `if (typeof process.env[key] ===
+ * 'undefined')` -- if the key is already *defined* in the environment
+ * Xcode hands to the "Bundle React Native code and images" Run Script
+ * phase (even as an empty string), it is silently left alone and the real
+ * `.env` value is never applied. A prior version of this script (and the
+ * workflow step that invokes it) set these as step-level env for this
+ * script's own pre-flight check, which was inherited all the way down
+ * into that phase's environment as empty -- producing a structurally
+ * valid, fully green-CI IPA that still showed "Supabase is not
+ * configured" on device, since the real values from `.env` were silently
+ * discarded rather than applied. Reading the file directly here, instead
+ * of checking `process.env`, keeps `.env` the single source of truth end
+ * to end and this script's own environment clean of these names.
+ */
 async function requireEnv(names: string[]): Promise<void> {
-  const missing = names.filter((name) => !process.env[name] || process.env[name] === '');
+  if (!(await exists(ENV_FILE))) {
+    fail(`No .env file found at ${ENV_FILE}. The workflow's "Write production environment" step must run before this script.`);
+  }
+  const values = parseEnvFile(await readFile(ENV_FILE, 'utf8'));
+  const missing = names.filter((name) => !values[name] || values[name] === '');
   if (missing.length > 0) {
     fail(
-      `Missing required public runtime variable(s) for the Release bundle: ${missing.join(', ')}. ` +
+      `Missing required public runtime variable(s) in ${ENV_FILE}: ${missing.join(', ')}. ` +
         'Set these in the GitHub Actions workflow/environment before building -- never hardcode them into source.',
     );
   }
