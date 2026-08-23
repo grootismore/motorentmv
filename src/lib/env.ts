@@ -44,6 +44,25 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
   return parsed.data;
 }
 
-export const env = parseEnv(process.env);
+/**
+ * Each key is referenced as its own `process.env.EXPO_PUBLIC_X` expression,
+ * not `process.env` as a whole object, on purpose: babel-preset-expo's
+ * inline-env-vars transform (node_modules/expo/node_modules/babel-preset-
+ * expo/build/plugins/inline-env-vars.js) only rewrites MemberExpression
+ * nodes matching that exact per-key pattern into literal strings at build
+ * time. `process.env` passed as a bare value is invisible to it -- the
+ * compiled Hermes bundle has no real Node `process.env` at runtime, so
+ * `parseEnv(process.env)` silently resolved every one of these to
+ * `undefined` in every build this project ever shipped, regardless of
+ * what the CI pipeline correctly wrote to `.env` beforehand. This is the
+ * actual cause of the "Supabase is not configured" error appearing on a
+ * real device even after every pipeline-side env-delivery fix.
+ */
+export const env = parseEnv({
+  EXPO_PUBLIC_APP_ENV: process.env.EXPO_PUBLIC_APP_ENV,
+  EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  EXPO_PUBLIC_DEMO_MODE: process.env.EXPO_PUBLIC_DEMO_MODE,
+});
 
 export const isDemoMode = env.EXPO_PUBLIC_DEMO_MODE === 'true';
