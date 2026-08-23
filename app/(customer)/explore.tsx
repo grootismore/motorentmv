@@ -74,7 +74,10 @@ export default function Explore() {
       style={{ flex: 1, backgroundColor: theme.colors.pearlBackground }}
       edges={['top', 'left', 'right']}
     >
-      <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
+      {/* 132pt: same floating-tab-bar clearance as src/components/Screen.tsx
+          -- this screen bypasses that shared shell (see the doc comment
+          above), so it reserves the same amount directly. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 132 }}>
         <LinearGradient
           colors={[theme.colors.oceanBackground, theme.colors.oceanDeep]}
           style={{

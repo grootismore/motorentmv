@@ -710,6 +710,63 @@ invisible — faint gray marks with no legible label.
 - `npm run verify` (21 suites / 99 tests) stayed green; `expo export
 --platform ios` bundles cleanly.
 
+### Ocean Glass corrective pass, round 7 (customer nav restructured: capsule + detached Search)
+
+Requested against a second reference ("Renata"): the customer bottom
+navigation is now two separate glass surfaces, not one continuous bar —
+a segmented capsule (Explore, Bookings, Profile) plus a visually detached
+circular Search button, with real background visible in the gap between
+them. Renter navigation (`src/components/oceanTabBar.tsx`) is untouched.
+
+- **New component**: `src/components/CustomerGlassTabBar.tsx`, wired via
+  `<Tabs tabBar={(props) => <CustomerGlassTabBar {...props} />}>` in
+  `app/(customer)/_layout.tsx` — a full custom `tabBar`, not
+  `tabBarBackground`/`tabBarButton`. Those two escape hatches (used by the
+  renter bar and round 5's fix) render every route inside one shared
+  background/row; they structurally cannot express two independently-
+  shaped surfaces with a real gap between them, which this reference
+  requires. `state.routes` still contains the three `href: null` detail
+  screens (`listing/[vehicleId]`, `checkout/[vehicleId]`,
+  `bookings/[bookingId]`) — confirmed by reading expo-router's `href`
+  shortcut implementation, which hides a route from the default tab bar by
+  wrapping its `tabBarButton` to return `null`, not by removing it from
+  `state.routes` — so this component filters to its own explicit
+  route-name allowlist rather than assuming the navigator pre-filters
+  hidden routes for it.
+- **Layout**: capsule and circle are two separate `GlassSurface`s (same
+  material as everywhere else in the app — real iOS blur, a low-opacity
+  tint, a hairline border, Android/Reduce-Transparency fallback), each with
+  its own non-clipping shadow wrapper, laid out in one `flexDirection:
+'row'` container — 24pt side margins, a 12pt gap above the home indicator
+  (`insets.bottom` + 12, never a hardcoded guess), 68pt height (capsule
+  radius = height/2), a 12pt gap between capsule and circle, 24pt capsule
+  icons / 26pt search icon / 11pt labels — all within the requested
+  proportion ranges.
+- **Screen content inset**: `src/components/Screen.tsx`'s shared bottom
+  padding (used by both customer and renter screens) went from a flat 96pt
+  to 132pt (`insets.bottom` up to ~34-40pt + the 12pt gap + 68pt capsule +
+  ~18pt breathing room) so scrollable content can clear the taller bar;
+  `app/(customer)/explore.tsx` (the one screen that bypasses `Screen`)
+  updated its own matching literal to the same value. This is a padding
+  number only — no renter navigation behavior changed, and the renter
+  bar's shorter footprint is safely covered by the same, larger reserve.
+- **Route safety**: no `Tabs.Screen` was added, removed, or renamed; every
+  existing route/testID/business-logic path is untouched. Tapping each
+  visible tab calls the real `navigation.navigate(route.name, ...)` via
+  the standard React-Navigation `tabPress` emit/defaultPrevented dance
+  (not a hand-rolled router bypass), so back navigation, deep links, and
+  any future `tabPress` listener all keep working exactly as before.
+- `CustomerGlassTabBar.test.tsx` (new) covers: exactly 3 capsule tabs + 1
+  detached Search render with intact one-line labels; hidden routes never
+  render as tabs even though they're present in `state.routes`; the
+  focused route's `accessibilityState` is `{ selected: true }` and every
+  other route's is `{ selected: false }`; pressing a tab navigates to it;
+  pressing the already-focused tab is a no-op; a `tabPress` listener that
+  calls `preventDefault` blocks navigation; pressing the detached Search
+  circle navigates to `search`.
+- `npm run verify` (22 suites / 106 tests) and `expo export --platform
+ios` stay green.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

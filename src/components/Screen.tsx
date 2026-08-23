@@ -23,11 +23,14 @@ interface ScreenProps extends PropsWithChildren {
 /**
  * Shared shell for every screen: pearl background, safe-area handling,
  * consistent title/description. Bottom padding always reserves space for
- * the floating Ocean Glass tab bar (src/components/oceanTabBar.tsx) --
- * every (customer)/(renter) route is a Tabs.Screen (even the "hidden"
- * href:null ones), so the bar is present under all of them; the handful
- * of (auth)/(shared) screens that aren't just get a little extra
- * breathing room at the bottom, which is harmless.
+ * whichever floating tab bar sits underneath -- the customer bar
+ * (src/components/CustomerGlassTabBar.tsx, capsule height 68 + a 12pt gap
+ * above the home indicator) is the taller of the two, so its footprint is
+ * the value used here for every screen; the renter bar
+ * (src/components/oceanTabBar.tsx) is shorter, so it's always safely
+ * covered by the same reserve, and the handful of (auth)/(shared) screens
+ * with no floating bar at all just get a little extra breathing room,
+ * which is harmless.
  */
 export function Screen({
   title,
@@ -74,6 +77,8 @@ const styles = StyleSheet.create({
   body: {
     flexGrow: 1,
     padding: 20,
-    paddingBottom: 96,
+    // insets.bottom (up to ~34-40pt on notched devices) + the customer
+    // bar's 12pt gap + its 68pt capsule height + ~18pt breathing room.
+    paddingBottom: 132,
   },
 });
