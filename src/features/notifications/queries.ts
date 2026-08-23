@@ -24,6 +24,26 @@ export function useNotifications(userId: string | undefined) {
   });
 }
 
+/** A dedicated `head: true, count: 'exact'` query rather than deriving
+ * from useNotifications' full list -- the dashboard/header badge needs
+ * only a number, not every row's payload, and this stays cheap even once
+ * a long-lived account has hundreds of historical notifications. */
+export function useUnreadNotificationCount(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['notifications-unread-count', userId],
+    enabled: Boolean(userId),
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await getSupabase()
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('recipient_id', userId as string)
+        .is('read_at', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+}
+
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -39,6 +59,7 @@ export function useMarkNotificationRead() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['notifications', data.recipient_id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count', data.recipient_id] });
     },
   });
 }

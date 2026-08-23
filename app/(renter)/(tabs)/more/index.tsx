@@ -10,7 +10,8 @@ import { minTouchTarget } from '../../../../src/design-system/tokens';
 import { useTheme } from '../../../../src/design-system/ThemeProvider';
 import { signOut } from '../../../../src/features/auth/session';
 
-const LINKS: { href: '/more/staff' | '/notifications'; label: string; testID: string }[] = [
+const LINKS: { href: '/more/staff' | '/notifications' | '/calendar'; label: string; testID: string }[] = [
+  { href: '/calendar', label: 'Calendar', testID: 'more-link-calendar' },
   { href: '/more/staff', label: 'Staff', testID: 'more-link-staff' },
   { href: '/notifications', label: 'Notifications', testID: 'more-link-notifications' },
 ];

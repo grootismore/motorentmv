@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from 'react';
+import type { PropsWithChildren, ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,6 +25,11 @@ interface ScreenProps extends PropsWithChildren {
    * refreshing props). Omit both on a screen with nothing to refresh. */
   refreshing?: boolean;
   onRefresh?: () => void;
+  /** Optional row of icon buttons (e.g. notifications, account menu) next
+   * to the title — the renter dashboard is the first screen that needs
+   * this; every other screen's title-only header is unaffected since this
+   * defaults to nothing. */
+  headerRight?: ReactNode;
 }
 
 /**
@@ -46,6 +51,7 @@ export function Screen({
   headerTextColor,
   refreshing,
   onRefresh,
+  headerRight,
   children,
 }: ScreenProps) {
   const theme = useTheme();
@@ -53,9 +59,29 @@ export function Screen({
 
   const header = (
     <>
-      <Title color={headerTextColor} style={{ marginBottom: theme.spacing.xs }} accessibilityRole="header">
-        {title}
-      </Title>
+      <View
+        style={
+          headerRight
+            ? {
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: theme.spacing.sm,
+              }
+            : undefined
+        }
+      >
+        <Title
+          color={headerTextColor}
+          style={[{ marginBottom: theme.spacing.xs }, headerRight ? { flex: 1 } : null]}
+          accessibilityRole="header"
+        >
+          {title}
+        </Title>
+        {headerRight ? (
+          <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>{headerRight}</View>
+        ) : null}
+      </View>
       {description ? (
         <SecondaryBody
           color={headerTextColor ? headerTextColor : undefined}

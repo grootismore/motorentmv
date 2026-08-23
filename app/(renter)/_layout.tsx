@@ -9,13 +9,13 @@ import { useMyMembership } from '../../src/features/organizations/queries';
 /**
  * Wraps the real native tab bar ((tabs)/_layout.tsx) plus the detail
  * routes that must not be tabs -- bookings/[bookingId], fleet/[vehicleId]
- * (view + edit), fleet/new, and more/staff are pushed to from inside a
- * tab and need to cover it full screen. See
- * app/(customer)/_layout.tsx's doc comment for why a native tab bar
- * requires this Stack-plus-(tabs)-group shape instead of the old
- * Tabs.Screen + href:null trick.
+ * (view + edit), fleet/new, more/staff, calendar, and the dashboard's
+ * quick-action screens are pushed to from inside a tab and need to cover
+ * it full screen. See app/(customer)/_layout.tsx's doc comment for why a
+ * native tab bar requires this Stack-plus-(tabs)-group shape instead of
+ * the old Tabs.Screen + href:null trick.
  *
- * This is a route group, not a URL segment: /today, /calendar,
+ * This is a route group, not a URL segment: /dashboard, /calendar,
  * /bookings, /fleet, /more, and every detail route keep their exact
  * existing paths. The membership gate (loading / create-organization /
  * CurrentOrganizationProvider) is unchanged.
@@ -36,10 +36,14 @@ export default function RenterLayout() {
     <CurrentOrganizationProvider membership={membership.data}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="calendar" />
         <Stack.Screen name="bookings/[bookingId]" />
+        <Stack.Screen name="bookings/new" />
         <Stack.Screen name="fleet/[vehicleId]/index" />
         <Stack.Screen name="fleet/[vehicleId]/edit" />
         <Stack.Screen name="fleet/new" />
+        <Stack.Screen name="finance/record-income" />
+        <Stack.Screen name="finance/record-expense" />
         <Stack.Screen name="more/staff" />
       </Stack>
     </CurrentOrganizationProvider>

@@ -7,6 +7,9 @@ import {
   isPast,
   maldivesDateKey,
   maldivesInputToUtcIso,
+  maldivesMonthRange,
+  maldivesYearMonth,
+  previousMaldivesMonth,
   utcIsoToMaldivesInput,
 } from './datetime';
 
@@ -71,5 +74,45 @@ describe('isPast', () => {
 
   it('is false for an instant in the future', () => {
     expect(isPast('2099-01-01T00:00:00Z')).toBe(false);
+  });
+});
+
+describe('maldivesYearMonth', () => {
+  it('derives the Maldives calendar year/month, which can differ from the UTC one', () => {
+    // 20:00 UTC on 2026-01-01 is 01:00 on 2026-01-02 in Maldives -- same
+    // month here, but this is the same offset rule that matters at a
+    // month boundary (e.g. 2026-01-31T20:00Z is Feb 1 in Maldives).
+    expect(maldivesYearMonth(INSTANT)).toEqual({ year: 2026, month: 1 });
+    expect(maldivesYearMonth('2026-01-31T20:00:00Z')).toEqual({ year: 2026, month: 2 });
+  });
+});
+
+describe('maldivesMonthRange', () => {
+  it('returns the UTC instant bounds of a Maldives-local calendar month', () => {
+    // Maldives midnight on 2026-08-01 is 2026-07-31T19:00:00Z.
+    expect(maldivesMonthRange(2026, 8)).toEqual({
+      startIso: '2026-07-31T19:00:00.000Z',
+      endIso: '2026-08-31T19:00:00.000Z',
+    });
+  });
+
+  it('rolls over into the next year when month is 13 (December -> January)', () => {
+    const range = maldivesMonthRange(2026, 13);
+    expect(range.startIso).toBe(maldivesMonthRange(2027, 1).startIso);
+  });
+
+  it('rolls back into the previous year when month is 0 (January -> December)', () => {
+    const range = maldivesMonthRange(2026, 0);
+    expect(range.startIso).toBe(maldivesMonthRange(2025, 12).startIso);
+  });
+});
+
+describe('previousMaldivesMonth', () => {
+  it('goes back one month within the same year', () => {
+    expect(previousMaldivesMonth(2026, 8)).toEqual({ year: 2026, month: 7 });
+  });
+
+  it('rolls back to December of the prior year from January', () => {
+    expect(previousMaldivesMonth(2026, 1)).toEqual({ year: 2025, month: 12 });
   });
 });

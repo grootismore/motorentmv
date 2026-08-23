@@ -301,3 +301,81 @@ export function useCancelBooking() {
     onSuccess: (data) => invalidateBooking(queryClient, data),
   });
 }
+
+export interface OrgCustomer {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+/**
+ * The renter-facing "Create booking" quick action can only offer
+ * customers who already have a booking on file with this org, because
+ * profiles RLS (profiles_select_customer_via_booking,
+ * 20260821140004_profiles_customer_via_booking.sql) deliberately does
+ * not let an org member look up an arbitrary registered user by email --
+ * that would let any business browse every customer in the system, which
+ * is exactly the "no arbitrary browsing of customer profiles" boundary
+ * this schema is built to enforce (see Prompt 13's own restatement of
+ * this same rule). This query fetches every status, not just the pending
+ * ones useOrgBookings' default view shows, and dedupes client-side --
+ * there is no dedicated RPC for "distinct customers of this org," and one
+ * wasn't worth adding for a list that's already small per business.
+ */
+export function useOrgCustomers(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['org-customers', organizationId],
+    enabled: Boolean(organizationId),
+    queryFn: async (): Promise<OrgCustomer[]> => {
+      const { data, error } = await getSupabase()
+        .from('bookings')
+        .select('customer_id, customer:profiles!bookings_customer_id_fkey(id, full_name, email, phone)')
+        .eq('organization_id', organizationId as string);
+      if (error) throw error;
+
+      const byId = new Map<string, OrgCustomer>();
+      for (const row of data as unknown as { customer_id: string; customer: OrgCustomer | null }[]) {
+        if (row.customer && !byId.has(row.customer_id)) {
+          byId.set(row.customer_id, row.customer);
+        }
+      }
+      return [...byId.values()];
+    },
+  });
+}
+
+export interface CreateBookingForCustomerInput {
+  organizationId: string;
+  vehicleId: string;
+  customerId: string;
+  startsAt: string;
+  endsAt: string;
+  notes?: string;
+}
+
+/** The staff/owner side of request_booking() -- the same RPC the customer
+ * checkout flow calls, just with p_organization_id/p_vehicle_id/
+ * p_customer_id/p_starts_at/p_ends_at supplied directly instead of
+ * p_booking_id (resubmitting an existing draft). The RPC itself checks
+ * `is_org_member(p_organization_id)` before allowing this. */
+export function useCreateBookingForCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateBookingForCustomerInput): Promise<Booking> => {
+      const { data, error } = await getSupabase().rpc('request_booking', {
+        p_organization_id: input.organizationId,
+        p_vehicle_id: input.vehicleId,
+        p_customer_id: input.customerId,
+        p_starts_at: input.startsAt,
+        p_ends_at: input.endsAt,
+        p_notes: input.notes ?? null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['org-bookings', data.organization_id] });
+    },
+  });
+}
