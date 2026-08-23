@@ -1,14 +1,26 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { oceanTabBarButton, useOceanTabBarScreenOptions } from '../../src/components/oceanTabBar';
 import { LoadingState } from '../../src/components/states/LoadingState';
 import { useAuth } from '../../src/features/auth/AuthProvider';
 import { CreateOrganizationScreen } from '../../src/features/organizations/CreateOrganizationScreen';
 import { CurrentOrganizationProvider } from '../../src/features/organizations/CurrentOrganizationContext';
 import { useMyMembership } from '../../src/features/organizations/queries';
 
+/**
+ * Wraps the real native tab bar ((tabs)/_layout.tsx) plus the detail
+ * routes that must not be tabs -- bookings/[bookingId], fleet/[vehicleId]
+ * (view + edit), fleet/new, and more/staff are pushed to from inside a
+ * tab and need to cover it full screen. See
+ * app/(customer)/_layout.tsx's doc comment for why a native tab bar
+ * requires this Stack-plus-(tabs)-group shape instead of the old
+ * Tabs.Screen + href:null trick.
+ *
+ * This is a route group, not a URL segment: /today, /calendar,
+ * /bookings, /fleet, /more, and every detail route keep their exact
+ * existing paths. The membership gate (loading / create-organization /
+ * CurrentOrganizationProvider) is unchanged.
+ */
 export default function RenterLayout() {
-  const screenOptions = useOceanTabBarScreenOptions();
   const { session } = useAuth();
   const membership = useMyMembership(session?.user.id);
 
@@ -22,46 +34,14 @@ export default function RenterLayout() {
 
   return (
     <CurrentOrganizationProvider membership={membership.data}>
-      <Tabs initialRouteName="today" screenOptions={screenOptions}>
-        <Tabs.Screen
-          name="today"
-          options={{ title: 'Today', tabBarButton: oceanTabBarButton('today-outline', 'today', 'Today') }}
-        />
-        <Tabs.Screen
-          name="calendar"
-          options={{
-            title: 'Calendar',
-            tabBarButton: oceanTabBarButton('calendar-outline', 'calendar', 'Calendar'),
-          }}
-        />
-        <Tabs.Screen
-          name="bookings/index"
-          options={{ title: 'Bookings', tabBarButton: oceanTabBarButton('list-outline', 'list', 'Bookings') }}
-        />
-        <Tabs.Screen name="bookings/[bookingId]" options={{ href: null }} />
-        <Tabs.Screen
-          name="fleet/index"
-          options={{
-            title: 'Fleet',
-            tabBarButton: oceanTabBarButton('car-sport-outline', 'car-sport', 'Fleet'),
-          }}
-        />
-        <Tabs.Screen
-          name="more/index"
-          options={{
-            title: 'More',
-            tabBarButton: oceanTabBarButton(
-              'ellipsis-horizontal-circle-outline',
-              'ellipsis-horizontal-circle',
-              'More',
-            ),
-          }}
-        />
-        <Tabs.Screen name="fleet/[vehicleId]/index" options={{ href: null }} />
-        <Tabs.Screen name="fleet/[vehicleId]/edit" options={{ href: null }} />
-        <Tabs.Screen name="fleet/new" options={{ href: null }} />
-        <Tabs.Screen name="more/staff" options={{ href: null }} />
-      </Tabs>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="bookings/[bookingId]" />
+        <Stack.Screen name="fleet/[vehicleId]/index" />
+        <Stack.Screen name="fleet/[vehicleId]/edit" />
+        <Stack.Screen name="fleet/new" />
+        <Stack.Screen name="more/staff" />
+      </Stack>
     </CurrentOrganizationProvider>
   );
 }

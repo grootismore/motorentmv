@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { Button } from '../../../../src/components/Button';
 import { GroupedSection } from '../../../../src/components/GroupedSection';
@@ -27,6 +27,13 @@ export default function CustomerProfile() {
     // back on role-select — a browsing customer's next visit starts from
     // the same choice they made this time, not silently re-entering
     // anonymous customer mode.
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert('Sign out?', "You'll need to sign in again to see your bookings.", [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: handleSignOut },
+    ]);
   };
 
   if (session === undefined) {
@@ -63,7 +70,7 @@ export default function CustomerProfile() {
             testID="customer-sign-out"
             label="Sign out"
             variant="secondary"
-            onPress={handleSignOut}
+            onPress={confirmSignOut}
             loading={isSigningOut}
           />
         </View>

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { EmptyState } from '../../components/states/EmptyState';
@@ -46,6 +46,17 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
       { vehicleId, organizationId, uri: asset.uri, width: asset.width, height: asset.height },
       { onError: (error) => setErrorMessage(error.message) },
     );
+  };
+
+  const confirmDelete = (photo: VehiclePhoto) => {
+    // Deleting a photo is irreversible, so it goes through the OS's own
+    // native confirmation dialog (UIAlertController on iOS, an
+    // AlertDialog on Android) rather than deleting on the first tap or
+    // recreating a confirmation sheet out of arbitrary Views.
+    Alert.alert('Remove photo?', 'This photo will be permanently removed from the vehicle.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => deletePhoto.mutate(photo) },
+    ]);
   };
 
   return (
@@ -95,7 +106,7 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
                 testID={`photo-delete-${photo.id}`}
                 label="Remove"
                 variant="danger"
-                onPress={() => deletePhoto.mutate(photo)}
+                onPress={() => confirmDelete(photo)}
                 loading={deletePhoto.isPending}
               />
             </View>

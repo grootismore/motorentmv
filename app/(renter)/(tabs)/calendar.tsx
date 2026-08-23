@@ -1,19 +1,19 @@
 import { SectionList, View } from 'react-native';
 
-import { Screen } from '../../src/components/Screen';
-import { EmptyState } from '../../src/components/states/EmptyState';
-import { ErrorState } from '../../src/components/states/ErrorState';
-import { LoadingState } from '../../src/components/states/LoadingState';
-import { SectionTitle } from '../../src/components/Typography';
-import { useTheme } from '../../src/design-system/ThemeProvider';
-import { BookingListItem } from '../../src/features/bookings/BookingListItem';
+import { Screen } from '../../../src/components/Screen';
+import { EmptyState } from '../../../src/components/states/EmptyState';
+import { ErrorState } from '../../../src/components/states/ErrorState';
+import { LoadingState } from '../../../src/components/states/LoadingState';
+import { SectionTitle } from '../../../src/components/Typography';
+import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { BookingListItem } from '../../../src/features/bookings/BookingListItem';
 import {
   PENDING_BOOKING_STATUSES,
   useOrgBookings,
   type BookingWithDetails,
-} from '../../src/features/bookings/queries';
-import { useCurrentOrganization } from '../../src/features/organizations/CurrentOrganizationContext';
-import { formatMaldivesDate, maldivesDateKey } from '../../src/lib/datetime';
+} from '../../../src/features/bookings/queries';
+import { useCurrentOrganization } from '../../../src/features/organizations/CurrentOrganizationContext';
+import { formatMaldivesDate, maldivesDateKey } from '../../../src/lib/datetime';
 
 /**
  * A lightweight agenda, not a month grid — grouping the org's upcoming and

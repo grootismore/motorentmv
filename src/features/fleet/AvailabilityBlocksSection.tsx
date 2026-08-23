@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { GlassSurface } from '../../components/GlassSurface';
@@ -45,6 +45,20 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
   const [endsAt, setEndsAt] = useState('');
   const [reason, setReason] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+
+  const confirmDelete = (block: { id: string; reason: string }) => {
+    // Removing a block is irreversible and immediately reopens the
+    // vehicle for booking during that window, so it goes through the
+    // OS's native confirmation dialog rather than deleting on first tap.
+    Alert.alert(
+      'Remove this block?',
+      `"${block.reason}" will be removed and the vehicle becomes bookable again.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => deleteBlock.mutate(block.id) },
+      ],
+    );
+  };
 
   const handleCreate = () => {
     const start = parseLocalDateTime(startsAt);
@@ -103,7 +117,7 @@ export function AvailabilityBlocksSection({ vehicleId }: { vehicleId: string }) 
             testID={`availability-block-${block.id}-delete`}
             label="Remove"
             variant="danger"
-            onPress={() => deleteBlock.mutate(block.id)}
+            onPress={() => confirmDelete(block)}
             loading={deleteBlock.isPending}
           />
         </GlassSurface>

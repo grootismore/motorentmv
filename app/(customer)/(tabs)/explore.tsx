@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GlassSurface } from '../../../src/components/GlassSurface';
@@ -74,12 +74,16 @@ export default function Explore() {
       style={{ flex: 1, backgroundColor: theme.colors.pearlBackground }}
       edges={['top', 'left', 'right']}
     >
-      {/* 96pt: same bottom clearance as src/components/Screen.tsx -- this
-          screen bypasses that shared shell (see the doc comment above), so
-          it reserves the same amount directly. The customer tab bar is now
-          a real native tab bar with its own automatic scroll-inset
-          handling, so this is breathing room, not tab-bar clearance. */}
-      <ScrollView contentContainerStyle={{ paddingBottom: 96 }}>
+      {/* 32pt: same scroll-end breathing room as src/components/Screen.tsx
+          -- this screen bypasses that shared shell (see the doc comment
+          above), so it matches the same value directly. The native tab
+          bar reserves its own space, so this isn't tab-bar clearance. */}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 32 }}
+        refreshControl={
+          <RefreshControl refreshing={discovery.isRefetching} onRefresh={() => discovery.refetch()} />
+        }
+      >
         <LinearGradient
           colors={[theme.colors.oceanBackground, theme.colors.oceanDeep]}
           style={{

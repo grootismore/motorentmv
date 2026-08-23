@@ -863,6 +863,104 @@ a fresh device build via `.github/workflows/ios-unsigned-ipa.yml` is
 required to see this on an actual iPhone, since native tab bars are
 native code and cannot be evaluated from an IPA built before this change.
 
+### Native-first product rules + full audit (round 9)
+
+A standing rule set was adopted (see `AGENTS.md`): use real native
+platform components wherever a stable, Expo-compatible option exists —
+native tabs, alerts, pickers, pull-to-refresh, system glass — rather than
+redrawing them out of arbitrary Views. This pass audited the whole app
+against it and fixed every gap found.
+
+**Renter tab bar migrated to a real native tab bar** (the same move
+round 8 made for customer nav): `src/components/oceanTabBar.tsx` — a
+custom `tabBarBackground`/`tabBarButton` floating bar, the same
+"recreate a native control with arbitrary Views" pattern round 8 replaced
+on the customer side — is removed, along with its test file.
+`app/(renter)/_layout.tsx` is now a `Stack` (was `<Tabs>`) holding a new
+`app/(renter)/(tabs)/_layout.tsx` (`NativeTabs`: Today, Calendar,
+Bookings, Fleet, then More — 5 tabs, all natively visible with no
+overflow) plus the renter's detail routes (`bookings/[bookingId]`,
+`fleet/[vehicleId]` view/edit, `fleet/new`, `more/staff`) as ordinary
+stack pushes over it, for the identical native-tabs-can't-host-hidden-
+push-only-screens reason documented in round 8. `today.tsx`,
+`calendar.tsx`, `bookings/index.tsx`, `fleet/index.tsx`, and `more/index.tsx`
+moved into that `(tabs)` group (a route group — every path is unchanged);
+the membership-gate logic (loading / create-organization /
+`CurrentOrganizationProvider`) in `_layout.tsx` is untouched. Icons are
+native SF Symbols on iOS / Material Symbols on Android via
+`NativeTabs.Trigger.Icon`, not the previous `Ionicons` glyphs: Today
+(`house.fill` / `dashboard`), Calendar (`calendar` / `calendar_month`),
+Bookings (`list.bullet` / `list_alt`), Fleet (`car.fill` /
+`directions_car`), More (`ellipsis.circle.fill` / `more_horiz` — a plain
+tab, not `role="more"`, since this "More" screen is the app's own
+settings content, not Apple's system-generated aggregator list).
+
+**Screen content inset, now genuinely just breathing room**: with both
+tab bars native, `src/components/Screen.tsx`'s bottom padding no longer
+clears anything (native tab bars reserve their own layout space and get
+automatic scroll-inset handling from the OS) — dropped from 96pt to a
+plain 32pt, and the doc comment rewritten to stop describing it as
+tab-bar clearance. `app/(customer)/(tabs)/explore.tsx`'s matching literal
+(it bypasses the shared `Screen` shell) was updated the same way.
+
+**Native confirmation dialogs added** where a destructive or disruptive
+action had _no_ confirmation at all — not even a custom one — before
+this pass: deleting a vehicle photo
+(`src/features/fleet/PhotosSection.tsx`), removing an availability block
+(`src/features/fleet/AvailabilityBlocksSection.tsx`), and signing out
+(`app/(renter)/(tabs)/more/index.tsx`,
+`app/(customer)/(tabs)/profile/index.tsx`) all now confirm through
+`Alert.alert` — the OS's own `UIAlertController`/`AlertDialog` — before
+acting, instead of running immediately on tap. (Booking actions in
+`src/features/bookings/ActionPanel.tsx` — decline/cancel/ask-for-info —
+were deliberately left as their existing inline note-plus-confirm panel
+rather than converted to a plain alert: they collect an optional note
+alongside the confirmation, which a simple alert can't do, so this is a
+different affordance, not an arbitrary-Views stand-in for one.)
+
+**Native pull-to-refresh added** to the two screens that had a live
+query and a scrollable view but no way to refresh it:
+`app/(renter)/(tabs)/today.tsx` and `app/(customer)/(tabs)/explore.tsx`
+(both plain `ScrollView`s, not `FlatList`/`SectionList`), plus
+`app/(shared)/notifications.tsx`'s list and
+`app/(renter)/more/staff.tsx`. `src/components/Screen.tsx` gained
+optional `refreshing`/`onRefresh` props, wired to `RefreshControl` on its
+internal `ScrollView` only when `scroll` is true, for screens that use
+the shared shell instead of their own `ScrollView`. Every other
+`FlatList`/`SectionList` in the app (fleet, both bookings lists, search
+results, calendar) already had `onRefresh`/`refreshing` wired — these
+five were the only real gaps found.
+
+**Audited and confirmed already compliant, no change made**:
+`src/components/GlassSurface.tsx` already renders a genuine native
+`BlurView` (`expo-blur`, a real `UIVisualEffectView` on iOS) for the
+"glass" material itself, with Android correctly falling back to an
+opaque surface rather than forcing the iOS look onto it — the material is
+native; only the _tab bar chrome_ built on top of it (both bars) was the
+violation, now fixed. `src/components/DateRangeSelector.tsx` already
+uses `@react-native-community/datetimepicker` — the real native
+`UIDatePicker` on iOS (`display="inline"`/`"spinner"`) and the real
+native Android date/time dialogs (`DateTimePickerAndroid.open`) — not a
+custom wheel.
+
+**Not applicable / no existing violation to fix**: the app has no custom
+toast notifications, no custom dropdown menus, no custom date/time
+wheels, and doesn't currently use haptics, the share sheet, or context
+menus anywhere — there's nothing custom-built in those categories to
+replace. `AGENTS.md`'s new rules mean any of those, if a feature calls
+for one later, should reach for the native API (`expo-haptics`,
+`Share.share`, `ContextMenuView`/native `Pressable` context menus, a
+native sheet) rather than a custom equivalent.
+
+Net dependency changes: **zero** — same as round 8, this uses
+`expo-router`'s already-installed `NativeTabs` and React Native's own
+built-in `Alert`/`RefreshControl`. `npm run verify` (20 suites / 97
+tests, two fewer suites than round 8 since `oceanTabBar.test.tsx` was
+removed) and `tsc --noEmit` are clean. Not verifiable in this sandbox,
+same limitations as round 8: on-device appearance of the renter's native
+bar, the new alerts, and pull-to-refresh — a fresh device build is
+required.
+
 ## Database
 
 Schema lives in `supabase/migrations/` (30 ordered files) — profiles,

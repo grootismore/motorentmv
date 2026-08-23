@@ -138,6 +138,8 @@ export default function Notifications() {
             testID="notifications-list"
             data={notifications.data}
             keyExtractor={(item) => item.id}
+            onRefresh={() => notifications.refetch()}
+            refreshing={notifications.isRefetching}
             renderItem={({ item }) => (
               <NotificationRowItem notification={item} onPress={() => handlePress(item)} />
             )}

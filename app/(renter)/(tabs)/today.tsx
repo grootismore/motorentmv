@@ -2,18 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { View } from 'react-native';
 
-import { GroupedSection } from '../../src/components/GroupedSection';
-import { KPITile, type KPITone } from '../../src/components/KPITile';
-import { Screen } from '../../src/components/Screen';
-import { ErrorState } from '../../src/components/states/ErrorState';
-import { LoadingState } from '../../src/components/states/LoadingState';
-import { Body, Caption, SectionTitle } from '../../src/components/Typography';
-import { useTheme } from '../../src/design-system/ThemeProvider';
-import { BookingListItem } from '../../src/features/bookings/BookingListItem';
-import { useOrgBookings } from '../../src/features/bookings/queries';
-import { useVehicles, type Vehicle } from '../../src/features/fleet/queries';
-import { useCurrentOrganization } from '../../src/features/organizations/CurrentOrganizationContext';
-import { isPast, maldivesDateKey } from '../../src/lib/datetime';
+import { GroupedSection } from '../../../src/components/GroupedSection';
+import { KPITile, type KPITone } from '../../../src/components/KPITile';
+import { Screen } from '../../../src/components/Screen';
+import { ErrorState } from '../../../src/components/states/ErrorState';
+import { LoadingState } from '../../../src/components/states/LoadingState';
+import { Body, Caption, SectionTitle } from '../../../src/components/Typography';
+import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { BookingListItem } from '../../../src/features/bookings/BookingListItem';
+import { useOrgBookings } from '../../../src/features/bookings/queries';
+import { useVehicles, type Vehicle } from '../../../src/features/fleet/queries';
+import { useCurrentOrganization } from '../../../src/features/organizations/CurrentOrganizationContext';
+import { isPast, maldivesDateKey } from '../../../src/lib/datetime';
 
 const FLEET_STATUS_LABEL: Record<Vehicle['status'], string> = {
   draft: 'Draft',
@@ -84,7 +84,17 @@ export default function Today() {
   }, {});
 
   return (
-    <Screen title="Today" titleStyle="large" scroll>
+    <Screen
+      title="Today"
+      titleStyle="large"
+      scroll
+      refreshing={needsAction.isRefetching || confirmed.isRefetching || vehicles.isRefetching}
+      onRefresh={() => {
+        void needsAction.refetch();
+        void confirmed.refetch();
+        void vehicles.refetch();
+      }}
+    >
       <View style={{ gap: theme.spacing.xl }}>
         <View style={{ flexDirection: 'row', gap: theme.spacing.sm }} testID="today-stats">
           <KPITile icon="log-in-outline" tone="lagoon" value={pickupsToday.length} label="Pickups today" />

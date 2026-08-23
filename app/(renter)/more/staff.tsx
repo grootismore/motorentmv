@@ -62,7 +62,13 @@ export default function StaffInvitation() {
   };
 
   return (
-    <Screen title="Staff" description="Manage who has access to your business." scroll>
+    <Screen
+      title="Staff"
+      description="Manage who has access to your business."
+      scroll
+      refreshing={members.isRefetching}
+      onRefresh={() => members.refetch()}
+    >
       <View style={{ gap: theme.spacing.xl }}>
         {canManageMembers ? (
           <View style={{ gap: theme.spacing.md }} testID="staff-invite-form">
