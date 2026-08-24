@@ -1,6 +1,6 @@
 {
   "name": "ridefinder",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "expo-router/entry",
   "engines": {
     "node": ">=22.0.0"
