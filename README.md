@@ -32,7 +32,19 @@ business itself.
   no card data is collected or stored anywhere in this app.
 - **Notifications** — in-app and push notifications on every booking status
   change, inspection record, and payment entry, deep-linking straight to the
-  relevant booking.
+  relevant booking; the renter's own note (e.g. why a request was declined
+  or needs more information) shows inline, and unread counts/bulk "mark all
+  read" are available on both the customer and renter side.
+- **Finance tracking** — a manual payment ledger plus standalone income
+  (owner/manager-only) and expenses, a month-navigable finance report by
+  income source and expense category, and a line-item CSV export via the
+  native share sheet.
+- **Fleet maintenance log** — a queryable service history per vehicle
+  (description, cost, odometer reading), separate from the payment ledger.
+- **Customer profile and documents** — editable name/phone, plus license/ID
+  photo uploads that are private to the uploading customer alone (not even
+  the renting organization can see them) and persist across every future
+  booking rather than being re-collected per rental.
 - **Native navigation** — both the customer and renter tab bars use Expo
   Router's native tabs (`expo-router/unstable-native-tabs`), rendered by the
   OS's own `UITabBarController` / Material bottom-nav, not a JS-drawn
@@ -123,8 +135,9 @@ src/
   components/           Shared UI primitives (Button, TextField, states, ...)
   design-system/        Design tokens, ThemeProvider
   features/             One folder per domain: auth, organizations, fleet,
-                        discovery, checkout, profile, inspections, payments,
-                        notifications, bookings
+                        discovery, checkout, profile, documents, inspections,
+                        payments, finance, notifications, bookings, activity,
+                        dashboard
   lib/                   env, supabase client, generated database types,
                         query client/persister, datetime helpers, uploads
 scripts/ios/            Unsigned device-IPA build script (see CI below)
@@ -139,9 +152,10 @@ supabase/
 
 Schema lives in `supabase/migrations/`: profiles, organizations, membership,
 vehicles, rates, availability blocks, bookings, booking events, inspections,
-transactions, expenses, notifications, and two private storage buckets —
-plus the functions/RPCs/triggers that enforce the rules below at the
-database level, not just in application code.
+transactions, expenses, documents, vehicle maintenance records,
+notifications, and three private storage buckets (vehicle photos, booking
+documents, customer documents) — plus the functions/RPCs/triggers that
+enforce the rules below at the database level, not just in application code.
 
 - **Money** is always an integer `*_laari` column (never floating point);
   **time** is always `timestamptz` (UTC), with Maldives-local (UTC+5)
@@ -187,12 +201,24 @@ packaging, and a full structural re-validation of the finished `.ipa`
 (architecture, bundle identifier, embedded JS bundle, required native
 modules) before it's uploaded as a workflow artifact.
 
-Two smaller workflows enforce PR hygiene: Conventional Commits-style PR
-titles, and a lockfile-consistency + lint/typecheck/test gate on a fast
-Linux runner.
+`.github/workflows/security-quality-gate.yml` is the required PR gate on a
+fast Linux runner: format/lint/typecheck/test, a dependency vulnerability
+review, a non-blocking `expo-doctor` check, and — against a real, ephemeral
+Postgres instance — every migration plus the full SQL/RLS assertion suite
+(the same `supabase/local-dev/run-tests.sh` described below). Two smaller
+workflows enforce PR hygiene on top of that: Conventional Commits-style PR
+titles, and lockfile consistency.
 
 ## Known limitations
 
+- **The app icon, adaptive icon, and splash image are still Expo's
+  unmodified scaffold placeholders** — `assets/icon.png` and
+  `assets/android-icon-*.png` are the default `create-expo-app` template
+  graphic (one still has its design-grid guides baked into the PNG),
+  `assets/splash-icon.png` is unreferenced by any config and unused. Real
+  RideFinder brand assets are needed before any store submission or pilot
+  distribution; this is a design decision for the business, not something
+  generated here.
 - No iOS Simulator/Android Emulator/physical device in this development
   environment — verification here is `expo export`, the full unit/component
   test suite, and the local Postgres RLS/booking-engine suite; the CI
@@ -215,5 +241,7 @@ Linux runner.
 
 ## Roadmap
 
-Reporting/finance tooling, deeper CI/EAS automation, and a release-candidate
-pilot handoff are the next phases planned.
+Deeper CI/EAS automation (a linked EAS project for real push delivery,
+TestFlight/Play internal testing) and a release-candidate pilot handoff are
+the next phases planned. See "Known limitations" above for what a pilot
+handoff still needs first, in particular real app icon/splash branding.

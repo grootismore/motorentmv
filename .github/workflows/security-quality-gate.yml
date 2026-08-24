@@ -67,6 +67,31 @@ jobs:
         continue-on-error: true
         run: npx expo-doctor
 
+  database_tests:
+    name: Database / RLS Tests
+    # Every migration + the full SQL assertion suite (tenant isolation,
+    # overlap protection, RLS scoping, concurrency) against a real Postgres
+    # instance -- previously only ever run manually. See
+    # supabase/local-dev/README.md: this harness is a Docker-free stand-in
+    # for `supabase start`, reused as-is here rather than switching to the
+    # real Supabase CLI, since that would be new, unvalidated CI machinery.
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install and start PostgreSQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql
+          sudo service postgresql start
+          until sudo -u postgres pg_isready; do sleep 1; done
+
+      - name: Run migrations, seed data and the full SQL/RLS test suite
+        run: bash supabase/local-dev/run-tests.sh
+
   code_quality:
     name: 'Lint & Test (${{ matrix.command }})'
     runs-on: ubuntu-26.04
