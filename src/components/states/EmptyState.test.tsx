@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { ThemeProvider } from '../../design-system/ThemeProvider';
@@ -16,10 +16,13 @@ describe('EmptyState', () => {
     expect(screen.getByText('Check back soon.')).toBeTruthy();
   });
 
-  it('renders an accessible action button when provided', async () => {
+  it('renders an action button that fires onAction when provided', async () => {
     const onAction = jest.fn();
     await renderWithTheme(<EmptyState title="No listings yet" actionLabel="Refresh" onAction={onAction} />);
 
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeTruthy();
+    const action = screen.getByTestId('empty-state-action');
+    expect(action.props.label).toBe('Refresh');
+    fireEvent.press(action);
+    expect(onAction).toHaveBeenCalledTimes(1);
   });
 });

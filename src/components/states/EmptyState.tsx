@@ -40,7 +40,7 @@ export function EmptyState({ title, message, actionLabel, onAction, icon }: Empt
       ) : null}
       {actionLabel && onAction ? (
         <View style={{ marginTop: theme.spacing.lg }}>
-          <Button variant="secondary" label={actionLabel} onPress={onAction} />
+          <Button testID="empty-state-action" variant="secondary" label={actionLabel} onPress={onAction} />
         </View>
       ) : null}
     </View>

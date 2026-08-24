@@ -237,7 +237,9 @@ describe('Checkout screen', () => {
     expect(await screen.findByTestId('checkout-error', {}, { timeout: 4000 })).toHaveTextContent(
       'network error',
     );
-    expect(await screen.findByText('Try again')).toBeTruthy();
+    // The submit button's label prop (not rendered text -- Button is a
+    // real native @expo/ui view) flips to "Try again" once submit.isError.
+    await waitFor(() => expect(screen.getByTestId('checkout-submit').props.label).toBe('Try again'));
     expect(mockRpc.mock.calls.filter((call) => call[0] === 'request_booking')).toHaveLength(2);
 
     await fireEvent.press(screen.getByTestId('checkout-submit'));

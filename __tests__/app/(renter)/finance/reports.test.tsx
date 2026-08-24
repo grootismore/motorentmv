@@ -130,20 +130,24 @@ function renderScreen() {
   );
 }
 
+// The export button's own `disabled` prop isn't a plain readable value any
+// more (Button is now a real native @expo/ui view, not a Pressable) --
+// `reports-summary` only renders once `report.data` exists, which the
+// button's disabled condition (transactionsQuery.data/expensesQuery.data)
+// tracks the same underlying load, so waiting for it is the same
+// synchronization point without reaching into Button's internals.
 describe('FinanceReports export', () => {
   it('enables the export button once the month data has loaded', async () => {
     await renderScreen();
 
-    await waitFor(() =>
-      expect(screen.getByTestId('reports-export-csv').props.accessibilityState.disabled).toBe(false),
-    );
+    await screen.findByTestId('reports-summary');
+    await fireEvent.press(screen.getByTestId('reports-export-csv'));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
   });
 
   it('writes a CSV to the cache directory and hands it to the native share sheet', async () => {
     await renderScreen();
-    await waitFor(() =>
-      expect(screen.getByTestId('reports-export-csv').props.accessibilityState.disabled).toBe(false),
-    );
+    await screen.findByTestId('reports-summary');
 
     await fireEvent.press(screen.getByTestId('reports-export-csv'));
 
@@ -162,9 +166,7 @@ describe('FinanceReports export', () => {
     mockIsAvailableAsync.mockResolvedValueOnce(false);
 
     await renderScreen();
-    await waitFor(() =>
-      expect(screen.getByTestId('reports-export-csv').props.accessibilityState.disabled).toBe(false),
-    );
+    await screen.findByTestId('reports-summary');
     await fireEvent.press(screen.getByTestId('reports-export-csv'));
 
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith('Sharing unavailable', expect.any(String)));
