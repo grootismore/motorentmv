@@ -1,7 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import { env } from './env';
+import { secureSessionStorage } from './secureSessionStorage';
 import type { Database } from './database.types';
 
 export type { Database } from './database.types';
@@ -16,11 +16,11 @@ export const supabase: SupabaseClient<Database> | null =
   env.EXPO_PUBLIC_SUPABASE_URL && env.EXPO_PUBLIC_SUPABASE_ANON_KEY
     ? createClient<Database>(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
         auth: {
-          // TODO(Phase 1 auth): swap for a SecureStore-backed hybrid adapter
-          // (encrypt the session, keep the key in SecureStore, blob in
-          // AsyncStorage) before shipping real sessions — plain AsyncStorage
-          // is not secure enough for auth tokens on its own.
-          storage: AsyncStorage,
+          // Session blob lives in AsyncStorage encrypted with a key that
+          // never leaves SecureStore -- see secureSessionStorage.ts for
+          // why (plain AsyncStorage alone, and SecureStore alone, are each
+          // insufficient on their own).
+          storage: secureSessionStorage,
           autoRefreshToken: true,
           persistSession: true,
           detectSessionInUrl: false,
