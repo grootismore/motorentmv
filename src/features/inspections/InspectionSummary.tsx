@@ -16,9 +16,34 @@ interface InspectionSummaryProps {
    * re-checks this server-side regardless -- see 20260821160001); the
    * caller decides whether to offer the action based on who's viewing. */
   canAcknowledge: boolean;
+  /** The pickup inspection, passed only when `inspection` is the return one
+   * -- lets the return summary show what changed (distance travelled,
+   * fuel/battery used) instead of just repeating the same two numbers a
+   * reader would otherwise have to compare against the pickup card
+   * themselves. Purely derived from data already on both rows; nothing
+   * new is stored for it. */
+  pickupInspection?: Inspection;
 }
 
-export function InspectionSummary({ inspection, bookingId, canAcknowledge }: InspectionSummaryProps) {
+function ComparisonLine({ pickup, current }: { pickup: Inspection; current: Inspection }) {
+  const parts: string[] = [];
+  if (pickup.odometer_km != null && current.odometer_km != null) {
+    parts.push(`${current.odometer_km - pickup.odometer_km} km travelled`);
+  }
+  if (pickup.fuel_battery_percent != null && current.fuel_battery_percent != null) {
+    const delta = current.fuel_battery_percent - pickup.fuel_battery_percent;
+    parts.push(`${delta > 0 ? '+' : ''}${delta}% fuel/battery vs pickup`);
+  }
+  if (parts.length === 0) return null;
+  return <SecondaryBody testID="inspection-comparison-return">{parts.join(' · ')}</SecondaryBody>;
+}
+
+export function InspectionSummary({
+  inspection,
+  bookingId,
+  canAcknowledge,
+  pickupInspection,
+}: InspectionSummaryProps) {
   const theme = useTheme();
   const photos = useInspectionPhotos(bookingId, inspection.inspection_type);
   const acknowledge = useAcknowledgeInspection();
@@ -34,6 +59,7 @@ export function InspectionSummary({ inspection, bookingId, canAcknowledge }: Ins
         {inspection.odometer_km != null ? `${inspection.odometer_km} km` : 'Odometer not recorded'}
         {inspection.fuel_battery_percent != null ? ` · ${inspection.fuel_battery_percent}% fuel/battery` : ''}
       </SecondaryBody>
+      {pickupInspection ? <ComparisonLine pickup={pickupInspection} current={inspection} /> : null}
       {accessories.length > 0 ? (
         <SecondaryBody>
           Accessories: {accessories.map(([key]) => key.replace('_', ' ')).join(', ')}

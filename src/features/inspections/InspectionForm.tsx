@@ -59,13 +59,34 @@ export function InspectionForm({ bookingId, organizationId, inspectionType }: In
 
   const handleSubmit = () => {
     setErrorMessage(undefined);
+
+    const odometerTrimmed = odometerKm.trim();
+    if (!odometerTrimmed) {
+      setErrorMessage('Enter the odometer reading.');
+      return;
+    }
+    const odometerValue = Number(odometerTrimmed);
+    if (!Number.isInteger(odometerValue) || odometerValue < 0) {
+      setErrorMessage('Enter a valid odometer reading.');
+      return;
+    }
+
+    let fuelBatteryValue: number | null = null;
+    if (fuelBatteryPercent.trim()) {
+      fuelBatteryValue = Number(fuelBatteryPercent.trim());
+      if (!Number.isInteger(fuelBatteryValue) || fuelBatteryValue < 0 || fuelBatteryValue > 100) {
+        setErrorMessage('Enter a fuel/battery level between 0 and 100, or leave it blank.');
+        return;
+      }
+    }
+
     record.mutate(
       {
         bookingId,
         organizationId,
         inspectionType,
-        odometerKm: odometerKm.trim() ? Number(odometerKm) : null,
-        fuelBatteryPercent: fuelBatteryPercent.trim() ? Number(fuelBatteryPercent) : null,
+        odometerKm: odometerValue,
+        fuelBatteryPercent: fuelBatteryValue,
         conditionNotes,
         accessoriesChecklist: accessories,
         photos,

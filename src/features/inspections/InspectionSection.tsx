@@ -67,6 +67,7 @@ export function InspectionSection({
           inspection={returnInspection}
           bookingId={bookingId}
           canAcknowledge={viewerRole === 'customer'}
+          pickupInspection={pickup}
         />
       ) : null}
     </View>
