@@ -45,6 +45,60 @@ export function useVehiclePhotos(vehicleId: string | undefined) {
   });
 }
 
+/**
+ * One cover photo per vehicle, for a list of vehicles at once (the Fleet
+ * list) -- a per-row useVehiclePhotos call for every item would be an
+ * N+1 query pattern and can't be done in a loop anyway (hooks). Fetches
+ * every vehicle_photo row across the given vehicles in one query, keeps
+ * only the earliest per vehicle_id client-side (Postgres `distinct on`
+ * isn't expressible through the JS client's query builder), then signs
+ * that reduced set in one batched call. Returns a plain object keyed by
+ * vehicle_id rather than a Map so it's a stable, JSON-friendly query
+ * result React Query can compare between renders.
+ */
+export function useVehicleCoverPhotos(vehicleIds: string[]) {
+  const key = [...vehicleIds].sort();
+  return useQuery({
+    queryKey: ['vehicle-cover-photos', key],
+    enabled: vehicleIds.length > 0,
+    meta: { persist: false },
+    queryFn: async (): Promise<Record<string, string>> => {
+      const supabase = getSupabase();
+      const { data: docs, error } = await supabase
+        .from('documents')
+        .select('vehicle_id, storage_path, created_at')
+        .in('vehicle_id', key)
+        .eq('document_type', 'vehicle_photo')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+
+      const coverByVehicle = new Map<string, string>();
+      for (const doc of docs) {
+        if (doc.vehicle_id && !coverByVehicle.has(doc.vehicle_id)) {
+          coverByVehicle.set(doc.vehicle_id, doc.storage_path);
+        }
+      }
+      if (coverByVehicle.size === 0) return {};
+
+      const vehicleIdsInOrder = [...coverByVehicle.keys()];
+      const { data: signed, error: signError } = await supabase.storage
+        .from(VEHICLE_PHOTOS_BUCKET)
+        .createSignedUrls(
+          vehicleIdsInOrder.map((id) => coverByVehicle.get(id) as string),
+          SIGNED_URL_TTL_SECONDS,
+        );
+      if (signError) throw signError;
+
+      const result: Record<string, string> = {};
+      vehicleIdsInOrder.forEach((vehicleId, index) => {
+        const url = signed[index]?.signedUrl;
+        if (url) result[vehicleId] = url;
+      });
+      return result;
+    },
+  });
+}
+
 interface UploadPhotoInput {
   vehicleId: string;
   organizationId: string;

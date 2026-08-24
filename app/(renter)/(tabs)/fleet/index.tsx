@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, View, type AlertButton } from 'react-native';
@@ -18,6 +19,7 @@ import { StatusBadge } from '../../../../src/features/bookings/StatusBadge';
 import type { StatusTone } from '../../../../src/features/bookings/status';
 import { useCurrentOrganization } from '../../../../src/features/organizations/CurrentOrganizationContext';
 import { useVehicles, type Vehicle } from '../../../../src/features/fleet/queries';
+import { useVehicleCoverPhotos } from '../../../../src/features/fleet/photos';
 
 const STATUS_LABEL: Record<Vehicle['status'], string> = {
   draft: 'Draft',
@@ -88,6 +90,7 @@ export default function Fleet() {
   const router = useRouter();
   const { organizationId } = useCurrentOrganization();
   const vehicles = useVehicles(organizationId);
+  const coverPhotos = useVehicleCoverPhotos(vehicles.data?.map((v) => v.id) ?? []);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -206,6 +209,27 @@ export default function Fleet() {
                     gap: theme.spacing.md,
                   }}
                 >
+                  {coverPhotos.data?.[item.id] ? (
+                    <Image
+                      source={{ uri: coverPhotos.data[item.id] }}
+                      style={{ width: 56, height: 56, borderRadius: theme.radii.control }}
+                      contentFit="cover"
+                      accessibilityLabel={`${vehicleLabel(item)} photo`}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: theme.radii.control,
+                        backgroundColor: theme.colors.glassSurfaceStrong,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Ionicons name="bicycle" size={24} color={theme.colors.textTertiary} />
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <CardTitle>{vehicleLabel(item)}</CardTitle>
                     <Caption>

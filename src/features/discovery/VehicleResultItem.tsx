@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
 import { Pressable, View } from 'react-native';
@@ -6,6 +7,7 @@ import { Pressable, View } from 'react-native';
 import { GlassSurface } from '../../components/GlassSurface';
 import { CardTitle, Caption, Label, LargeTitle, PriceText } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
+import { useVehiclePhotos } from '../fleet/photos';
 import { formatMvr } from '../../lib/money';
 import type { VehicleSearchResult } from './queries';
 
@@ -15,13 +17,14 @@ function vehicleLabel(vehicle: VehicleSearchResult): string {
 }
 
 /**
- * Anonymous browsing can't show a vehicle's real uploaded photo:
+ * A flat vector illustration tile, shown while a real photo isn't
+ * available: no photo uploaded yet, still loading, or (see
+ * VehiclePhoto below) the viewer is browsing anonymously --
  * vehicle_photos_select (20260821130001_vehicle_photo_storage.sql) is
  * `to authenticated` only, so an anon customer's signed-URL fetch would
  * simply fail. Rather than touch that RLS policy (out of scope) or fetch
- * a random/remote stock photo (never in production code), every card
- * shows this flat vector illustration tile instead of a fabricated photo
- * -- honest about what it is, never pretending to be the specific
+ * a random/remote stock photo (never in production code), this is
+ * honest about what it is, never pretending to be the specific
  * vehicle's real image.
  */
 function VehicleIllustration({ size }: { size: 'row' | 'hero' }) {
@@ -46,6 +49,44 @@ function VehicleIllustration({ size }: { size: 'row' | 'hero' }) {
   );
 }
 
+/**
+ * The vehicle's own first uploaded photo when one exists and the viewer
+ * is signed in (any authenticated customer can read an available
+ * vehicle's photos -- see vehicle_photos_select's own comment above),
+ * falling back to VehicleIllustration otherwise. `signedIn` gates the
+ * fetch itself, not just the render, so an anonymous browsing session
+ * never issues a request RLS is only going to reject.
+ */
+function VehiclePhoto({
+  vehicleId,
+  signedIn,
+  size,
+}: {
+  vehicleId: string;
+  signedIn: boolean;
+  size: 'row' | 'hero';
+}) {
+  const theme = useTheme();
+  const photos = useVehiclePhotos(signedIn ? vehicleId : undefined);
+  const coverUrl = photos.data?.[0]?.signedUrl;
+  const height = size === 'hero' ? 140 : 56;
+
+  if (!coverUrl) return <VehicleIllustration size={size} />;
+
+  return (
+    <Image
+      source={{ uri: coverUrl }}
+      style={{
+        height,
+        width: size === 'hero' ? '100%' : 56,
+        borderRadius: size === 'hero' ? theme.radii.card : theme.radii.control,
+      }}
+      contentFit="cover"
+      accessibilityLabel="Vehicle photo"
+    />
+  );
+}
+
 interface VehicleResultItemProps {
   vehicle: VehicleSearchResult;
   startsAt: string;
@@ -58,6 +99,11 @@ interface VehicleResultItemProps {
    * never navigates, since a demo vehicle_id has no real listing behind
    * it. Never set for real search results. */
   demo?: boolean;
+  /** Whether the browsing customer is signed in — gates fetching the
+   * vehicle's real photo (see VehiclePhoto above). Defaults to false so
+   * anonymous browsing (this app's default) never issues a request RLS
+   * would reject. */
+  signedIn?: boolean;
 }
 
 export function VehicleResultItem({
@@ -66,6 +112,7 @@ export function VehicleResultItem({
   endsAt,
   variant = 'row',
   demo = false,
+  signedIn = false,
 }: VehicleResultItemProps) {
   const theme = useTheme();
 
@@ -134,7 +181,11 @@ export function VehicleResultItem({
     variant === 'hero' ? (
       <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.sm }}>
         <View>
-          <VehicleIllustration size="hero" />
+          {demo ? (
+            <VehicleIllustration size="hero" />
+          ) : (
+            <VehiclePhoto vehicleId={vehicle.vehicle_id} signedIn={signedIn} size="hero" />
+          )}
           {demo ? demoBadge : availabilityBadge}
         </View>
         <View
@@ -161,7 +212,11 @@ export function VehicleResultItem({
           gap: theme.spacing.md,
         }}
       >
-        <VehicleIllustration size="row" />
+        {demo ? (
+          <VehicleIllustration size="row" />
+        ) : (
+          <VehiclePhoto vehicleId={vehicle.vehicle_id} signedIn={signedIn} size="row" />
+        )}
         <View style={{ flex: 1, gap: theme.spacing.xs }}>
           <CardTitle>{vehicleLabel(vehicle)}</CardTitle>
           {details}
