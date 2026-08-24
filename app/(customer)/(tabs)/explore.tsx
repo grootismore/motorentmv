@@ -9,12 +9,14 @@ import { GlassSurface } from '../../../src/components/GlassSurface';
 import { Skeleton } from '../../../src/components/Skeleton';
 import { EmptyState } from '../../../src/components/states/EmptyState';
 import { ErrorState } from '../../../src/components/states/ErrorState';
-import { Body, LargeTitle, SectionTitle } from '../../../src/components/Typography';
+import { Body, Caption, LargeTitle, SectionTitle } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
+import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { DEMO_VEHICLES } from '../../../src/features/discovery/demoData';
 import { SearchForm, type SearchFormValues } from '../../../src/features/discovery/SearchForm';
 import { useSearchVehicles } from '../../../src/features/discovery/queries';
 import { VehicleResultItem } from '../../../src/features/discovery/VehicleResultItem';
+import { useUnreadNotificationCount } from '../../../src/features/notifications/queries';
 import { isDemoMode } from '../../../src/lib/env';
 import { isSupabaseConfigured } from '../../../src/lib/supabase';
 
@@ -35,6 +37,8 @@ import { isSupabaseConfigured } from '../../../src/lib/supabase';
 export default function Explore() {
   const theme = useTheme();
   const router = useRouter();
+  const { session } = useAuth();
+  const unreadCount = useUnreadNotificationCount(session?.user.id);
 
   // A fixed rolling window, independent of whatever dates a customer
   // later types into the search form above -- this section answers
@@ -107,8 +111,12 @@ export default function Explore() {
             </Body>
             <Link href="/notifications" asChild>
               <Pressable
+                testID="explore-notifications-button"
                 accessibilityRole="button"
                 accessibilityLabel="Notifications"
+                accessibilityHint={
+                  (unreadCount.data ?? 0) > 0 ? `${unreadCount.data} unread` : 'No unread notifications'
+                }
                 style={{
                   width: 36,
                   height: 36,
@@ -119,6 +127,27 @@ export default function Explore() {
                 }}
               >
                 <Ionicons name="notifications-outline" size={18} color={theme.colors.oceanForeground} />
+                {(unreadCount.data ?? 0) > 0 ? (
+                  <View
+                    testID="explore-notifications-badge"
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      minWidth: 16,
+                      height: 16,
+                      borderRadius: theme.radii.full,
+                      backgroundColor: theme.colors.destructive,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 3,
+                    }}
+                  >
+                    <Caption style={{ color: theme.colors.textInverse, fontSize: 10, lineHeight: 12 }}>
+                      {(unreadCount.data ?? 0) > 99 ? '99+' : unreadCount.data}
+                    </Caption>
+                  </View>
+                ) : null}
               </Pressable>
             </Link>
           </View>

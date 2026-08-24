@@ -64,6 +64,28 @@ export function useMarkNotificationRead() {
   });
 }
 
+/** Bulk read, for the inbox's "Mark all read" action -- the same RLS
+ * policy that lets a recipient flip their own read_at one row at a time
+ * (notifications_update_own_read_state) covers this unfiltered-by-id
+ * update too, since it's still scoped to `recipient_id = auth.uid()`. */
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string): Promise<void> => {
+      const { error } = await getSupabase()
+        .from('notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('recipient_id', userId)
+        .is('read_at', null);
+      if (error) throw error;
+    },
+    onSuccess: (_data, userId) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread-count', userId] });
+    },
+  });
+}
+
 /** The booking_id a notification's payload carries, if any -- every
  * fan-out branch in notify_on_booking_event() includes it (see
  * 20260821160003), so this is present for every notification type this
@@ -71,4 +93,17 @@ export function useMarkNotificationRead() {
 export function notificationBookingId(notification: NotificationRow): string | null {
   const payload = notification.payload as Record<string, unknown>;
   return typeof payload.booking_id === 'string' ? payload.booking_id : null;
+}
+
+/** The free-text note/reason a renter attached to a decline, needs_info,
+ * cancel or no_show action, if any -- notify_on_booking_event() merges the
+ * triggering booking_events row's `metadata` (which is where
+ * decline_booking/mark_booking_needs_info/cancel_booking/
+ * mark_booking_no_show put it, see 20260821140003/20260821190001) straight
+ * into the notification's payload, so it's already here; this just reads
+ * it back, the same way BookingTimeline's eventNote() reads it off a
+ * booking_events row. */
+export function notificationNote(notification: NotificationRow): string | null {
+  const payload = notification.payload as Record<string, unknown>;
+  return typeof payload.note === 'string' && payload.note.length > 0 ? payload.note : null;
 }

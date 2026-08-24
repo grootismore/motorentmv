@@ -14,8 +14,11 @@ import { InlineAuthGate } from '../../src/features/auth/InlineAuthGate';
 import { expoNotificationService } from '../../src/features/notifications/service';
 import {
   notificationBookingId,
+  notificationNote,
+  useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
+  useUnreadNotificationCount,
   type NotificationRow,
 } from '../../src/features/notifications/queries';
 import { formatMaldivesDateTime } from '../../src/lib/datetime';
@@ -61,6 +64,11 @@ function NotificationRowItem({
         {TYPE_LABEL[notification.type] ?? notification.type}
         {isUnread ? ' •' : ''}
       </Body>
+      {notificationNote(notification) ? (
+        <Caption testID={`notification-note-${notification.id}`} style={{ marginTop: 2 }}>
+          {notificationNote(notification)}
+        </Caption>
+      ) : null}
       <Caption>{formatMaldivesDateTime(notification.created_at)}</Caption>
     </Pressable>
   );
@@ -71,7 +79,9 @@ export default function Notifications() {
   const router = useRouter();
   const { session } = useAuth();
   const notifications = useNotifications(session?.user.id);
+  const unreadCount = useUnreadNotificationCount(session?.user.id);
   const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
   const [testNotificationMessage, setTestNotificationMessage] = useState<string | undefined>();
 
   if (session === undefined) {
@@ -113,12 +123,23 @@ export default function Notifications() {
   return (
     <Screen title="Notifications" scroll={false}>
       <View style={{ gap: theme.spacing.md, flex: 1 }}>
-        <Button
-          testID="notifications-send-test"
-          label="Send test notification"
-          variant="secondary"
-          onPress={handleSendTest}
-        />
+        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
+          <Button
+            testID="notifications-send-test"
+            label="Send test notification"
+            variant="secondary"
+            onPress={handleSendTest}
+          />
+          {(unreadCount.data ?? 0) > 0 ? (
+            <Button
+              testID="notifications-mark-all-read"
+              label="Mark all read"
+              variant="tertiary"
+              loading={markAllRead.isPending}
+              onPress={() => markAllRead.mutate(session.user.id)}
+            />
+          ) : null}
+        </View>
         {testNotificationMessage ? (
           <Caption testID="notifications-test-message">{testNotificationMessage}</Caption>
         ) : null}
