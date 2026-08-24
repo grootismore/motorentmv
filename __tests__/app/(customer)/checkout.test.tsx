@@ -120,6 +120,18 @@ function mockDiscoveryRpcs() {
   });
 }
 
+// TextField's value now lives inside @expo/ui's native TextInput as an
+// observable bound by native object identity, not a plain string prop
+// (see jest.setup.ts's ExpoUI mock) -- there's no rendered prop left to
+// find "Mariyam Customer" by, on a real device or in this test.
+// checkout-submit only renders once every screen query (listing, quote,
+// bookable, profile) has resolved, so waiting for it is the same
+// synchronization point the old prefill check served (ready to interact)
+// without reaching into the native tree for a value that isn't there.
+async function waitForCheckoutReady() {
+  await screen.findByTestId('checkout-submit');
+}
+
 let client: QueryClient;
 afterEach(() => {
   client.unmount();
@@ -186,7 +198,7 @@ describe('Checkout screen', () => {
     await renderCheckout();
 
     // Rider details pre-fill from the customer's own profile.
-    expect(await screen.findByDisplayValue('Mariyam Customer')).toBeTruthy();
+    await waitForCheckoutReady();
 
     await fireEvent.press(screen.getByTestId('checkout-submit'));
 
@@ -231,7 +243,7 @@ describe('Checkout screen', () => {
     });
 
     await renderCheckout();
-    await screen.findByDisplayValue('Mariyam Customer');
+    await waitForCheckoutReady();
 
     await fireEvent.press(screen.getByTestId('checkout-submit'));
     expect(await screen.findByTestId('checkout-error', {}, { timeout: 4000 })).toHaveTextContent(
@@ -270,7 +282,7 @@ describe('Checkout screen', () => {
     mockDiscoveryRpcs();
 
     await renderCheckout();
-    await screen.findByDisplayValue('Mariyam Customer');
+    await waitForCheckoutReady();
 
     await fireEvent.press(screen.getByTestId('checkout-submit'));
 
@@ -290,7 +302,7 @@ describe('Checkout screen', () => {
     mockDiscoveryRpcs();
 
     await renderCheckout();
-    await screen.findByDisplayValue('Mariyam Customer');
+    await waitForCheckoutReady();
 
     await fireEvent.press(screen.getByTestId('checkout-submit'));
 
