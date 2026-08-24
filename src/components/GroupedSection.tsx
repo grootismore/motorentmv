@@ -1,28 +1,38 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Host, FieldGroup, RNHostView } from '@expo/ui';
 
 import { useTheme } from '../design-system/ThemeProvider';
-import { GlassSurface, type GlassTone } from './GlassSurface';
 import { SectionTitle } from './Typography';
 
 interface GroupedSectionProps {
   title?: string;
   trailing?: ReactNode;
-  /** 'strong' for financial/operational content per the Ocean Glass rule:
-   * more opaque behind money, schedules, customer details, inspection
-   * checklists. */
-  tone?: GlassTone;
   children: ReactNode;
   testID?: string;
 }
 
 /**
  * The one grouped-section wrapper used across detail/dashboard screens —
- * a section title with an inset GlassSurface card underneath, rather than
- * every screen inventing its own card. Avoid nesting a GroupedSection
- * inside another one; compose GroupedRow children instead (see below).
+ * a real native inset-grouped card (@expo/ui's FieldGroup, the same
+ * SwiftUI `Form`/Jetpack Compose treatment iOS Settings uses), not a
+ * custom-drawn card. `children` can be arbitrary React Native content
+ * (this app's rows mix images, badges, and buttons) -- FieldGroup.Section
+ * accepts one native "row" per direct child, but our own rows are
+ * complex/varied enough (see GroupedRow below) that this wraps `children`
+ * as a single RNHostView-bridged row rather than mapping each GroupedRow
+ * to its own native FieldGroup row, so none of that existing content
+ * needs to change shape. Avoid nesting a GroupedSection inside another
+ * one; compose GroupedRow children instead.
+ *
+ * The bridging `RNHostView` below is explicitly `matchContents` -- its
+ * default (`false`) sizes it to the *parent SwiftUI view* instead of its
+ * own RN children, and a `FieldGroup.Section` row has no defined height
+ * of its own to hand down, so without this every row here rendered at
+ * zero height: present in the tree, invisible on screen. `matchContents`
+ * flips that so the row sizes to its actual RN content instead.
  */
-export function GroupedSection({ title, trailing, tone = 'default', children, testID }: GroupedSectionProps) {
+export function GroupedSection({ title, trailing, children, testID }: GroupedSectionProps) {
   const theme = useTheme();
 
   return (
@@ -33,9 +43,15 @@ export function GroupedSection({ title, trailing, tone = 'default', children, te
           {trailing}
         </View>
       ) : null}
-      <GlassSurface tone={tone} style={{ padding: theme.spacing.lg }}>
-        {children}
-      </GlassSurface>
+      <Host matchContents={{ vertical: true }} style={{ width: '100%' }}>
+        <FieldGroup>
+          <FieldGroup.Section>
+            <RNHostView matchContents>
+              <View>{children}</View>
+            </RNHostView>
+          </FieldGroup.Section>
+        </FieldGroup>
+      </Host>
     </View>
   );
 }
@@ -47,9 +63,9 @@ interface GroupedRowProps {
   testID?: string;
 }
 
-/** One divided row inside a GroupedSection — the "inset grouped list" the
- * Ocean Glass reference uses for schedules and timelines: rows share one
- * card, separated by a hairline, not stacked as separate floating cards. */
+/** One divided row inside a GroupedSection — rows share the section's one
+ * native card, separated by a hairline, not stacked as separate floating
+ * cards. */
 export function GroupedRow({ children, isLast = false, testID }: GroupedRowProps) {
   const theme = useTheme();
 

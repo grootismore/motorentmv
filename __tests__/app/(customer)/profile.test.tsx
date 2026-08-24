@@ -65,10 +65,26 @@ describe('CustomerProfile', () => {
   it('prefills the name/phone fields from the loaded profile', async () => {
     mockUseAuth.mockReturnValue({ session: { user: { id: 'user-1' } } });
     mockProfileData = { full_name: 'Aisha Rasheed', phone: '+9607771234' };
+    mockUpdateMutate.mockImplementation((_input, { onSuccess }) => onSuccess());
     await renderProfile();
 
-    expect(await screen.findByDisplayValue('Aisha Rasheed')).toBeTruthy();
-    expect(screen.getByDisplayValue('+9607771234')).toBeTruthy();
+    // TextField's value now lives inside @expo/ui's native TextInput as
+    // an observable bound by native object identity (see jest.setup.ts's
+    // ExpoUI mock), not a plain string prop -- there's no rendered prop
+    // left to read the field's current text from, on a real device or in
+    // this test. Pressing Save without editing anything and checking
+    // what it submits is a behavioral proof of the same thing: it only
+    // matches the profile's loaded values if the fields were genuinely
+    // seeded with them.
+    await screen.findByTestId('profile-save');
+    await fireEvent.press(screen.getByTestId('profile-save'));
+
+    await waitFor(() =>
+      expect(mockUpdateMutate).toHaveBeenCalledWith(
+        { userId: 'user-1', fullName: 'Aisha Rasheed', phone: '+9607771234' },
+        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      ),
+    );
   });
 
   it('saves edited name/phone and shows a confirmation', async () => {
