@@ -150,7 +150,7 @@ export default function FinanceReports() {
 
       {report.data ? (
         <View style={{ gap: theme.spacing.lg }}>
-          <GroupedSection title="Summary" testID="reports-summary">
+          <GroupedSection title="Summary" tone="strong" testID="reports-summary">
             <GroupedRow testID="reports-income-row">
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Body>Income</Body>

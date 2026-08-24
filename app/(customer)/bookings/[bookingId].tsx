@@ -63,7 +63,7 @@ export default function CustomerBookingDetail() {
         </GroupedSection>
 
         {frozenQuote ? (
-          <GroupedSection title="Price breakdown">
+          <GroupedSection title="Price breakdown" tone="strong">
             <QuotePanel quote={frozenQuote} frozen />
           </GroupedSection>
         ) : null}

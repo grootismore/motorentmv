@@ -118,6 +118,7 @@ export function InlineAuthGate({
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
+          textContentType="emailAddress"
           placeholder="you@example.com"
           editable={!isSubmitting}
         />
@@ -129,6 +130,7 @@ export function InlineAuthGate({
           secureTextEntry
           autoCapitalize="none"
           autoComplete={mode === 'sign_up' ? 'new-password' : 'password'}
+          textContentType={mode === 'sign_up' ? 'newPassword' : 'password'}
           placeholder="••••••••"
           editable={!isSubmitting}
         />
@@ -141,6 +143,7 @@ export function InlineAuthGate({
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
+            textContentType="newPassword"
             placeholder="••••••••"
             editable={!isSubmitting}
           />

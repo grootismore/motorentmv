@@ -52,13 +52,9 @@ business itself.
   photo uploads that are private to the uploading customer alone (not even
   the renting organization can see them) and persist across every future
   booking rather than being re-collected per rental.
-- **Native navigation and controls** — both the customer and renter tab
-  bars use Expo Router's native tabs (`expo-router/unstable-native-tabs`),
-  rendered by the OS's own `UITabBarController` / Material bottom-nav; the
-  core content primitives (`Button`, `TextField`, the inset-grouped
-  `GroupedSection` cards used throughout) are `@expo/ui`, invoking real
-  SwiftUI (iOS) / Jetpack Compose (Android) views rather than JS Views
-  drawn to look like them.
+- **Native navigation** — both the customer and renter tab bars use Expo
+  Router's native tabs (`expo-router/unstable-native-tabs`), rendered by
+  the OS's own `UITabBarController` / Material bottom-nav.
 
 ## Tech stack
 
@@ -221,20 +217,21 @@ titles, and lockfile consistency.
 
 ## Known limitations
 
-- **The native `@expo/ui` content primitives (Button, TextField,
-  GroupedSection) are unverified on a real device or simulator** — same
-  root cause as the next bullet. They typecheck, bundle cleanly (a real
-  `expo export`), and pass the full Jest suite (native views render via
-  React Native's own generic native-view-manager mock, not the real
-  SwiftUI/Compose runtime — see `jest.setup.ts`'s `useNativeState` mock
-  for the one case that needed a project-wide fix), but their actual
-  on-screen appearance and feel have not been visually confirmed. Icons
-  remain `@expo/vector-icons` (Ionicons) rather than native SF Symbols/
-  Material Symbols, and the chip-style filter/status pickers
-  (`ChipSelect`) remain a custom control rather than a native segmented
-  control or menu — both a deliberate scope decision (icon-name mapping
-  and variable-option-count pickers carry real regression risk with no
-  way to visually verify the result here), not an oversight.
+- **Button, TextField, and GroupedSection are custom-styled React Native
+  views, not `@expo/ui`'s native SwiftUI/Jetpack Compose components** — a
+  device build was tried once and it regressed real content: `@expo/ui`'s
+  `Button` ignored the app's brand color entirely (rendering the platform's
+  default system blue instead), and content nested inside its `FieldGroup`
+  (the vehicle photo, the dates and price breakdown on the checkout/listing
+  screens) silently failed to render at all — a gap the Jest suite's
+  native-view mock couldn't have caught, since it never exercises the real
+  SwiftUI/Compose runtime. `@expo/ui` was removed rather than patched
+  around, since neither of these three (a themed button, a plain inset
+  card) is on AGENTS.md's own list of controls that must be native — unlike
+  the tab bar below, which already was and is unaffected. Icons remain
+  `@expo/vector-icons` (Ionicons) rather than native SF Symbols/Material
+  Symbols, and the chip-style filter/status pickers (`ChipSelect`) remain a
+  custom control rather than a native segmented control or menu.
 - **The app icon, adaptive icon, and splash image are still Expo's
   unmodified scaffold placeholders** — `assets/icon.png` and
   `assets/android-icon-*.png` are the default `create-expo-app` template

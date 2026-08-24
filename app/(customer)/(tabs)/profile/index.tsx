@@ -45,6 +45,7 @@ function ProfileDetailsForm({ profile, onSave, isSaving, saveMessage }: ProfileD
         value={fullName}
         onChangeText={setFullName}
         autoComplete="name"
+        textContentType="name"
       />
       <TextField
         testID="profile-phone"
@@ -53,6 +54,7 @@ function ProfileDetailsForm({ profile, onSave, isSaving, saveMessage }: ProfileD
         onChangeText={setPhone}
         keyboardType="phone-pad"
         autoComplete="tel"
+        textContentType="telephoneNumber"
       />
       {saveMessage ? <Caption testID="profile-save-message">{saveMessage}</Caption> : null}
       <Button
