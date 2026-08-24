@@ -17,14 +17,12 @@ interface RiderDetailsFormProps {
 }
 
 /**
- * Document upload (driver's license / ID, PRD §6.5) is a placeholder
- * here, not implemented — same "clear placeholder, not a silent gap"
- * precedent as staff invitation in Prompt 3 (see (renter)/more/staff.tsx
- * and its README section): the `documents` table/document_type already
- * models this (`license`, `id_card`), the storage/RLS plumbing already
- * exists for org-scoped documents, but the actual camera/upload UI for a
- * customer's own license is a later addition, called out explicitly
- * rather than silently missing.
+ * Document upload (driver's license / ID, PRD §6.5) lives on the
+ * customer's Profile screen (src/features/documents/DocumentsSection.tsx),
+ * not here — it's profile-scoped so one upload covers every future
+ * booking, and at this point in checkout the booking this form is for
+ * doesn't exist yet to attach a document to. This is just a pointer, not
+ * an upload control.
  */
 export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetailsFormProps) {
   const theme = useTheme();
@@ -52,8 +50,8 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
       />
       <GlassSurface style={{ padding: theme.spacing.md }} testID="rider-details-document-placeholder">
         <Caption>
-          Driver&apos;s license / ID upload isn&apos;t built yet — please bring a valid license and ID with
-          you at pickup. The renter may ask to see them before handing over the vehicle.
+          You can upload a photo of your driver&apos;s license and ID from your Profile at any time. Bring the
+          physical documents to pickup too — the renter may ask to see them before handing over the vehicle.
         </Caption>
       </GlassSurface>
     </View>
