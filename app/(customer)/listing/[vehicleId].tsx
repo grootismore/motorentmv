@@ -169,7 +169,7 @@ export default function ListingDetail() {
             </SecondaryBody>
           </GroupedSection>
 
-          <GroupedSection title="Price breakdown" tone="strong">
+          <GroupedSection title="Price breakdown">
             {quote.isLoading ? <LoadingState label="Calculating price…" /> : null}
             {quote.isError ? (
               <Caption testID="listing-quote-error" color={theme.colors.warning}>

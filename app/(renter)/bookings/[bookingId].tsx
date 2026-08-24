@@ -82,11 +82,11 @@ export default function BookingDetail() {
         {isPending && conflicts.data ? <ConflictWarning conflicts={conflicts.data} /> : null}
 
         {frozenQuote ? (
-          <GroupedSection title="Price breakdown" tone="strong">
+          <GroupedSection title="Price breakdown">
             <QuotePanel quote={frozenQuote} frozen />
           </GroupedSection>
         ) : isPending && quotePreview.data ? (
-          <GroupedSection title="Price breakdown" tone="strong">
+          <GroupedSection title="Price breakdown">
             <QuotePanel quote={quotePreview.data} frozen={false} />
           </GroupedSection>
         ) : isPending && quotePreview.isError ? (
