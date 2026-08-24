@@ -612,7 +612,7 @@ export type Database = {
       transactions: {
         Row: {
           id: string;
-          booking_id: string;
+          booking_id: string | null;
           organization_id: string;
           type: Database['public']['Enums']['transaction_type'];
           method: Database['public']['Enums']['payment_method'] | null;
@@ -622,10 +622,11 @@ export type Database = {
           recorded_by: string;
           occurred_at: string;
           created_at: string;
+          category: string | null;
         };
         Insert: {
           id?: string;
-          booking_id: string;
+          booking_id?: string | null;
           organization_id: string;
           type: Database['public']['Enums']['transaction_type'];
           method?: Database['public']['Enums']['payment_method'] | null;
@@ -635,10 +636,11 @@ export type Database = {
           recorded_by: string;
           occurred_at?: string;
           created_at?: string;
+          category?: string | null;
         };
         Update: {
           id?: string;
-          booking_id?: string;
+          booking_id?: string | null;
           organization_id?: string;
           type?: Database['public']['Enums']['transaction_type'];
           method?: Database['public']['Enums']['payment_method'] | null;
@@ -648,6 +650,7 @@ export type Database = {
           recorded_by?: string;
           occurred_at?: string;
           created_at?: string;
+          category?: string | null;
         };
         Relationships: [
           {

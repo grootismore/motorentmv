@@ -44,6 +44,7 @@ export default function RenterLayout() {
         <Stack.Screen name="fleet/new" />
         <Stack.Screen name="finance/record-income" />
         <Stack.Screen name="finance/record-expense" />
+        <Stack.Screen name="finance/reports" />
         <Stack.Screen name="more/staff" />
       </Stack>
     </CurrentOrganizationProvider>

@@ -10,8 +10,13 @@ import { minTouchTarget } from '../../../../src/design-system/tokens';
 import { useTheme } from '../../../../src/design-system/ThemeProvider';
 import { signOut } from '../../../../src/features/auth/session';
 
-const LINKS: { href: '/more/staff' | '/notifications' | '/calendar'; label: string; testID: string }[] = [
+const LINKS: {
+  href: '/more/staff' | '/notifications' | '/calendar' | '/finance/reports';
+  label: string;
+  testID: string;
+}[] = [
   { href: '/calendar', label: 'Calendar', testID: 'more-link-calendar' },
+  { href: '/finance/reports', label: 'Finance reports', testID: 'more-link-finance-reports' },
   { href: '/more/staff', label: 'Staff', testID: 'more-link-staff' },
   { href: '/notifications', label: 'Notifications', testID: 'more-link-notifications' },
 ];
@@ -35,7 +40,7 @@ export default function More() {
   };
 
   return (
-    <Screen title="More" titleStyle="large" description="Customers, finances, reports, staff and settings.">
+    <Screen title="More" titleStyle="large" description="Calendar, finances, staff and settings.">
       <View style={{ gap: theme.spacing.sm }}>
         {LINKS.map((link) => (
           <Link key={link.href} href={link.href} asChild>
@@ -62,7 +67,7 @@ export default function More() {
         ))}
 
         <Caption style={{ marginTop: theme.spacing.md }}>
-          Customers, finances and reports arrive in later phases.
+          A dedicated customer list arrives in a later phase.
         </Caption>
 
         <Pressable

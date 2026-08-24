@@ -143,3 +143,10 @@ export function maldivesMonthRange(year: number, month: number): { startIso: str
 export function previousMaldivesMonth(year: number, month: number): { year: number; month: number } {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
+
+/** The (year, month) pair immediately after the given one -- the "next
+ * month" counterpart to previousMaldivesMonth, for a report screen's
+ * forward navigation (December rolls into January of the next year). */
+export function nextMaldivesMonth(year: number, month: number): { year: number; month: number } {
+  return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+}

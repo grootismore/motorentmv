@@ -151,6 +151,107 @@ export function useFinanceSummary(organizationId: string | undefined) {
   return { data: summary, isLoading, isError, error, isRefetching, refetch };
 }
 
+export interface IncomeBySource {
+  /** payment transactions with a booking_id -- day-to-day rental income,
+   * recorded by any org member against a real booking. */
+  bookingPaymentsLaari: number;
+  /** refund transactions (always booking-linked, 20260821200001) -- shown
+   * as its own line rather than folded silently into bookingPaymentsLaari
+   * so a report reader can see how much was actually refunded, not just
+   * the net. */
+  refundsLaari: number;
+  /** Standalone payments (no booking_id), grouped by their category --
+   * "Uncategorized" for the rare row with none. Sorted by amount,
+   * largest first, since that's what a reader scanning a report wants. */
+  standalone: { category: string; amountLaari: number }[];
+}
+
+/** Exported for direct unit testing, same reasoning as netIncomeLaari.
+ * Adjustments are intentionally excluded here too -- see netIncomeLaari's
+ * own comment on why they aren't revenue. */
+export function groupIncomeBySource(transactions: Transaction[]): IncomeBySource {
+  let bookingPaymentsLaari = 0;
+  let refundsLaari = 0;
+  const standaloneByCategory = new Map<string, number>();
+
+  for (const t of transactions) {
+    if (t.type === 'refund') {
+      refundsLaari += t.amount_laari;
+    } else if (t.type === 'payment' && t.booking_id) {
+      bookingPaymentsLaari += t.amount_laari;
+    } else if (t.type === 'payment' && !t.booking_id) {
+      const key = t.category ?? 'Uncategorized';
+      standaloneByCategory.set(key, (standaloneByCategory.get(key) ?? 0) + t.amount_laari);
+    }
+  }
+
+  const standalone = [...standaloneByCategory.entries()]
+    .map(([category, amountLaari]) => ({ category, amountLaari }))
+    .sort((a, b) => b.amountLaari - a.amountLaari);
+
+  return { bookingPaymentsLaari, refundsLaari, standalone };
+}
+
+export interface ExpenseByCategory {
+  category: string;
+  amountLaari: number;
+}
+
+/** Exported for direct unit testing, same reasoning as netIncomeLaari. */
+export function groupExpensesByCategory(expenses: Expense[]): ExpenseByCategory[] {
+  const byCategory = new Map<string, number>();
+  for (const e of expenses) {
+    byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount_laari);
+  }
+  return [...byCategory.entries()]
+    .map(([category, amountLaari]) => ({ category, amountLaari }))
+    .sort((a, b) => b.amountLaari - a.amountLaari);
+}
+
+export interface FinanceReport {
+  year: number;
+  month: number;
+  incomeLaari: number;
+  expensesLaari: number;
+  netProfitLaari: number;
+  incomeBySource: IncomeBySource;
+  expensesByCategory: ExpenseByCategory[];
+}
+
+/**
+ * The same per-month arithmetic useFinanceSummary already does, but for
+ * one arbitrary (year, month) a report screen navigates to, plus the
+ * category breakdown the dashboard's compact card has no room for.
+ */
+export function useFinanceReport(organizationId: string | undefined, year: number, month: number) {
+  const range = maldivesMonthRange(year, month);
+  const transactions = useOrgTransactionsInRange(organizationId, range);
+  const expenses = useOrgExpensesInRange(organizationId, range);
+
+  const isLoading = transactions.isLoading || expenses.isLoading;
+  const isError = transactions.isError || expenses.isError;
+  const error = transactions.error ?? expenses.error;
+  const isRefetching = transactions.isRefetching || expenses.isRefetching;
+  const refetch = () => Promise.all([transactions.refetch(), expenses.refetch()]);
+
+  let report: FinanceReport | undefined;
+  if (transactions.data && expenses.data) {
+    const incomeLaari = netIncomeLaari(transactions.data);
+    const expensesLaari = totalExpensesLaari(expenses.data);
+    report = {
+      year,
+      month,
+      incomeLaari,
+      expensesLaari,
+      netProfitLaari: incomeLaari - expensesLaari,
+      incomeBySource: groupIncomeBySource(transactions.data),
+      expensesByCategory: groupExpensesByCategory(expenses.data),
+    };
+  }
+
+  return { data: report, isLoading, isError, error, isRefetching, refetch };
+}
+
 export interface RecordExpenseInput {
   organizationId: string;
   vehicleId?: string;

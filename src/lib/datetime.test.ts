@@ -9,6 +9,7 @@ import {
   maldivesInputToUtcIso,
   maldivesMonthRange,
   maldivesYearMonth,
+  nextMaldivesMonth,
   previousMaldivesMonth,
   utcIsoToMaldivesInput,
 } from './datetime';
@@ -114,5 +115,15 @@ describe('previousMaldivesMonth', () => {
 
   it('rolls back to December of the prior year from January', () => {
     expect(previousMaldivesMonth(2026, 1)).toEqual({ year: 2025, month: 12 });
+  });
+});
+
+describe('nextMaldivesMonth', () => {
+  it('goes forward one month within the same year', () => {
+    expect(nextMaldivesMonth(2026, 8)).toEqual({ year: 2026, month: 9 });
+  });
+
+  it('rolls forward to January of the next year from December', () => {
+    expect(nextMaldivesMonth(2026, 12)).toEqual({ year: 2027, month: 1 });
   });
 });
