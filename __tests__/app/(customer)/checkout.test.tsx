@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 import { ThemeProvider } from '../../../src/design-system/ThemeProvider';
 import Checkout from '../../../app/(customer)/checkout/[vehicleId]';
+import type { MyDocument } from '../../../src/features/documents/queries';
 
 const mockRpc = jest.fn();
 const mockProfileSingle = jest.fn();
@@ -17,6 +18,53 @@ jest.mock('../../../src/lib/supabase', () => ({
     },
   }),
 }));
+
+// DocumentsSection's own upload/delete flow is covered in its own test
+// file (src/features/documents/DocumentsSection.test.tsx) — here it's
+// just embedded read-only for the document-gate assertions below, same
+// mocking approach that file uses.
+const mockUploadMutate = jest.fn();
+const mockDeleteMutate = jest.fn();
+let mockDocuments: MyDocument[] = [];
+let mockDocumentsLoading = false;
+jest.mock('../../../src/features/documents/DocumentsSection', () => ({
+  DocumentsSection: () => null,
+}));
+jest.mock('../../../src/features/documents/queries', () => {
+  const actual = jest.requireActual('../../../src/features/documents/queries');
+  return {
+    ...actual,
+    useMyDocuments: () => ({
+      data: mockDocuments,
+      isLoading: mockDocumentsLoading,
+      isError: false,
+      error: null,
+      refetch: jest.fn(),
+    }),
+    useUploadMyDocument: () => ({ mutate: mockUploadMutate, isPending: false }),
+    useDeleteMyDocument: () => ({ mutate: mockDeleteMutate, isPending: false }),
+  };
+});
+
+function documentOf(documentType: 'license' | 'id_card'): MyDocument {
+  return {
+    id: `${documentType}-1`,
+    organization_id: null,
+    vehicle_id: null,
+    booking_id: null,
+    profile_id: 'customer-1',
+    expense_id: null,
+    document_type: documentType,
+    storage_path: `customer-1/${documentType}.jpg`,
+    status: 'pending',
+    expires_at: null,
+    uploaded_by: 'customer-1',
+    verified_by: null,
+    verified_at: null,
+    created_at: '2026-08-01T00:00:00Z',
+    signedUrl: null,
+  };
+}
 
 const mockUseAuth = jest.fn();
 jest.mock('../../../src/features/auth/AuthProvider', () => ({
@@ -76,6 +124,8 @@ let client: QueryClient;
 afterEach(() => {
   client.unmount();
   jest.clearAllMocks();
+  mockDocuments = [];
+  mockDocumentsLoading = false;
 });
 
 function renderCheckout() {
@@ -122,6 +172,7 @@ describe('Checkout screen', () => {
       data: { id: 'customer-1', full_name: 'Mariyam Customer', phone: '7771234' },
       error: null,
     });
+    mockDocuments = [documentOf('license'), documentOf('id_card')];
     mockUseAuth.mockReturnValue({ session: { user: { id: 'customer-1' } }, isConfigured: true });
     mockRpc.mockImplementation((fn: string) => {
       if (fn === 'get_vehicle_listing') return Promise.resolve({ data: [LISTING_ROW], error: null });
@@ -159,6 +210,7 @@ describe('Checkout screen', () => {
       data: { id: 'customer-1', full_name: 'Mariyam Customer', phone: null },
       error: null,
     });
+    mockDocuments = [documentOf('license'), documentOf('id_card')];
     mockUseAuth.mockReturnValue({ session: { user: { id: 'customer-1' } }, isConfigured: true });
     let requestAttempts = 0;
     mockRpc.mockImplementation((fn: string) => {
@@ -205,4 +257,44 @@ describe('Checkout screen', () => {
     expect(requestBookingCalls[0][1]).toEqual(requestBookingCalls[1][1]);
     expect(requestBookingCalls[1][1]).toEqual(requestBookingCalls[2][1]);
   }, 8000);
+
+  it('blocks submission with a clear message when no documents are on file', async () => {
+    mockProfileSingle.mockResolvedValue({
+      data: { id: 'customer-1', full_name: 'Mariyam Customer', phone: null },
+      error: null,
+    });
+    mockDocuments = [];
+    mockUseAuth.mockReturnValue({ session: { user: { id: 'customer-1' } }, isConfigured: true });
+    mockDiscoveryRpcs();
+
+    await renderCheckout();
+    await screen.findByDisplayValue('Mariyam Customer');
+
+    await fireEvent.press(screen.getByTestId('checkout-submit'));
+
+    expect(await screen.findByTestId('checkout-error')).toHaveTextContent(
+      'Upload a photo of your driver’s license and ID/passport above before submitting.',
+    );
+    expect(mockRpc).not.toHaveBeenCalledWith('request_booking', expect.anything());
+  });
+
+  it('blocks submission when only one of the two required documents is on file', async () => {
+    mockProfileSingle.mockResolvedValue({
+      data: { id: 'customer-1', full_name: 'Mariyam Customer', phone: null },
+      error: null,
+    });
+    mockDocuments = [documentOf('license')];
+    mockUseAuth.mockReturnValue({ session: { user: { id: 'customer-1' } }, isConfigured: true });
+    mockDiscoveryRpcs();
+
+    await renderCheckout();
+    await screen.findByDisplayValue('Mariyam Customer');
+
+    await fireEvent.press(screen.getByTestId('checkout-submit'));
+
+    expect(await screen.findByTestId('checkout-error')).toHaveTextContent(
+      'Upload a photo of your driver’s license and ID/passport above before submitting.',
+    );
+    expect(mockRpc).not.toHaveBeenCalledWith('request_booking', expect.anything());
+  });
 });

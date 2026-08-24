@@ -114,6 +114,19 @@ export function useDeleteMyDocument(userId: string) {
   });
 }
 
+/**
+ * Mirrors public.customer_has_required_documents() (20260821220001) --
+ * a customer needs a license and an ID/passport on file, neither
+ * rejected, to submit a booking request. Kept in sync with the DB check
+ * only for client-side UX (a clear inline message before ever calling
+ * request_booking) -- the DB check is what actually enforces it.
+ */
+export function hasRequiredDocuments(documents: MyDocument[]): boolean {
+  const hasType = (type: MyDocumentType) =>
+    documents.some((d) => d.document_type === type && d.status !== 'rejected');
+  return hasType('license') && hasType('id_card');
+}
+
 export const DOCUMENT_TYPE_LABEL: Record<MyDocumentType, string> = {
   license: "Driver's license",
   id_card: 'ID card',

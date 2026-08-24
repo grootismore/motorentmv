@@ -18,6 +18,13 @@ business itself.
   inbox for acceptance, not an instant booking. The full state machine
   (requested → accepted/declined/needs-info → ready → active → completed,
   plus cancellation) is enforced server-side.
+- **Document and deposit requirements, enforced server-side** — a customer
+  can't submit (or resubmit after needs-info) a booking request without a
+  license and an ID/passport photo already on file, and if the vehicle
+  carries a refundable deposit, at least that much must be recorded as paid
+  in the ledger before the renter can hand over the keys (mark the booking
+  "active"). Both gates live in the same RPCs/trigger that already enforce
+  the rest of the state machine, so there's no client-side bypass.
 - **Real-time availability** — search excludes any vehicle with an
   overlapping accepted booking or a manual maintenance block, computed with
   correct half-open time-range logic (back-to-back bookings never falsely

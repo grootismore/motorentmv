@@ -1,8 +1,7 @@
 import { View } from 'react-native';
 
-import { GlassSurface } from '../../components/GlassSurface';
 import { TextField } from '../../components/TextField';
-import { Caption, SectionTitle } from '../../components/Typography';
+import { SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 
 export interface RiderDetailsValues {
@@ -17,12 +16,12 @@ interface RiderDetailsFormProps {
 }
 
 /**
- * Document upload (driver's license / ID, PRD §6.5) lives on the
- * customer's Profile screen (src/features/documents/DocumentsSection.tsx),
- * not here — it's profile-scoped so one upload covers every future
- * booking, and at this point in checkout the booking this form is for
- * doesn't exist yet to attach a document to. This is just a pointer, not
- * an upload control.
+ * Document upload (driver's license / ID, PRD §6.5) is its own section
+ * further down checkout (src/features/documents/DocumentsSection.tsx) —
+ * it's a hard requirement to submit a booking request (20260821220001), not
+ * just a courtesy reminder here, so it gets its own section rather than a
+ * pointer inside this one. It's profile-scoped, so one upload still covers
+ * every future booking.
  */
 export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetailsFormProps) {
   const theme = useTheme();
@@ -48,12 +47,6 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
         autoComplete="tel"
         textContentType="telephoneNumber"
       />
-      <GlassSurface style={{ padding: theme.spacing.md }} testID="rider-details-document-placeholder">
-        <Caption>
-          You can upload a photo of your driver&apos;s license and ID from your Profile at any time. Bring the
-          physical documents to pickup too — the renter may ask to see them before handing over the vehicle.
-        </Caption>
-      </GlassSurface>
     </View>
   );
 }

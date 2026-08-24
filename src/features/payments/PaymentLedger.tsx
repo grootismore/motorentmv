@@ -8,6 +8,7 @@ import { TextField } from '../../components/TextField';
 import { Body, Caption, SectionTitle } from '../../components/Typography';
 import { useTheme } from '../../design-system/ThemeProvider';
 import { formatMvr } from '../../lib/money';
+import type { BookingQuote } from '../bookings/queries';
 import { useBooking } from '../bookings/queries';
 import { useRecordTransaction, useTransactions, type PaymentMethod, type TransactionType } from './queries';
 
@@ -72,6 +73,16 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
   const totalAmount = booking.data?.total_amount_laari ?? null;
   const balanceDue = totalAmount != null ? totalAmount - totalPaid + totalRefunded : null;
 
+  // Independent of payment_status (which tracks total_amount_laari, the
+  // rental fee, only) -- see 20260821220001's own comment: the ledger has
+  // no payment-vs-deposit category, so "net payments recorded against
+  // this booking" is the same honest proxy bookings_guard() uses to gate
+  // activation server-side. Zero/no deposit configured hides this line
+  // entirely rather than showing a moot "Deposit: MVR 0 — Paid".
+  const quote = booking.data?.quote_snapshot as unknown as BookingQuote | null;
+  const depositAmount = quote?.deposit_amount_laari ?? 0;
+  const depositPaid = totalPaid - totalRefunded >= depositAmount;
+
   const handleSubmit = () => {
     setErrorMessage(undefined);
     const parsed = Number(amount);
@@ -110,6 +121,15 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
           {totalRefunded > 0 ? <Caption>Refunded: {formatMvr(totalRefunded)}</Caption> : null}
           {balanceDue != null ? (
             <Body style={{ fontWeight: '600' }}>Balance due: {formatMvr(Math.max(balanceDue, 0))}</Body>
+          ) : null}
+          {depositAmount > 0 ? (
+            <Caption
+              testID="payment-ledger-deposit-status"
+              color={depositPaid ? theme.colors.success : theme.colors.destructive}
+            >
+              Deposit ({formatMvr(depositAmount)}):{' '}
+              {depositPaid ? 'Paid' : 'Not yet paid — required before handover'}
+            </Caption>
           ) : null}
         </View>
       </GlassSurface>

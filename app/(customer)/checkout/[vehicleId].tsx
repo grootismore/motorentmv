@@ -18,6 +18,8 @@ import { QuotePanel } from '../../../src/features/bookings/QuotePanel';
 import { useSubmitBookingRequest } from '../../../src/features/checkout/queries';
 import { RiderDetailsForm, type RiderDetailsValues } from '../../../src/features/checkout/RiderDetailsForm';
 import type { VehicleListing } from '../../../src/features/discovery/queries';
+import { DocumentsSection } from '../../../src/features/documents/DocumentsSection';
+import { hasRequiredDocuments, useMyDocuments } from '../../../src/features/documents/queries';
 import {
   useListingQuote,
   useVehicleBookable,
@@ -60,6 +62,7 @@ function CheckoutForm({
   const theme = useTheme();
   const router = useRouter();
   const submit = useSubmitBookingRequest();
+  const documents = useMyDocuments(customerId);
   const [riderDetails, setRiderDetails] = useState<RiderDetailsValues>({
     fullName: initialFullName,
     phone: initialPhone,
@@ -69,6 +72,17 @@ function CheckoutForm({
   const handleSubmit = () => {
     if (!riderDetails.fullName.trim()) {
       setSubmitError('Enter your full name.');
+      return;
+    }
+    // request_booking() itself rejects a customer with no license/ID on
+    // file (20260821220001) — this is purely a clearer, earlier message
+    // pointing at the upload section above rather than a raw RPC error.
+    if (documents.isLoading) {
+      setSubmitError('Checking your documents — try again in a moment.');
+      return;
+    }
+    if (!hasRequiredDocuments(documents.data ?? [])) {
+      setSubmitError('Upload a photo of your driver’s license and ID/passport above before submitting.');
       return;
     }
     // A courtesy freshness re-check, not the security boundary (see
@@ -109,6 +123,8 @@ function CheckoutForm({
       </GroupedSection>
 
       <RiderDetailsForm values={riderDetails} onChange={setRiderDetails} />
+
+      <DocumentsSection userId={customerId} />
 
       {quote ? (
         <GroupedSection title="Price breakdown" tone="strong">

@@ -88,10 +88,10 @@ function renderLedger(props: Parameters<typeof PaymentLedger>[0]) {
   );
 }
 
-function mockTables() {
+function mockTables(booking: unknown = BOOKING, transactions: unknown = TRANSACTIONS) {
   mockFrom.mockImplementation((table: string) => {
-    if (table === 'transactions') return tableMock(TRANSACTIONS);
-    if (table === 'bookings') return tableMock(BOOKING);
+    if (table === 'transactions') return tableMock(transactions);
+    if (table === 'bookings') return tableMock(booking);
     throw new Error(`unexpected table: ${table}`);
   });
 }
@@ -159,5 +159,34 @@ describe('PaymentLedger', () => {
       'Enter an amount greater than zero.',
     );
     expect(recordedInsertPayload).toBeUndefined();
+  });
+
+  it('shows the deposit as not yet paid when net payments fall short of the frozen deposit amount', async () => {
+    mockTables({ ...BOOKING, quote_snapshot: { deposit_amount_laari: 200000 } });
+
+    await renderLedger({ bookingId: 'booking-1', organizationId: 'org-1', viewerRole: 'renter' });
+
+    expect(await screen.findByTestId('payment-ledger-deposit-status')).toHaveTextContent(
+      'Deposit (MVR 2,000.00): Not yet paid — required before handover',
+    );
+  });
+
+  it('shows the deposit as paid once net payments reach the frozen deposit amount', async () => {
+    mockTables({ ...BOOKING, quote_snapshot: { deposit_amount_laari: 60000 } }, TRANSACTIONS);
+
+    await renderLedger({ bookingId: 'booking-1', organizationId: 'org-1', viewerRole: 'renter' });
+
+    expect(await screen.findByTestId('payment-ledger-deposit-status')).toHaveTextContent(
+      'Deposit (MVR 600.00): Paid',
+    );
+  });
+
+  it('hides the deposit line entirely when the vehicle carries no deposit', async () => {
+    mockTables({ ...BOOKING, quote_snapshot: { deposit_amount_laari: 0 } });
+
+    await renderLedger({ bookingId: 'booking-1', organizationId: 'org-1', viewerRole: 'renter' });
+
+    await screen.findByText('Paid: MVR 600.00');
+    expect(screen.queryByTestId('payment-ledger-deposit-status')).toBeNull();
   });
 });
