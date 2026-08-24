@@ -83,6 +83,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // project to receive real push tokens yet (see README). Re-add this
     // plugin once both of those exist and this app is being distributed
     // through TestFlight/App Store/EAS rather than free-account sideloading.
+    //
+    // Also NOT in this list: 'expo-file-system' and 'expo-sharing', despite
+    // both packages being dependencies (finance CSV export). Their config
+    // plugins do nothing the JS APIs actually used here need:
+    // withFileSystem.js unconditionally adds Android
+    // READ/WRITE_EXTERNAL_STORAGE + INTERNET permissions for legacy-API
+    // support this app doesn't use (File/Directory/Paths need none of
+    // that); withShareExtension.js sets up a native iOS/Android Share
+    // Extension for *receiving* shares from other apps, an unrelated
+    // feature to Sharing.shareAsync() (handing a file to the system share
+    // sheet), which needs no plugin at all. Adding either would risk
+    // repeating the same class of unsigned-sideloading breakage documented
+    // above for expo-notifications, for zero functional benefit.
   ],
   experiments: {
     typedRoutes: true,

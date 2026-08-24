@@ -1,7 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 
+import { Button } from '../../../src/components/Button';
 import { GroupedRow, GroupedSection } from '../../../src/components/GroupedSection';
 import { Screen } from '../../../src/components/Screen';
 import { ErrorState } from '../../../src/components/states/ErrorState';
@@ -9,9 +12,19 @@ import { LoadingState } from '../../../src/components/states/LoadingState';
 import { Body, Caption } from '../../../src/components/Typography';
 import { minTouchTarget } from '../../../src/design-system/tokens';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
-import { useFinanceReport } from '../../../src/features/finance/queries';
+import { buildFinanceReportCsv } from '../../../src/features/finance/csv';
+import {
+  useFinanceReport,
+  useOrgExpensesInRange,
+  useOrgTransactionsInRange,
+} from '../../../src/features/finance/queries';
 import { useCurrentOrganization } from '../../../src/features/organizations/CurrentOrganizationContext';
-import { maldivesYearMonth, nextMaldivesMonth, previousMaldivesMonth } from '../../../src/lib/datetime';
+import {
+  maldivesMonthRange,
+  maldivesYearMonth,
+  nextMaldivesMonth,
+  previousMaldivesMonth,
+} from '../../../src/lib/datetime';
 import { formatMvr } from '../../../src/lib/money';
 
 const MONTH_NAMES = [
@@ -34,9 +47,8 @@ const MONTH_NAMES = [
  * payments, refunds, standalone income by category) and expenses by
  * category, for whichever month the renter navigates to -- the dashboard's
  * FinanceSummaryCard only ever shows the current month at a glance; this
- * is the "look back at a specific month" screen. Not shown here (deferred,
- * would need new native dependencies -- expo-file-system + expo-sharing --
- * to actually produce and share a file): CSV/PDF export.
+ * is the "look back at a specific month" screen. Also offers a line-item
+ * CSV export of the same month via the native share sheet.
  */
 export default function FinanceReports() {
   const theme = useTheme();
@@ -44,7 +56,39 @@ export default function FinanceReports() {
   const [{ year, month }, setPeriod] = useState(() => maldivesYearMonth(new Date().toISOString()));
   const report = useFinanceReport(organizationId, year, month);
 
+  const range = maldivesMonthRange(year, month);
+  const transactionsQuery = useOrgTransactionsInRange(organizationId, range);
+  const expensesQuery = useOrgExpensesInRange(organizationId, range);
+
+  const [isExporting, setIsExporting] = useState(false);
+
   const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`;
+
+  const handleExport = async () => {
+    if (!transactionsQuery.data || !expensesQuery.data) return;
+    setIsExporting(true);
+    try {
+      const csv = buildFinanceReportCsv(transactionsQuery.data, expensesQuery.data);
+      const file = new File(Paths.cache, `finance-report-${year}-${String(month).padStart(2, '0')}.csv`);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(csv);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri, {
+          mimeType: 'text/csv',
+          UTI: 'public.comma-separated-values-text',
+          dialogTitle: `Finance report – ${monthLabel}`,
+        });
+      } else {
+        Alert.alert('Sharing unavailable', 'This device cannot share files. Try again from another device.');
+      }
+    } catch {
+      Alert.alert('Export failed', 'The report could not be exported. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <Screen
@@ -84,9 +128,20 @@ export default function FinanceReports() {
         </View>
       }
     >
-      <Body testID="reports-month-label" style={{ fontWeight: '700', marginBottom: theme.spacing.lg }}>
+      <Body testID="reports-month-label" style={{ fontWeight: '700', marginBottom: theme.spacing.md }}>
         {monthLabel}
       </Body>
+
+      <View style={{ alignItems: 'flex-start', marginBottom: theme.spacing.lg }}>
+        <Button
+          testID="reports-export-csv"
+          label="Export CSV"
+          variant="secondary"
+          loading={isExporting}
+          disabled={!transactionsQuery.data || !expensesQuery.data}
+          onPress={handleExport}
+        />
+      </View>
 
       {report.isLoading ? <LoadingState label="Loading report…" /> : null}
       {report.isError ? (
