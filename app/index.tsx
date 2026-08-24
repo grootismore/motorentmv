@@ -18,7 +18,7 @@ export default function Index() {
     return <Redirect href="/explore" />;
   }
   if (gate === 'renter') {
-    return <Redirect href="/today" />;
+    return <Redirect href="/dashboard" />;
   }
   return <Redirect href="/role-select" />;
 }
