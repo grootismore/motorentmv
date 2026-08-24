@@ -12,7 +12,7 @@ export type { AppGate };
  */
 export function useAppGate(): AppGate {
   const { session } = useAuth();
-  const { intent } = useExperienceIntent();
+  const { intent, isIntentLoading } = useExperienceIntent();
   const membership = useMyMembership(session?.user.id);
 
   return computeAppGate({
@@ -20,5 +20,6 @@ export function useAppGate(): AppGate {
     hasMembership: Boolean(membership.data),
     isMembershipLoading: membership.isLoading,
     intent,
+    isIntentLoading,
   });
 }

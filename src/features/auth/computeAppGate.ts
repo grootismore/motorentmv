@@ -22,18 +22,29 @@ export type AppGate = 'loading' | 'auth' | 'customer' | 'renter';
  * immediate OTP step it used to require. See (customer)'s screens for
  * how they handle "browsing, no session yet" themselves from there on
  * (an inline sign-in prompt, not a route redirect).
+ *
+ * A signed-in user with no organization and no known customer intent
+ * (most commonly: a customer who signed in once to submit a booking,
+ * closed the app, and reopened it) goes back to 'auth', not 'renter' —
+ * this used to default to 'renter', silently dropping every returning
+ * customer with no fleet of their own into "create your organization"
+ * onboarding. Re-asking role-select is honest about not knowing; a
+ * customer who taps "Rent a motorcycle" there sets intent='customer'
+ * (now persisted -- see experience-intent.tsx) and never sees this again.
  */
 export function computeAppGate(params: {
   hasSession: boolean | undefined;
   hasMembership: boolean;
   isMembershipLoading: boolean;
   intent: ExperienceIntent;
+  isIntentLoading: boolean;
 }): AppGate {
-  const { hasSession, hasMembership, isMembershipLoading, intent } = params;
+  const { hasSession, hasMembership, isMembershipLoading, intent, isIntentLoading } = params;
   if (hasSession === undefined) return 'loading';
+  if (isIntentLoading) return 'loading';
   if (hasSession === false) return intent === 'customer' ? 'customer' : 'auth';
   if (hasMembership) return 'renter';
   if (isMembershipLoading) return 'loading';
   if (intent === 'customer') return 'customer';
-  return 'renter';
+  return 'auth';
 }

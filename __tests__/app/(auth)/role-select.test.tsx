@@ -9,6 +9,26 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+// experience-intent.tsx now persists to AsyncStorage (see its own doc
+// comment) -- same in-memory-Map mock as secureSessionStorage.test.ts,
+// since jest-expo's built-in mock resolves every call to undefined rather
+// than round-tripping a real value.
+const mockAsyncStorageMap = new Map<string, string>();
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: (key: string) => Promise.resolve(mockAsyncStorageMap.get(key) ?? null),
+    setItem: (key: string, value: string) => {
+      mockAsyncStorageMap.set(key, value);
+      return Promise.resolve();
+    },
+    removeItem: (key: string) => {
+      mockAsyncStorageMap.delete(key);
+      return Promise.resolve();
+    },
+  },
+}));
+
 function IntentProbe({ onIntent }: { onIntent: (intent: string | null) => void }) {
   const { intent } = useExperienceIntent();
   onIntent(intent);

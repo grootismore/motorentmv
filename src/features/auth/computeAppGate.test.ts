@@ -8,13 +8,32 @@ describe('computeAppGate', () => {
         hasMembership: false,
         isMembershipLoading: false,
         intent: null,
+        isIntentLoading: false,
+      }),
+    ).toBe('loading');
+  });
+
+  it('is loading while the persisted intent is still being read back', () => {
+    expect(
+      computeAppGate({
+        hasSession: false,
+        hasMembership: false,
+        isMembershipLoading: false,
+        intent: null,
+        isIntentLoading: true,
       }),
     ).toBe('loading');
   });
 
   it('goes to auth when there is no session and no intent chosen yet', () => {
     expect(
-      computeAppGate({ hasSession: false, hasMembership: false, isMembershipLoading: false, intent: null }),
+      computeAppGate({
+        hasSession: false,
+        hasMembership: false,
+        isMembershipLoading: false,
+        intent: null,
+        isIntentLoading: false,
+      }),
     ).toBe('auth');
   });
 
@@ -25,6 +44,7 @@ describe('computeAppGate', () => {
         hasMembership: false,
         isMembershipLoading: false,
         intent: 'renter',
+        isIntentLoading: false,
       }),
     ).toBe('auth');
   });
@@ -38,6 +58,7 @@ describe('computeAppGate', () => {
         hasMembership: false,
         isMembershipLoading: false,
         intent: 'customer',
+        isIntentLoading: false,
       }),
     ).toBe('customer');
   });
@@ -49,13 +70,20 @@ describe('computeAppGate', () => {
         hasMembership: true,
         isMembershipLoading: false,
         intent: 'customer',
+        isIntentLoading: false,
       }),
     ).toBe('renter');
   });
 
   it('is loading while membership is still resolving after sign-in', () => {
     expect(
-      computeAppGate({ hasSession: true, hasMembership: false, isMembershipLoading: true, intent: null }),
+      computeAppGate({
+        hasSession: true,
+        hasMembership: false,
+        isMembershipLoading: true,
+        intent: null,
+        isIntentLoading: false,
+      }),
     ).toBe('loading');
   });
 
@@ -66,21 +94,32 @@ describe('computeAppGate', () => {
         hasMembership: false,
         isMembershipLoading: false,
         intent: 'customer',
+        isIntentLoading: false,
       }),
     ).toBe('customer');
   });
 
-  it('defaults to renter (onboarding) when signed in, no org, and no customer intent was recorded', () => {
+  it('goes to auth (re-asks) when signed in, no org, and no customer intent was recorded', () => {
+    // This used to default to 'renter' (silently pushing every returning
+    // customer with no fleet of their own into "create your organization"
+    // onboarding). See computeAppGate.ts's doc comment.
     expect(
-      computeAppGate({ hasSession: true, hasMembership: false, isMembershipLoading: false, intent: null }),
-    ).toBe('renter');
+      computeAppGate({
+        hasSession: true,
+        hasMembership: false,
+        isMembershipLoading: false,
+        intent: null,
+        isIntentLoading: false,
+      }),
+    ).toBe('auth');
     expect(
       computeAppGate({
         hasSession: true,
         hasMembership: false,
         isMembershipLoading: false,
         intent: 'renter',
+        isIntentLoading: false,
       }),
-    ).toBe('renter');
+    ).toBe('auth');
   });
 });
