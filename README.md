@@ -59,6 +59,17 @@ business itself.
   `GroupedSection` cards used throughout) are `@expo/ui`, invoking real
   SwiftUI (iOS) / Jetpack Compose (Android) views rather than JS Views
   drawn to look like them.
+- **Real Liquid Glass, everywhere a card or panel appears** — every
+  translucent surface in the app (`GlassSurface`: search panels, KPI
+  tiles, result cards, the grouped-section backing) renders through
+  SwiftUI's real `.glassEffect()` material on iOS (`@expo/ui`'s
+  `GlassEffectContainer`/`glassEffect` modifier), not a `BlurView` tinted
+  to approximate one — `expo-blur` has been removed from the project
+  entirely. Android and iOS with Reduce Transparency on fall back to a
+  flat, opaque token surface: Android has no equivalent native glass
+  material to reach for (forcing the iOS material there would itself
+  break AGENTS.md's "don't force iOS visual behavior onto Android" rule),
+  and Reduce Transparency is the user asking iOS itself for that fallback.
 
 ## Tech stack
 
@@ -250,6 +261,16 @@ titles, and lockfile consistency.
   decision (icon-name mapping and variable-option-count pickers carry real
   regression risk with no way to visually verify the result here), not an
   oversight.
+- **`GlassSurface`'s real Liquid Glass rewrite is unverified on a real
+  device** — same constraint as the bullet above, and the same
+  `RNHostView`/`matchContents` pattern (learned from that GroupedSection
+  bug) applied deliberately this time: the RN content bridged into the
+  `.glassEffect()`-modified `Group` is always `matchContents`, so it
+  shouldn't repeat the zero-height bug. What's unverified is purely
+  visual — material appearance, tint legibility, corner radius,
+  light/dark scheme — since typecheck and a real `expo export` (both
+  platforms) can confirm the module graph resolves and nothing crashes at
+  bundle time, but not what it looks like on screen.
 - **The app icon, adaptive icon, and splash image are still Expo's
   unmodified scaffold placeholders** — `assets/icon.png` and
   `assets/android-icon-*.png` are the default `create-expo-app` template
@@ -259,9 +280,16 @@ titles, and lockfile consistency.
   distribution; this is a design decision for the business, not something
   generated here.
 - No iOS Simulator/Android Emulator/physical device in this development
-  environment — verification here is `expo export`, the full unit/component
-  test suite, and the local Postgres RLS/booking-engine suite; the CI
-  workflow above produces a real device build to verify on hardware.
+  environment — verification here is `expo export`, the local Postgres
+  RLS/booking-engine suite, and (for non-visual/non-native changes) the
+  Jest suite; the CI workflow above produces a real device build to
+  verify on hardware. Visual and native-UI changes are verified on a
+  physical device directly by the project owner instead of through Jest's
+  native-view mocks, which is how the two `@expo/ui` bugs above were
+  actually found — the existing Jest suite is left in place (it still
+  covers real business logic: money math, booking status transitions,
+  RLS-adjacent hooks) and CI still runs it, but it's no longer treated as
+  proof that a UI/native change looks or behaves correctly.
 - `.maestro/` E2E flows are written but not run here for the same reason;
   the customer flow's sign-up step also assumes the Supabase project's
   "Confirm email" setting is off, since no mail-testing integration exists
