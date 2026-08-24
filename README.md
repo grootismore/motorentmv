@@ -52,10 +52,13 @@ business itself.
   photo uploads that are private to the uploading customer alone (not even
   the renting organization can see them) and persist across every future
   booking rather than being re-collected per rental.
-- **Native navigation** — both the customer and renter tab bars use Expo
-  Router's native tabs (`expo-router/unstable-native-tabs`), rendered by the
-  OS's own `UITabBarController` / Material bottom-nav, not a JS-drawn
-  imitation.
+- **Native navigation and controls** — both the customer and renter tab
+  bars use Expo Router's native tabs (`expo-router/unstable-native-tabs`),
+  rendered by the OS's own `UITabBarController` / Material bottom-nav; the
+  core content primitives (`Button`, `TextField`, the inset-grouped
+  `GroupedSection` cards used throughout) are `@expo/ui`, invoking real
+  SwiftUI (iOS) / Jetpack Compose (Android) views rather than JS Views
+  drawn to look like them.
 
 ## Tech stack
 
@@ -218,6 +221,20 @@ titles, and lockfile consistency.
 
 ## Known limitations
 
+- **The native `@expo/ui` content primitives (Button, TextField,
+  GroupedSection) are unverified on a real device or simulator** — same
+  root cause as the next bullet. They typecheck, bundle cleanly (a real
+  `expo export`), and pass the full Jest suite (native views render via
+  React Native's own generic native-view-manager mock, not the real
+  SwiftUI/Compose runtime — see `jest.setup.ts`'s `useNativeState` mock
+  for the one case that needed a project-wide fix), but their actual
+  on-screen appearance and feel have not been visually confirmed. Icons
+  remain `@expo/vector-icons` (Ionicons) rather than native SF Symbols/
+  Material Symbols, and the chip-style filter/status pickers
+  (`ChipSelect`) remain a custom control rather than a native segmented
+  control or menu — both a deliberate scope decision (icon-name mapping
+  and variable-option-count pickers carry real regression risk with no
+  way to visually verify the result here), not an oversight.
 - **The app icon, adaptive icon, and splash image are still Expo's
   unmodified scaffold placeholders** — `assets/icon.png` and
   `assets/android-icon-*.png` are the default `create-expo-app` template
