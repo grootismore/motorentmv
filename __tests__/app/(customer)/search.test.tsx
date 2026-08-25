@@ -15,19 +15,26 @@ const mockRpc = jest.fn();
 // ios-unsigned-ipa.yml (meant only for the actual build step) made every
 // test below render demo cards instead of whatever was mocked, since
 // isSupabaseConfigured was previously left undefined (falsy) here.
+// VehicleResultItem fetches a vehicle's photos unconditionally, signed in
+// or not (anon has its own narrower RLS grant for an available vehicle's
+// photos -- see VehicleResultItem's own VehiclePhoto comment), so this
+// mock needs a `documents` branch too: real photo *rendering* is this
+// suite's own concern, but the fetch itself always fires and the
+// component has to see a resolved, empty result rather than a thrown
+// "not a function" from a missing `.from()`.
 jest.mock('../../../src/lib/supabase', () => ({
   isSupabaseConfigured: true,
-  getSupabase: () => ({ rpc: (...args: unknown[]) => mockRpc(...args) }),
-}));
-
-// This suite doesn't exercise the signed-in "show the vehicle's real
-// photo" path (that's VehicleResultItem's own concern) -- session: null
-// keeps VehicleResultItem's photo fetch disabled, so this file's
-// getSupabase mock (rpc only, no .from()) doesn't need to also stand in
-// for the documents-table query that path would otherwise make.
-const mockUseAuth = jest.fn().mockReturnValue({ session: null });
-jest.mock('../../../src/features/auth/AuthProvider', () => ({
-  useAuth: () => mockUseAuth(),
+  getSupabase: () => ({
+    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => {
+      if (table === 'documents') {
+        return {
+          select: () => ({ eq: () => ({ eq: () => ({ order: () => ({ data: [], error: null }) }) }) }),
+        };
+      }
+      throw new Error(`unexpected table in test: ${table}`);
+    },
+  }),
 }));
 
 const mockSetParams = jest.fn();

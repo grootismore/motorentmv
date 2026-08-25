@@ -1,4 +1,4 @@
-import { compressImage, uploadWithRetry } from './uploads';
+import { compressImage, readFileForUpload, uploadWithRetry } from './uploads';
 
 // jest.mock calls (and their referenced `mock*`-prefixed variables) are
 // hoisted above the import above by babel-plugin-jest-hoist regardless of
@@ -19,10 +19,37 @@ jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
 }));
 
+const mockArrayBuffer = jest.fn();
+jest.mock('expo-file-system', () => ({
+  File: class MockFile {
+    uri: string;
+    constructor(uri: string) {
+      this.uri = uri;
+    }
+    arrayBuffer() {
+      return mockArrayBuffer(this.uri);
+    }
+  },
+}));
+
 const mockUpload = jest.fn();
 jest.mock('./supabase', () => ({
   getSupabase: () => ({ storage: { from: () => ({ upload: (...args: unknown[]) => mockUpload(...args) }) } }),
 }));
+
+describe('readFileForUpload', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('reads bytes via File.arrayBuffer(), never fetch(uri).then(r => r.blob())', async () => {
+    const buffer = new ArrayBuffer(8);
+    mockArrayBuffer.mockResolvedValue(buffer);
+
+    const result = await readFileForUpload('file://compressed.jpg');
+
+    expect(mockArrayBuffer).toHaveBeenCalledWith('file://compressed.jpg');
+    expect(result).toBe(buffer);
+  });
+});
 
 describe('compressImage', () => {
   beforeEach(() => {

@@ -191,7 +191,6 @@ export default function Explore() {
                     startsAt={discoveryCriteria.startsAt}
                     endsAt={discoveryCriteria.endsAt}
                     variant="hero"
-                    signedIn={Boolean(session)}
                   />
                 ))
             : null}

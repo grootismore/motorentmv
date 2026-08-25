@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../src/components/Button';
@@ -49,6 +49,7 @@ export default function ListingDetail() {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { vehicleId, startsAt, endsAt } = useLocalSearchParams<{
     vehicleId: string;
     startsAt: string;
@@ -100,7 +101,18 @@ export default function ListingDetail() {
                   <Image
                     key={photo.id}
                     source={{ uri: photo.signedUrl }}
-                    style={styles.heroImage}
+                    // An explicit pixel width, not styles.heroImage's
+                    // percentage one: inside a horizontal ScrollView the
+                    // content container sizes itself to its children, so a
+                    // child's own `width: '100%'` has no resolvable parent
+                    // width to size against and collapses toward zero --
+                    // taking this Image's aspectRatio-derived height (and
+                    // the whole hero area, and the back button absolutely
+                    // positioned over it) down with it. windowWidth also
+                    // makes each photo one full-width "page" for
+                    // pagingEnabled to swipe between, matching the single
+                    // full-width placeholder box below.
+                    style={[styles.heroImage, { width: windowWidth }]}
                     contentFit="cover"
                     accessibilityLabel={`${vehicleName} photo`}
                   />

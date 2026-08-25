@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getSupabase } from '../../lib/supabase';
-import { compressImage, uploadWithRetry } from '../../lib/uploads';
+import { compressImage, readFileForUpload, uploadWithRetry } from '../../lib/uploads';
 import type { Database } from '../../lib/database.types';
 
 export type Inspection = Database['public']['Tables']['inspections']['Row'];
@@ -157,8 +157,7 @@ export function useRecordInspection() {
       for (const photo of input.photos) {
         const compressed = await compressImage(photo.uri, photo.width, photo.height);
         const path = `${input.bookingId}/${randomFileName()}`;
-        const response = await fetch(compressed.uri);
-        const blob = await response.blob();
+        const blob = await readFileForUpload(compressed.uri);
         await uploadWithRetry({
           bucket: BOOKING_DOCUMENTS_BUCKET,
           path,

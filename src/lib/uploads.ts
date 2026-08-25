@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -59,6 +60,27 @@ export async function compressImage(
   return { uri: result.uri, contentType: 'image/jpeg' };
 }
 
+/**
+ * Reads a local file's raw bytes for upload -- via expo-file-system's
+ * `File.arrayBuffer()` (a native read straight off disk), never
+ * `fetch(uri).then(r => r.blob())`. That looks equivalent but isn't:
+ * `@supabase/storage-js`'s `upload()` only honors the caller's explicit
+ * `contentType` option when the body is *not* a `Blob` -- a `Blob` body
+ * goes through a separate branch that wraps it in `FormData` and lets the
+ * server derive Content-Type from the Blob's own `.type` instead (see
+ * `StorageFileApi.ts`'s `uploadOrUpdate`). React Native's `fetch`/`Blob`
+ * polyfill reports an empty `.type` for a local file read, and a
+ * multipart part with no declared type came back from Storage as
+ * `text/plain` -- confirmed against a real uploaded vehicle photo, whose
+ * bytes were intact but which no image loader would render because of
+ * that mislabeled Content-Type. An ArrayBuffer body takes the other
+ * branch, where the explicit `contentType` option is what actually gets
+ * sent.
+ */
+export async function readFileForUpload(uri: string): Promise<ArrayBuffer> {
+  return new File(uri).arrayBuffer();
+}
+
 interface StorageErrorShape {
   statusCode?: string;
   message?: string;
@@ -87,7 +109,7 @@ function sleep(ms: number): Promise<void> {
 export interface UploadWithRetryInput {
   bucket: string;
   path: string;
-  blob: Blob;
+  blob: Blob | ArrayBuffer;
   contentType: string;
   maxAttempts?: number;
   /** Called before each attempt, 1-indexed -- lets a caller show "Retrying (2/3)…" */

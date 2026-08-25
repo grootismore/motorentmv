@@ -10,7 +10,6 @@ import { EmptyState } from '../../../src/components/states/EmptyState';
 import { ErrorState } from '../../../src/components/states/ErrorState';
 import { Body } from '../../../src/components/Typography';
 import { useTheme } from '../../../src/design-system/ThemeProvider';
-import { useAuth } from '../../../src/features/auth/AuthProvider';
 import { DEMO_VEHICLES } from '../../../src/features/discovery/demoData';
 import { FilterBar, type FilterValues } from '../../../src/features/discovery/FilterBar';
 import { SearchForm, type SearchFormValues } from '../../../src/features/discovery/SearchForm';
@@ -52,7 +51,6 @@ function SearchResultsSkeleton() {
 export default function Search() {
   const theme = useTheme();
   const router = useRouter();
-  const { session } = useAuth();
   const params = useLocalSearchParams<{ location?: string; startsAt?: string; endsAt?: string }>();
   const [isEditing, setIsEditing] = useState(!params.startsAt || !params.endsAt);
   const [filters, setFilters] = useState<FilterValues>({ transmission: 'any', maxDailyRateLaari: 'any' });
@@ -158,12 +156,7 @@ export default function Search() {
                   onRefresh={() => results.refetch()}
                   refreshing={results.isRefetching}
                   renderItem={({ item }) => (
-                    <VehicleResultItem
-                      vehicle={item}
-                      startsAt={criteria.startsAt}
-                      endsAt={criteria.endsAt}
-                      signedIn={Boolean(session)}
-                    />
+                    <VehicleResultItem vehicle={item} startsAt={criteria.startsAt} endsAt={criteria.endsAt} />
                   )}
                 />
               ) : null}

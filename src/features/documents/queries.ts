@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getSupabase } from '../../lib/supabase';
-import { compressImage, uploadWithRetry } from '../../lib/uploads';
+import { compressImage, readFileForUpload, uploadWithRetry } from '../../lib/uploads';
 import type { Database } from '../../lib/database.types';
 
 export type MyDocument = Database['public']['Tables']['documents']['Row'] & { signedUrl: string | null };
@@ -67,8 +67,7 @@ export function useUploadMyDocument() {
       const supabase = getSupabase();
       const compressed = await compressImage(input.uri, input.width, input.height);
       const path = `${input.userId}/${randomFileName(compressed.contentType)}`;
-      const response = await fetch(compressed.uri);
-      const blob = await response.blob();
+      const blob = await readFileForUpload(compressed.uri);
 
       await uploadWithRetry({
         bucket: CUSTOMER_DOCUMENTS_BUCKET,

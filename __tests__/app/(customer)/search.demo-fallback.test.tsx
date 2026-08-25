@@ -31,13 +31,6 @@ jest.mock('expo-router', () => ({
   Link: ({ children }: PropsWithChildren) => children,
 }));
 
-// The demo-card fallback never renders VehicleResultItem's real-photo
-// path (every card here has `demo`), but Search itself still calls
-// useAuth() unconditionally.
-jest.mock('../../../src/features/auth/AuthProvider', () => ({
-  useAuth: () => ({ session: null }),
-}));
-
 let client: QueryClient;
 
 afterEach(() => {
