@@ -312,3 +312,15 @@ Deeper CI/EAS automation (a linked EAS project for real push delivery,
 TestFlight/Play internal testing) and a release-candidate pilot handoff are
 the next phases planned. See "Known limitations" above for what a pilot
 handoff still needs first, in particular real app icon/splash branding.
+
+## Documentation
+
+`docs/` has a fuller, PRD-driven documentation set: `docs/PRD.md` (product
+requirements, feature-by-feature, each tagged ✅ implemented & tested / 📱
+implemented but needing physical-device validation / 🚧 incomplete / 📋
+planned), `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `docs/specs/` (one
+spec per feature area with acceptance criteria), and
+`docs/tasks/status-board.md` (the consolidated status table). This
+README's "Known limitations" section above stays the canonical,
+always-current summary; `docs/` is the detailed, cross-referenced version
+of the same facts.
