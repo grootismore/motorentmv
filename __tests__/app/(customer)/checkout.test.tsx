@@ -164,6 +164,17 @@ function renderCheckout() {
  * is_vehicle_bookable/request_booking RPC boundary together.
  */
 describe('Checkout screen', () => {
+  // Passes locally in ~300ms (well inside Jest's 5000ms default), but
+  // timed out at exactly 5000ms in CI (see the "Build unsigned iOS
+  // device IPA" run for commit 1ac6487) with no other test in this file
+  // or suite affected -- a real render-time bug would fail consistently,
+  // not only under CI's own runner load. Explicit headroom here, same
+  // pattern this file's own retry test and
+  // __tests__/app/(renter)/bookings/[bookingId].test.tsx already use for
+  // their slower-rendering cases (via findBy*'s own `timeout` option) --
+  // this one needs it on the outer test timeout instead, since the hang
+  // (if the runner is this slow) can occur before findByTestId's own
+  // polling window even starts.
   it('shows the inline auth gate instead of the form when signed out', async () => {
     mockDiscoveryRpcs();
     mockUseAuth.mockReturnValue({ session: null, isConfigured: true });
@@ -177,7 +188,7 @@ describe('Checkout screen', () => {
     // for them too so no fetch is still in flight when this test ends
     // and the QueryClient is torn down.
     await waitFor(() => expect(mockRpc).toHaveBeenCalledTimes(3));
-  });
+  }, 10000);
 
   it('submits a booking request with the signed-in customer and navigates to the new booking', async () => {
     mockProfileSingle.mockResolvedValue({
