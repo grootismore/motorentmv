@@ -17,8 +17,18 @@ interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
 
 /**
  * Ocean Glass button treatment: flat rounded rectangles, no embossed
- * border, no convex highlight, no glow — pressed/disabled/loading states
- * are conveyed by color and opacity only, never a shadow or bevel.
+ * border, no convex highlight, no glow — pressed states are conveyed by
+ * color and opacity only, never a shadow or bevel.
+ *
+ * Disabled/loading is its own flat `theme.colors.disabled` fill with
+ * `textSecondary` content, not the variant's normal colors faded by a
+ * blanket `opacity: 0.5` — that used to be genuinely illegible for
+ * `primary`/`danger` in dark mode specifically: near-black text
+ * (`textInverse`) on a bright teal/red fill, both faded 50% over an
+ * already-dark page background, blend toward the *same* dark color
+ * instead of toward two visibly different ones. `disabled`/`textSecondary`
+ * are dedicated tokens for exactly this (muted but still legible on their
+ * own), not fades of the enabled-state colors.
  */
 export function Button({
   label,
@@ -30,6 +40,7 @@ export function Button({
 }: ButtonProps) {
   const theme = useTheme();
   const isDisabled = disabled || loading;
+  const hasContainer = variant !== 'tertiary';
 
   const palette = {
     primary: {
@@ -58,6 +69,8 @@ export function Button({
     },
   }[variant];
 
+  const foreground = isDisabled && hasContainer ? theme.colors.textSecondary : palette.fg;
+
   return (
     <Pressable
       testID={testID}
@@ -69,18 +82,23 @@ export function Button({
         styles.button,
         variant === 'tertiary' ? styles.tertiaryButton : styles.containedButton,
         {
-          backgroundColor: pressed && !isDisabled ? palette.bgPressed : palette.bg,
-          borderColor: palette.border,
+          backgroundColor:
+            isDisabled && hasContainer
+              ? theme.colors.disabled
+              : pressed && !isDisabled
+                ? palette.bgPressed
+                : palette.bg,
+          borderColor: isDisabled && hasContainer ? 'transparent' : palette.border,
           borderRadius: theme.radii.control,
-          opacity: isDisabled ? 0.5 : pressed && variant === 'tertiary' ? 0.6 : 1,
+          opacity: !hasContainer && isDisabled ? 0.5 : pressed && variant === 'tertiary' ? 0.6 : 1,
         },
       ]}
       {...pressableProps}
     >
       {loading ? (
-        <ActivityIndicator color={palette.fg} />
+        <ActivityIndicator color={foreground} />
       ) : (
-        <ButtonLabel color={palette.fg}>{label}</ButtonLabel>
+        <ButtonLabel color={foreground}>{label}</ButtonLabel>
       )}
     </Pressable>
   );

@@ -240,7 +240,12 @@ export default function ListingDetail() {
           }}
         >
           <Link href={{ pathname: '/checkout/[vehicleId]', params: { vehicleId, startsAt, endsAt } }} asChild>
-            <Button testID="listing-request-to-book" label="Request booking" disabled={!isFresh} />
+            <Button
+              testID="listing-request-to-book"
+              label="Request booking"
+              disabled={!isFresh}
+              loading={bookable.isLoading}
+            />
           </Link>
         </GlassSurface>
       </View>
