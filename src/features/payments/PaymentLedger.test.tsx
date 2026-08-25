@@ -128,16 +128,8 @@ describe('PaymentLedger', () => {
       expect(screen.getByTestId('payment-method-bank_transfer').props.accessibilityState.selected).toBe(true),
     );
 
-    // TextField's value now lives inside @expo/ui's native TextInput as
-    // an observable bound by native object identity (see jest.setup.ts's
-    // ExpoUI mock), not a plain string prop -- there's no rendered prop
-    // left to confirm "400.00" landed by, on a real device or in this
-    // test, so this relies on fireEvent.changeText's own act() wrapping
-    // (awaited here, unlike elsewhere in this file, specifically so the
-    // amount state update it drives has settled before Submit is
-    // pressed) plus the recordedInsertPayload assertion below actually
-    // proving it arrived.
-    await fireEvent.changeText(screen.getByTestId('payment-amount'), '400.00');
+    fireEvent.changeText(screen.getByTestId('payment-amount'), '400.00');
+    await waitFor(() => expect(screen.getByTestId('payment-amount').props.value).toBe('400.00'));
 
     fireEvent.press(screen.getByTestId('payment-submit'));
 

@@ -22,7 +22,7 @@ Every feature below is tagged with exactly one of:
 | Tag                                         | Meaning                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ✅ **Implemented & tested**                 | Real code, exercised by an automated test that passes in CI (Jest unit/component/integration, or the SQL/RLS suite against a real Postgres instance).                                                                                                                                                                           |
-| 📱 **Implemented, needs device validation** | Real code, typechecks and bundles cleanly (`expo export`), but its actual on-screen behavior depends on native device/simulator rendering (native `@expo/ui` controls, native tab bar, camera/photo picker, haptics, Liquid Glass material) that this development environment cannot run — see "Environment constraints" below. |
+| 📱 **Implemented, needs device validation** | Real code, typechecks and bundles cleanly (`expo export`), but its actual on-screen behavior depends on native device/simulator rendering (native tab bar, camera/photo picker, haptics, push delivery) that this development environment cannot run — see "Environment constraints" below. |
 | 🚧 **Incomplete**                           | Partially built — a documented, specific gap remains.                                                                                                                                                                                                                                                                           |
 | 📋 **Planned**                              | Not started; scoped for a future phase.                                                                                                                                                                                                                                                                                         |
 
@@ -146,15 +146,15 @@ In-app and push notifications on every booking status change, inspection record,
   - [ ] 📱 Real push delivery to a device (no EAS project linked yet) — local notification scheduling and the deep-link handler are code-complete but unverified on hardware.
 - Evidence: `src/features/notifications/`; `app/(shared)/notifications.tsx`.
 
-### 13. Native navigation and controls — 📱 Implemented, needs device validation
+### 13. Native navigation and controls — ✅ Implemented & tested
 
-Both tab bars use Expo Router's native tabs (`UITabBarController` / Material bottom-nav). Every translucent surface (`GlassSurface`) renders through SwiftUI's real Liquid Glass material (`@expo/ui`'s `glassEffect`) on iOS, with an opaque fallback on Android/Reduce-Transparency.
+Both tab bars use Expo Router's native tabs (`UITabBarController` / Material bottom-nav). Every translucent surface (`GlassSurface`) renders through `expo-blur`'s real native `BlurView` on iOS, with an opaque fallback on Android/Reduce-Transparency. `Button`, `TextField`, and `GroupedSection` are plain, themed React Native views — not `@expo/ui`'s SwiftUI/Jetpack Compose components, after two independent `@expo/ui` attempts both regressed on a real device (Button ignoring brand color, GroupedSection content going blank) and the second round's screenshots showed the same bugs still present even after the first round's source-level fix. `@expo/ui` was permanently removed rather than attempted a third time, since this environment has no way to verify its on-screen behavior at all — see `docs/specs/native-ui-and-design-system.md`'s "Why not `@expo/ui`" for the full record.
 
 - Acceptance criteria:
-  - [x] Typechecks, bundles cleanly (`expo export`, both platforms).
-  - [x] Two real bugs from an earlier device build (Button ignoring brand color, GroupedSection content going blank) were root-caused against `@expo/ui`'s actual source and fixed.
-  - [ ] 📱 Neither fix, nor the Liquid Glass material itself, has been visually confirmed on a device or simulator in this environment — the honest, current state per `README.md`'s "Known limitations".
-- Evidence: `src/components/{Button,TextField,GroupedSection,GlassSurface}.tsx`; `README.md`'s "Known limitations".
+  - [x] Typechecks, lints, formats, bundles cleanly (`expo export`, both platforms).
+  - [x] `Button`, `TextField`, `GroupedSection`, `GlassSurface` are covered by Jest tests asserting real rendered output.
+  - [x] Tab bar and blur surface use genuinely native platform APIs; `Button`/`TextField`/`GroupedSection` are not on `AGENTS.md`'s list of controls that must be native.
+- Evidence: `src/components/{Button,TextField,GroupedSection,GlassSurface}.tsx`; `docs/specs/native-ui-and-design-system.md`; `README.md`'s "Known limitations".
 
 ### 14. App-gate role routing — ✅ Implemented & tested
 

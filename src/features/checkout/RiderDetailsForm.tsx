@@ -35,6 +35,7 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
         value={values.fullName}
         onChangeText={(fullName) => onChange({ ...values, fullName })}
         autoComplete="name"
+        textContentType="name"
         errorMessage={errorMessage}
       />
       <TextField
@@ -44,6 +45,7 @@ export function RiderDetailsForm({ values, onChange, errorMessage }: RiderDetail
         onChangeText={(phone) => onChange({ ...values, phone })}
         keyboardType="phone-pad"
         autoComplete="tel"
+        textContentType="telephoneNumber"
       />
     </View>
   );

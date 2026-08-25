@@ -127,7 +127,7 @@ function CheckoutForm({
       <DocumentsSection userId={customerId} />
 
       {quote ? (
-        <GroupedSection title="Price breakdown">
+        <GroupedSection title="Price breakdown" tone="strong">
           <QuotePanel quote={quote} frozen={false} />
         </GroupedSection>
       ) : null}

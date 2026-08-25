@@ -52,24 +52,9 @@ business itself.
   photo uploads that are private to the uploading customer alone (not even
   the renting organization can see them) and persist across every future
   booking rather than being re-collected per rental.
-- **Native navigation and controls** — both the customer and renter tab
-  bars use Expo Router's native tabs (`expo-router/unstable-native-tabs`),
-  rendered by the OS's own `UITabBarController` / Material bottom-nav; the
-  core content primitives (`Button`, `TextField`, the inset-grouped
-  `GroupedSection` cards used throughout) are `@expo/ui`, invoking real
-  SwiftUI (iOS) / Jetpack Compose (Android) views rather than JS Views
-  drawn to look like them.
-- **Real Liquid Glass, everywhere a card or panel appears** — every
-  translucent surface in the app (`GlassSurface`: search panels, KPI
-  tiles, result cards, the grouped-section backing) renders through
-  SwiftUI's real `.glassEffect()` material on iOS (`@expo/ui`'s
-  `GlassEffectContainer`/`glassEffect` modifier), not a `BlurView` tinted
-  to approximate one — `expo-blur` has been removed from the project
-  entirely. Android and iOS with Reduce Transparency on fall back to a
-  flat, opaque token surface: Android has no equivalent native glass
-  material to reach for (forcing the iOS material there would itself
-  break AGENTS.md's "don't force iOS visual behavior onto Android" rule),
-  and Reduce Transparency is the user asking iOS itself for that fallback.
+- **Native navigation** — both the customer and renter tab bars use Expo
+  Router's native tabs (`expo-router/unstable-native-tabs`), rendered by
+  the OS's own `UITabBarController` / Material bottom-nav.
 
 ## Tech stack
 
@@ -232,45 +217,30 @@ titles, and lockfile consistency.
 
 ## Known limitations
 
-- **The native `@expo/ui` content primitives (Button, TextField,
-  GroupedSection) are only partly verified on a real device** — a device
-  build once surfaced two real bugs neither typecheck nor the Jest suite
-  could catch (both native views render via React Native's own generic
-  native-view-manager mock under Jest, not the real SwiftUI/Compose
-  runtime): `Button`'s `style.backgroundColor` never painted a
-  `.borderedProminent`/`.bordered` button's own chrome, which is drawn by
-  the button style itself, not a background layered behind it — every
-  button showed the system default blue regardless of variant, fixed by
-  also setting SwiftUI's `.tint()` modifier (iOS only; `@expo/ui`'s
-  Universal Android `Button` has no color prop to reach for at all, so
-  Android buttons still render in the Compose theme's default color).
-  `GroupedSection`'s `RNHostView` bridge (arbitrary RN content nested
-  inside `FieldGroup.Section`) defaulted to sizing itself off the parent
-  SwiftUI row rather than its own RN content, which a `Section` row has no
-  defined height to hand down — every row rendered at zero height,
-  present but invisible (the vehicle photo, dates, and price breakdown
-  going blank on checkout/listing). Fixed with `matchContents` on that
-  `RNHostView`. Both fixes are traced to root cause in `@expo/ui`'s own
-  source and applied per its documented modifier API, but — like the rest
-  of this bullet — still unverified beyond `expo export` and Jest, since
-  there's no simulator/device in this environment to visually confirm
-  either fix landed correctly. Icons remain `@expo/vector-icons`
-  (Ionicons) rather than native SF Symbols/Material Symbols, and the
-  chip-style filter/status pickers (`ChipSelect`) remain a custom control
-  rather than a native segmented control or menu — both a deliberate scope
-  decision (icon-name mapping and variable-option-count pickers carry real
-  regression risk with no way to visually verify the result here), not an
-  oversight.
-- **`GlassSurface`'s real Liquid Glass rewrite is unverified on a real
-  device** — same constraint as the bullet above, and the same
-  `RNHostView`/`matchContents` pattern (learned from that GroupedSection
-  bug) applied deliberately this time: the RN content bridged into the
-  `.glassEffect()`-modified `Group` is always `matchContents`, so it
-  shouldn't repeat the zero-height bug. What's unverified is purely
-  visual — material appearance, tint legibility, corner radius,
-  light/dark scheme — since typecheck and a real `expo export` (both
-  platforms) can confirm the module graph resolves and nothing crashes at
-  bundle time, but not what it looks like on screen.
+- **Button, TextField, GroupedSection, and GlassSurface are custom-styled
+  React Native/`expo-blur` views, not `@expo/ui`'s native SwiftUI/Jetpack
+  Compose components or its Liquid Glass material** — an `@expo/ui`-backed
+  device build was tried twice, and both times regressed real content the
+  same way: `@expo/ui`'s `Button` ignored the app's brand color entirely
+  (rendering the platform's default system blue instead), and content
+  nested inside its `FieldGroup` (the vehicle photo, the dates and price
+  breakdown on the checkout/listing screens) silently failed to render at
+  all — a gap the Jest suite's native-view mock couldn't have caught, since
+  it never exercises the real SwiftUI/Compose runtime. The first round was
+  root-caused and fixed at the source level; the second round's device
+  screenshots showed the identical bugs still present. With no Swift
+  toolchain, Xcode, or Simulator in this environment to verify `@expo/ui`'s
+  actual on-screen behavior at all, `@expo/ui` was permanently removed
+  rather than attempted a third time — see
+  `docs/specs/native-ui-and-design-system.md`'s "Why not `@expo/ui`" for
+  the full record. This doesn't affect the tab bar below (genuinely
+  native, unaffected by any of this) or `GlassSurface`'s blur (still a real
+  native `BlurView`, just not SwiftUI's newer Liquid Glass material) —
+  neither a themed button, a plain inset card, nor a blur panel is on
+  AGENTS.md's own list of controls that must be native. Icons remain
+  `@expo/vector-icons` (Ionicons) rather than native SF Symbols/Material
+  Symbols, and the chip-style filter/status pickers (`ChipSelect`) remain a
+  custom control rather than a native segmented control or menu.
 - **The app icon, adaptive icon, and splash image are still Expo's
   unmodified scaffold placeholders** — `assets/icon.png` and
   `assets/android-icon-*.png` are the default `create-expo-app` template
@@ -280,16 +250,9 @@ titles, and lockfile consistency.
   distribution; this is a design decision for the business, not something
   generated here.
 - No iOS Simulator/Android Emulator/physical device in this development
-  environment — verification here is `expo export`, the local Postgres
-  RLS/booking-engine suite, and (for non-visual/non-native changes) the
-  Jest suite; the CI workflow above produces a real device build to
-  verify on hardware. Visual and native-UI changes are verified on a
-  physical device directly by the project owner instead of through Jest's
-  native-view mocks, which is how the two `@expo/ui` bugs above were
-  actually found — the existing Jest suite is left in place (it still
-  covers real business logic: money math, booking status transitions,
-  RLS-adjacent hooks) and CI still runs it, but it's no longer treated as
-  proof that a UI/native change looks or behaves correctly.
+  environment — verification here is `expo export`, the full unit/component
+  test suite, and the local Postgres RLS/booking-engine suite; the CI
+  workflow above produces a real device build to verify on hardware.
 - `.maestro/` E2E flows are written but not run here for the same reason;
   the customer flow's sign-up step also assumes the Supabase project's
   "Confirm email" setting is off, since no mail-testing integration exists

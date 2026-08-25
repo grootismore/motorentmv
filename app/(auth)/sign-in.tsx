@@ -107,6 +107,7 @@ export default function SignIn() {
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
+          textContentType="emailAddress"
           placeholder="you@example.com"
           editable={!isSubmitting}
         />
@@ -118,6 +119,7 @@ export default function SignIn() {
           secureTextEntry
           autoCapitalize="none"
           autoComplete={mode === 'sign_up' ? 'new-password' : 'password'}
+          textContentType={mode === 'sign_up' ? 'newPassword' : 'password'}
           placeholder="••••••••"
           editable={!isSubmitting}
         />
@@ -130,6 +132,7 @@ export default function SignIn() {
             secureTextEntry
             autoCapitalize="none"
             autoComplete="new-password"
+            textContentType="newPassword"
             placeholder="••••••••"
             editable={!isSubmitting}
           />

@@ -1,5 +1,4 @@
-import { GlassEffectContainer, Group, Host, RNHostView } from '@expo/ui/swift-ui';
-import { glassEffect } from '@expo/ui/swift-ui/modifiers';
+import { BlurView } from 'expo-blur';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTheme, useReduceTransparency } from '../design-system/ThemeProvider';
@@ -14,28 +13,24 @@ interface GlassSurfaceProps {
 }
 
 /**
- * The one place in the app that renders a translucent surface. Every "glass
- * panel" in the app — search panels, KPI tiles, grouped sections, result
- * cards — renders through this component rather than each screen reaching
- * for a blur/material API directly.
+ * The one place in the app that renders a blurred/translucent surface.
+ * Every "flat glass panel" in the Ocean Glass reference — search panels,
+ * KPI tiles, grouped sections, the floating tab bar — renders through
+ * this component rather than each screen reaching for BlurView directly.
  *
- * iOS: real Liquid Glass (SwiftUI's `.glassEffect()`, @expo/ui's
- * `glassEffect` modifier on a native `Group`) wrapping the RN content via
- * `RNHostView`, not a BlurView tinted to approximate one — AGENTS.md's
- * native-first rule calls out exactly that substitution. `RNHostView` is
- * always `matchContents`: its default sizes it to the *parent* SwiftUI
- * view instead of the RN content it's hosting, and there is no parent
- * size to inherit here (this is the seam between the two trees, same
- * lesson as GroupedSection's own `RNHostView`) — every card would render
- * at zero height without it.
+ * iOS: a real blur (BlurView) with a thin token-colored tint layered on
+ * top, so the frosted panel always resolves to the same glassSurface/
+ * glassSurfaceStrong color regardless of what's behind it.
  *
- * Android and iOS with Reduce Transparency on: no native glass material
- * exists on Android (forcing iOS's Liquid Glass there would be exactly
- * the "force iOS visual behavior onto Android" AGENTS.md rules out), and
- * Reduce Transparency asks iOS itself to stop showing translucency — both
- * fall back to the same flat, opaque token surface, with an explicit
- * hairline border a real material supplies for itself and this fallback
- * doesn't.
+ * Android: expo-blur's blur is off by default there (BlurMethod defaults
+ * to 'none', and the opt-in native blur methods are explicitly documented
+ * as "may lead to decreased performance" — see expo-blur's own types) and
+ * visually inconsistent across OEM skins. Rather than fight that, Android
+ * always renders the flat opaque/semi-opaque fallback: same border,
+ * radius, spacing and color token, no blur. This is also what iOS uses
+ * when the user has Reduce Transparency on (useReduceTransparency),
+ * satisfying the "Increased Contrast compatibility" requirement without
+ * a second code path.
  */
 export function GlassSurface({ tone = 'default', style, children, testID }: GlassSurfaceProps) {
   const theme = useTheme();
@@ -43,52 +38,40 @@ export function GlassSurface({ tone = 'default', style, children, testID }: Glas
 
   const baseStyle: ViewStyle = {
     borderRadius: theme.radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.glassBorder,
     overflow: 'hidden',
   };
 
-  const useNativeGlass = Platform.OS === 'ios' && !reduceTransparency;
+  const useBlur = Platform.OS === 'ios' && !reduceTransparency;
 
-  if (!useNativeGlass) {
+  // No blur exists on this path (Android, or Reduce Transparency on iOS) —
+  // the panel has to read as a surface entirely on its own, so it uses the
+  // higher-opacity fallback tokens.
+  if (!useBlur) {
     const backgroundColor = tone === 'strong' ? theme.colors.glassSurfaceStrong : theme.colors.glassSurface;
     return (
-      <View
-        testID={testID}
-        style={[
-          baseStyle,
-          { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.glassBorder, backgroundColor },
-          style,
-        ]}
-      >
+      <View testID={testID} style={[baseStyle, { backgroundColor }, style]}>
         {children}
       </View>
     );
   }
 
-  // Liquid Glass tinted with the app's own accent, at low opacity so the
-  // material itself still reads through — the same distinction `tone` drew
-  // between BlurView intensities before, now drawn with a tint instead
-  // (`.glassEffect()` has no intensity parameter of its own).
+  // A real BlurView is rendering underneath, so the overlay only needs to
+  // tint it — the low-opacity glassTint/glassTintStrong tokens, not the
+  // opaque fallback tokens above (reusing those was the bug: it hid the
+  // blur almost entirely).
   const tintColor = tone === 'strong' ? theme.colors.glassTintStrong : theme.colors.glassTint;
 
   return (
-    <Host matchContents={{ vertical: true }} style={{ width: '100%' }}>
-      <GlassEffectContainer>
-        <Group
-          modifiers={[
-            glassEffect({
-              glass: { variant: 'regular', tint: tintColor },
-              shape: 'roundedRectangle',
-              cornerRadius: theme.radii.card,
-            }),
-          ]}
-        >
-          <RNHostView matchContents>
-            <View testID={testID} style={style}>
-              {children}
-            </View>
-          </RNHostView>
-        </Group>
-      </GlassEffectContainer>
-    </Host>
+    <View testID={testID} style={[baseStyle, style]}>
+      <BlurView
+        tint={theme.scheme === 'dark' ? 'dark' : 'light'}
+        intensity={tone === 'strong' ? 70 : 40}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: tintColor }]} />
+      {children}
+    </View>
   );
 }
