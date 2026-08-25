@@ -52,51 +52,25 @@ function deriveExistingTime(iso: string): { date: string; time: string } {
   };
 }
 
-function DateTimeField({
+function DateTimeTrigger({
   label,
   valueUtc,
-  onChangeUtc,
+  onPress,
   testID,
 }: {
   label: string;
   valueUtc: string;
-  onChangeUtc: (nextUtc: string) => void;
+  onPress: () => void;
   testID: string;
 }) {
   const theme = useTheme();
-  const [iosStep, setIosStep] = useState<'closed' | 'date' | 'time'>('closed');
-  const value = new Date(valueUtc);
-
-  const openPicker = () => {
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value,
-        mode: 'date',
-        onChange: (_event, pickedDate) => {
-          if (!pickedDate) return;
-          const afterDate = withPickedDate(valueUtc, pickedDate);
-          DateTimePickerAndroid.open({
-            value: new Date(afterDate),
-            mode: 'time',
-            is24Hour: false,
-            onChange: (_e, pickedTime) => {
-              if (!pickedTime) return;
-              onChangeUtc(withPickedTime(afterDate, pickedTime));
-            },
-          });
-        },
-      });
-    } else {
-      setIosStep('date');
-    }
-  };
 
   return (
     <View style={{ flex: 1 }}>
       <Label style={{ marginBottom: theme.spacing.xs }}>{label}</Label>
       <Pressable
         testID={testID}
-        onPress={openPicker}
+        onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${formatMaldivesDateShort(valueUtc)}, ${formatMaldivesTime12h(valueUtc)}`}
         style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
@@ -106,34 +80,11 @@ function DateTimeField({
           <Body>{formatMaldivesTime12h(valueUtc)}</Body>
         </GlassSurface>
       </Pressable>
-
-      {Platform.OS === 'ios' && iosStep === 'date' ? (
-        <DateTimePicker
-          testID={`${testID}-date-picker`}
-          value={value}
-          mode="date"
-          display="inline"
-          onValueChange={(_event, picked) => {
-            onChangeUtc(withPickedDate(valueUtc, picked));
-            setIosStep('time');
-          }}
-        />
-      ) : null}
-      {Platform.OS === 'ios' && iosStep === 'time' ? (
-        <DateTimePicker
-          testID={`${testID}-time-picker`}
-          value={value}
-          mode="time"
-          display="spinner"
-          onValueChange={(_event, picked) => {
-            onChangeUtc(withPickedTime(valueUtc, picked));
-            setIosStep('closed');
-          }}
-        />
-      ) : null}
     </View>
   );
 }
+
+type FieldKey = 'starts' | 'ends';
 
 /**
  * Replaces free-text "YYYY-MM-DD HH:mm" pickup/return fields with a real
@@ -144,6 +95,15 @@ function DateTimeField({
  * from typing digits to picking them off a wheel; see withPickedDate/
  * withPickedTime above for how a picker's wall-clock digits are
  * re-interpreted as Maldives-local, same as the text field always did.
+ *
+ * The pick-up and return triggers sit side by side at half width each, but
+ * the picker they open never does: iOS's inline calendar (`display=
+ * "inline"`) renders at its own fixed native width regardless of the
+ * parent's flex constraint, so two of them squeezed into half-width
+ * columns overlapped each other's day grid instead of shrinking to fit.
+ * Only one field's picker is ever open at a time (lifted here, not local
+ * to each field), and it renders full width below both triggers rather
+ * than nested inside either half-width column.
  */
 export function DateRangeSelector({
   startsAtUtc,
@@ -152,21 +112,85 @@ export function DateRangeSelector({
   testIDPrefix,
 }: DateRangeSelectorProps) {
   const theme = useTheme();
+  const [active, setActive] = useState<{ field: FieldKey; step: 'date' | 'time' } | null>(null);
+
+  const values: Record<FieldKey, string> = { starts: startsAtUtc, ends: endsAtUtc };
+
+  const commit = (field: FieldKey, nextUtc: string) => {
+    onChange(field === 'starts' ? { startsAtUtc: nextUtc, endsAtUtc } : { startsAtUtc, endsAtUtc: nextUtc });
+  };
+
+  const openField = (field: FieldKey) => {
+    const valueUtc = values[field];
+
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: new Date(valueUtc),
+        mode: 'date',
+        onChange: (_event, pickedDate) => {
+          if (!pickedDate) return;
+          const afterDate = withPickedDate(valueUtc, pickedDate);
+          DateTimePickerAndroid.open({
+            value: new Date(afterDate),
+            mode: 'time',
+            is24Hour: false,
+            onChange: (_e, pickedTime) => {
+              if (!pickedTime) return;
+              commit(field, withPickedTime(afterDate, pickedTime));
+            },
+          });
+        },
+      });
+    } else {
+      setActive({ field, step: 'date' });
+    }
+  };
+
+  const activeValueUtc = active ? values[active.field] : null;
+  const activeTestID = active ? `${testIDPrefix}-${active.field}` : null;
 
   return (
-    <View style={{ flexDirection: 'row', gap: theme.spacing.md }} testID={`${testIDPrefix}-date-range`}>
-      <DateTimeField
-        label="Pick-up"
-        valueUtc={startsAtUtc}
-        onChangeUtc={(nextStart) => onChange({ startsAtUtc: nextStart, endsAtUtc })}
-        testID={`${testIDPrefix}-starts`}
-      />
-      <DateTimeField
-        label="Return"
-        valueUtc={endsAtUtc}
-        onChangeUtc={(nextEnd) => onChange({ startsAtUtc, endsAtUtc: nextEnd })}
-        testID={`${testIDPrefix}-ends`}
-      />
+    <View testID={`${testIDPrefix}-date-range`}>
+      <View style={{ flexDirection: 'row', gap: theme.spacing.md }}>
+        <DateTimeTrigger
+          label="Pick-up"
+          valueUtc={startsAtUtc}
+          onPress={() => openField('starts')}
+          testID={`${testIDPrefix}-starts`}
+        />
+        <DateTimeTrigger
+          label="Return"
+          valueUtc={endsAtUtc}
+          onPress={() => openField('ends')}
+          testID={`${testIDPrefix}-ends`}
+        />
+      </View>
+
+      {Platform.OS === 'ios' && active && activeValueUtc && activeTestID ? (
+        active.step === 'date' ? (
+          <DateTimePicker
+            testID={`${activeTestID}-date-picker`}
+            value={new Date(activeValueUtc)}
+            mode="date"
+            display="inline"
+            onValueChange={(_event, picked) => {
+              commit(active.field, withPickedDate(activeValueUtc, picked));
+              setActive({ field: active.field, step: 'time' });
+            }}
+          />
+        ) : (
+          <DateTimePicker
+            testID={`${activeTestID}-time-picker`}
+            value={new Date(activeValueUtc)}
+            mode="time"
+            display="spinner"
+            onValueChange={(_event, picked) => {
+              commit(active.field, withPickedTime(activeValueUtc, picked));
+              setActive(null);
+            }}
+          />
+        )
+      ) : null}
     </View>
   );
 }
