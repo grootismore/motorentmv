@@ -80,7 +80,7 @@ and its `react-native-worklets` peer dependency were removed from the
 project entirely, and `Button`/`TextField`/`GroupedSection`/`GlassSurface`
 were reverted to the plain React Native implementations that predate the
 `@expo/ui` experiment — implementations whose correctness this
-environment *can* fully verify (Jest renders and asserts their real
+environment _can_ fully verify (Jest renders and asserts their real
 output; there's no native runtime step where a fix can silently fail to
 apply). This is a permanent decision, not a "try again later": the tab bar
 (genuinely native, unaffected by any of this) is the one native-first

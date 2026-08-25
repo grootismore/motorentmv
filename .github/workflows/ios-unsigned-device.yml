@@ -77,17 +77,22 @@ jobs:
     # cache), which comfortably exceeds the 60 minutes this used to allow.
     timeout-minutes: 90
     steps:
-      # NOTE ON ACTION PINS: these use exact patch-version tags
-      # (checkout@v4.2.2, setup-node@v4.1.0, upload-artifact@v4.4.3), not
-      # floating major tags -- but this session could not resolve those
-      # tags to immutable commit SHAs (GitHub API access here is scoped to
-      # this repository only, so actions/checkout, actions/setup-node, and
-      # actions/upload-artifact could not be queried). Replace the `@vX.Y.Z`
-      # refs below with `@<full-commit-sha>` when you have a chance to
-      # resolve them (e.g. `gh api repos/actions/checkout/git/refs/tags/v4.2.2`),
-      # if literal SHA pinning is a hard requirement.
+      # NOTE ON ACTION PINS: pinned to full immutable commit SHAs (not
+      # floating major/minor tags), each resolved from the action's own
+      # public tag ref (`git ls-remote --tags <repo>`) and cross-checked
+      # against its action.yml at that tag, not guessed. Bumped from
+      # checkout@v4.2.2 / setup-node@v4.1.0 / upload-artifact@v4.4.3 --
+      # those v4.x releases still declare `using: node20` in their
+      # action.yml, which is what was producing this job's "Node 20 is
+      # being deprecated" warning on every run (a GitHub Actions runtime
+      # notice, unrelated to this project's own Node 22 requirement below).
+      # All three latest majors (checkout v7, setup-node v7, upload-artifact
+      # v7) declare `using: node24` and keep every input this workflow
+      # already relies on (repository/ref defaults for checkout;
+      # node-version/cache for setup-node; name/path/if-no-files-found/
+      # retention-days for upload-artifact) unchanged.
       - name: Check out repository
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Two real failed runs drove the shape of this step (see the prior
       # ios-unsigned-ipa.yml's git history for the exact failures):
@@ -158,7 +163,7 @@ jobs:
           echo "swift_version=$SWIFT_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4.1.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # 22, not 20: `.npmrc` sets engine-strict=true and
           # @supabase/auth-js (pulled in transitively by
@@ -294,7 +299,7 @@ jobs:
           echo "Signing state: UNSIGNED (must be re-signed by Sideloadly/AltStore/SideStore before install)"
 
       - name: Upload unsigned IPA artifact
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.meta.outputs.artifact_name }}
           path: ${{ steps.build.outputs.ipa_path }}
