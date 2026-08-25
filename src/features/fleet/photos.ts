@@ -149,6 +149,11 @@ export function useUploadVehiclePhoto() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-photos', variables.vehicleId] });
+      // Partial key match -- invalidates every useVehicleCoverPhotos query
+      // regardless of which vehicle-id set it was fetched for, so the
+      // Fleet list picks up a vehicle's first photo (or a new cover once
+      // its current one is deleted below) without a manual pull-to-refresh.
+      queryClient.invalidateQueries({ queryKey: ['vehicle-cover-photos'] });
     },
   });
 }
@@ -167,6 +172,7 @@ export function useDeleteVehiclePhoto(vehicleId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle-photos', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-cover-photos'] });
     },
   });
 }

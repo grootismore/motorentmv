@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../../src/components/Button';
 import { GlassSurface } from '../../../src/components/GlassSurface';
@@ -48,6 +48,7 @@ function FeatureChip({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; la
 export default function ListingDetail() {
   const theme = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { vehicleId, startsAt, endsAt } = useLocalSearchParams<{
     vehicleId: string;
     startsAt: string;
@@ -206,7 +207,14 @@ export default function ListingDetail() {
         </View>
       </ScrollView>
 
-      {/* Flat sticky action bar — never a bulky/inflated button. */}
+      {/* Flat sticky action bar — never a bulky/inflated button. Bottom
+          clearance is the device's real safe-area inset (the home
+          indicator on iPhones with no physical Home button, the gesture
+          bar on Android) plus ordinary breathing room, not a guessed
+          constant — this bar sits outside the SafeAreaView's own bottom
+          edge (edges omits 'bottom' above) precisely so it can extend
+          under the status/home-indicator area, so it has to account for
+          that inset itself. */}
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <GlassSurface
           tone="strong"
@@ -216,7 +224,7 @@ export default function ListingDetail() {
             borderRightWidth: 0,
             borderBottomWidth: 0,
             padding: theme.spacing.lg,
-            paddingBottom: theme.spacing.xxl,
+            paddingBottom: insets.bottom + theme.spacing.lg,
           }}
         >
           <Link href={{ pathname: '/checkout/[vehicleId]', params: { vehicleId, startsAt, endsAt } }} asChild>
