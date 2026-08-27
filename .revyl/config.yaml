@@ -1,0 +1,17 @@
+project:
+    id: 73242e2d-dcd1-4adc-a87d-07ecc230cccc
+session:
+    idle_timeout_seconds: 1800
+build:
+    framework: expo
+    profiles:
+        development:
+            ios:
+                app_id: 5fc3826a-9654-48e3-82d5-316d502993e1
+                build_commands:
+                    - npx --yes eas-cli build --platform ios --profile development-simulator --local --output build/app.tar.gz
+                output_path: build/app.tar.gz
+            android:
+                build_commands:
+                    - npx --yes eas-cli build --platform android --profile development --local --output build/app.apk
+                output_path: build/app.apk
