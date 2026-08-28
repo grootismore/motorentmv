@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, View, type AlertButton } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View, type AlertButton } from 'react-native';
 
 import { Button } from '../../../../src/components/Button';
 import { ChipSelect } from '../../../../src/components/ChipSelect';
@@ -212,7 +212,13 @@ export default function Fleet() {
                   {coverPhotos.data?.[item.id] ? (
                     <Image
                       source={{ uri: coverPhotos.data[item.id] }}
-                      style={{ width: 56, height: 56, borderRadius: theme.radii.control }}
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: theme.radii.control,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: theme.colors.imageOutline,
+                      }}
                       contentFit="cover"
                       accessibilityLabel={`${vehicleLabel(item)} photo`}
                     />

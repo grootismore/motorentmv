@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { Caption, SecondaryBody, SectionTitle } from '../../components/Typography';
@@ -78,7 +78,14 @@ export function InspectionSummary({
               <Image
                 key={photo.id}
                 source={{ uri: photo.signedUrl }}
-                style={{ width: 100, height: 100, borderRadius: 8, marginEnd: theme.spacing.sm }}
+                style={{
+                  width: 100,
+                  height: 100,
+                  borderRadius: 8,
+                  marginEnd: theme.spacing.sm,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: theme.colors.imageOutline,
+                }}
                 contentFit="cover"
                 accessibilityLabel={`${label} inspection photo`}
               />

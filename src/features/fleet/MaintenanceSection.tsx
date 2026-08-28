@@ -169,7 +169,7 @@ export function MaintenanceSection({
         >
           <View style={{ flex: 1 }}>
             <Body style={{ fontWeight: '600' }}>{record.description}</Body>
-            <Caption>
+            <Caption style={{ fontVariant: ['tabular-nums'] }}>
               {formatMaldivesDate(`${record.performed_on}T00:00:00Z`)}
               {record.odometer_km_at_service !== null
                 ? ` · ${record.odometer_km_at_service.toLocaleString()} km`

@@ -42,6 +42,7 @@ export function ChipSelect<T extends string>({
                   borderColor: selected ? theme.colors.lagoonPrimary : theme.colors.glassBorder,
                   borderRadius: theme.radii.full,
                   opacity: pressed ? 0.85 : 1,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
                 },
               ]}
             >

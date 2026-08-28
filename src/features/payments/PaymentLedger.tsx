@@ -117,15 +117,20 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
 
       <GlassSurface tone="strong" style={{ padding: theme.spacing.md, gap: theme.spacing.xs }}>
         <View testID="payment-ledger-summary" style={{ gap: theme.spacing.xs }}>
-          <Caption>Paid: {formatMvr(totalPaid)}</Caption>
-          {totalRefunded > 0 ? <Caption>Refunded: {formatMvr(totalRefunded)}</Caption> : null}
+          <Caption style={{ fontVariant: ['tabular-nums'] }}>Paid: {formatMvr(totalPaid)}</Caption>
+          {totalRefunded > 0 ? (
+            <Caption style={{ fontVariant: ['tabular-nums'] }}>Refunded: {formatMvr(totalRefunded)}</Caption>
+          ) : null}
           {balanceDue != null ? (
-            <Body style={{ fontWeight: '600' }}>Balance due: {formatMvr(Math.max(balanceDue, 0))}</Body>
+            <Body style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+              Balance due: {formatMvr(Math.max(balanceDue, 0))}
+            </Body>
           ) : null}
           {depositAmount > 0 ? (
             <Caption
               testID="payment-ledger-deposit-status"
               color={depositPaid ? theme.colors.success : theme.colors.destructive}
+              style={{ fontVariant: ['tabular-nums'] }}
             >
               Deposit ({formatMvr(depositAmount)}):{' '}
               {depositPaid ? 'Paid' : 'Not yet paid — required before handover'}
@@ -138,7 +143,7 @@ export function PaymentLedger({ bookingId, organizationId, viewerRole }: Payment
         <View style={{ gap: theme.spacing.xs }} testID="payment-ledger-list">
           {transactions.data.map((t) => (
             <View key={t.id}>
-              <Body>
+              <Body style={{ fontVariant: ['tabular-nums'] }}>
                 {TYPE_LABEL[t.type]}: {formatMvr(t.amount_laari)}
                 {t.method ? ` (${METHOD_LABEL[t.method]})` : ''}
               </Body>

@@ -154,19 +154,29 @@ export default function FinanceReports() {
             <GroupedRow testID="reports-income-row">
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Body>Income</Body>
-                <Body style={{ fontWeight: '600' }}>{formatMvr(report.data.incomeLaari)}</Body>
+                <Body style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+                  {formatMvr(report.data.incomeLaari)}
+                </Body>
               </View>
             </GroupedRow>
             <GroupedRow testID="reports-expenses-row">
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Body>Expenses</Body>
-                <Body style={{ fontWeight: '600' }}>{formatMvr(report.data.expensesLaari)}</Body>
+                <Body style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+                  {formatMvr(report.data.expensesLaari)}
+                </Body>
               </View>
             </GroupedRow>
             <GroupedRow testID="reports-net-row" isLast>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Body>Net profit</Body>
-                <Body style={{ fontWeight: '700', color: theme.colors.lagoonPrimary }}>
+                <Body
+                  style={{
+                    fontWeight: '700',
+                    color: theme.colors.lagoonPrimary,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
                   {formatMvr(report.data.netProfitLaari)}
                 </Body>
               </View>
@@ -184,7 +194,9 @@ export default function FinanceReports() {
                   <GroupedRow testID="reports-booking-payments-row">
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Body>Booking payments</Body>
-                      <Body>{formatMvr(report.data.incomeBySource.bookingPaymentsLaari)}</Body>
+                      <Body style={{ fontVariant: ['tabular-nums'] }}>
+                        {formatMvr(report.data.incomeBySource.bookingPaymentsLaari)}
+                      </Body>
                     </View>
                   </GroupedRow>
                 ) : null}
@@ -192,7 +204,9 @@ export default function FinanceReports() {
                   <GroupedRow testID="reports-refunds-row">
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Body>Refunds</Body>
-                      <Body>-{formatMvr(report.data.incomeBySource.refundsLaari)}</Body>
+                      <Body style={{ fontVariant: ['tabular-nums'] }}>
+                        -{formatMvr(report.data.incomeBySource.refundsLaari)}
+                      </Body>
                     </View>
                   </GroupedRow>
                 ) : null}
@@ -204,7 +218,7 @@ export default function FinanceReports() {
                   >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Body>{entry.category}</Body>
-                      <Body>{formatMvr(entry.amountLaari)}</Body>
+                      <Body style={{ fontVariant: ['tabular-nums'] }}>{formatMvr(entry.amountLaari)}</Body>
                     </View>
                   </GroupedRow>
                 ))}
@@ -225,7 +239,7 @@ export default function FinanceReports() {
                   >
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                       <Body>{entry.category}</Body>
-                      <Body>{formatMvr(entry.amountLaari)}</Body>
+                      <Body style={{ fontVariant: ['tabular-nums'] }}>{formatMvr(entry.amountLaari)}</Body>
                     </View>
                   </GroupedRow>
                 ))}

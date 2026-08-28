@@ -50,7 +50,7 @@ export function BookingListItem({ booking, demo = false }: BookingListItemProps)
           {formatMaldivesDateTime(booking.starts_at)} → {formatMaldivesDateTime(booking.ends_at)}
         </Caption>
         {booking.total_amount_laari !== null ? (
-          <Caption>{formatMvr(booking.total_amount_laari)}</Caption>
+          <Caption style={{ fontVariant: ['tabular-nums'] }}>{formatMvr(booking.total_amount_laari)}</Caption>
         ) : null}
       </View>
       <StatusBadge label={status.label} tone={status.tone} />

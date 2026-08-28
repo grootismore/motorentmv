@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
 import { Button } from '../../components/Button';
 import { GroupedRow, GroupedSection } from '../../components/GroupedSection';
@@ -116,7 +116,13 @@ export function DocumentsSection({ userId }: DocumentsSectionProps) {
                           {document.signedUrl ? (
                             <Image
                               source={{ uri: document.signedUrl }}
-                              style={{ width: 56, height: 56, borderRadius: theme.radii.control }}
+                              style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: theme.radii.control,
+                                borderWidth: StyleSheet.hairlineWidth,
+                                borderColor: theme.colors.imageOutline,
+                              }}
                               contentFit="cover"
                               accessibilityLabel={`${DOCUMENT_TYPE_LABEL[documentType]} photo`}
                             />

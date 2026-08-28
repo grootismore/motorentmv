@@ -95,7 +95,10 @@ export function PhotosSection({ vehicleId, organizationId }: PhotosSectionProps)
               {photo.signedUrl ? (
                 <Image
                   source={{ uri: photo.signedUrl }}
-                  style={styles.photo}
+                  style={[
+                    styles.photo,
+                    { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.imageOutline },
+                  ]}
                   contentFit="cover"
                   accessibilityLabel="Vehicle photo"
                 />

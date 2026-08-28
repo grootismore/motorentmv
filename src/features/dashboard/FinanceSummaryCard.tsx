@@ -16,7 +16,7 @@ function ChangeBadge({ percent }: { percent: number | null }) {
   const color = isFlat ? theme.colors.textTertiary : isUp ? theme.colors.success : theme.colors.destructive;
   const sign = isFlat ? '' : isUp ? '+' : '';
   return (
-    <Caption style={{ color, fontWeight: '600' }}>
+    <Caption style={{ color, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
       {sign}
       {percent}% vs last month
     </Caption>
@@ -44,7 +44,9 @@ function FinanceRow({
           <Body>{label}</Body>
           <ChangeBadge percent={changePercent} />
         </View>
-        <Body style={{ fontWeight: '700', color: theme.colors.textPrimary }}>{formatMvr(amountLaari)}</Body>
+        <Body style={{ fontWeight: '700', color: theme.colors.textPrimary, fontVariant: ['tabular-nums'] }}>
+          {formatMvr(amountLaari)}
+        </Body>
       </View>
     </GroupedRow>
   );

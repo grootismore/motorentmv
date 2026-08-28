@@ -73,7 +73,7 @@ function DateTimeTrigger({
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${formatMaldivesDateShort(valueUtc)}, ${formatMaldivesTime12h(valueUtc)}`}
-        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+        style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] })}
       >
         <GlassSurface style={{ paddingVertical: theme.spacing.sm, paddingHorizontal: theme.spacing.md }}>
           <Body style={{ fontWeight: '600' }}>{formatMaldivesDateShort(valueUtc)}</Body>

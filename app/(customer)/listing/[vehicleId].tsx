@@ -112,7 +112,14 @@ export default function ListingDetail() {
                     // makes each photo one full-width "page" for
                     // pagingEnabled to swipe between, matching the single
                     // full-width placeholder box below.
-                    style={[styles.heroImage, { width: windowWidth }]}
+                    style={[
+                      styles.heroImage,
+                      {
+                        width: windowWidth,
+                        borderWidth: StyleSheet.hairlineWidth,
+                        borderColor: theme.colors.imageOutline,
+                      },
+                    ]}
                     contentFit="cover"
                     accessibilityLabel={`${vehicleName} photo`}
                   />
