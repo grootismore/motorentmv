@@ -20,6 +20,7 @@ interface TypographyProps extends TextProps {
 function makeVariant(
   variant: Variant,
   defaultColor: (colors: ReturnType<typeof useTheme>['colors']) => string,
+  extraStyle?: TextProps['style'],
 ) {
   return function VariantText({ style, color, ...rest }: TypographyProps) {
     const theme = useTheme();
@@ -30,6 +31,7 @@ function makeVariant(
         style={[
           { fontFamily: theme.typography.fontFamily.regular, color: color ?? defaultColor(theme.colors) },
           variantStyle,
+          extraStyle,
           style,
         ]}
       />
@@ -48,6 +50,10 @@ export const Body = makeVariant('body', (c) => c.textPrimary);
 export const SecondaryBody = makeVariant('secondaryBody', (c) => c.textSecondary);
 export const Label = makeVariant('label', (c) => c.textSecondary);
 export const Caption = makeVariant('caption', (c) => c.textTertiary);
-export const KPIText = makeVariant('numericKPI', (c) => c.textPrimary);
-export const PriceText = makeVariant('price', (c) => c.lagoonPrimary);
+// tabular-nums: these render numbers that update in place (a KPI refreshing,
+// a price recalculating) -- fixed-width digits keep the layout from
+// shifting as the value changes, unlike prose text (Body, Caption, etc.),
+// which stays proportional.
+export const KPIText = makeVariant('numericKPI', (c) => c.textPrimary, [{ fontVariant: ['tabular-nums'] }]);
+export const PriceText = makeVariant('price', (c) => c.lagoonPrimary, [{ fontVariant: ['tabular-nums'] }]);
 export const ButtonLabel = makeVariant('buttonLabel', (c) => c.textInverse);

@@ -140,6 +140,12 @@ export const lightColors = {
   glassTint: 'rgba(255,255,255,0.22)',
   glassTintStrong: 'rgba(255,255,255,0.45)',
   glassBorder: 'rgba(15,37,64,0.08)',
+  /** A hairline outline for photos specifically — deliberately pure black
+   * (never a tinted navy like glassBorder), so it reads as depth on the
+   * image edge rather than picking up the surface color underneath and
+   * looking like dirt on the photo. Not used for panels/cards — those
+   * keep glassBorder. */
+  imageOutline: 'rgba(0,0,0,0.1)',
   /** The soft tinted capsule drawn behind the active tab bar item — the
    * lagoonPrimary accent at low opacity, matching the reference's
    * pill-highlighted active tab rather than color-only differentiation. */
@@ -198,6 +204,8 @@ export const darkColors: ColorTokens = {
   glassTint: 'rgba(52,72,92,0.30)',
   glassTintStrong: 'rgba(52,72,92,0.55)',
   glassBorder: 'rgba(255,255,255,0.08)',
+  /** Pure white, not a tinted light gray — see lightColors.imageOutline. */
+  imageOutline: 'rgba(255,255,255,0.1)',
   tabActivePill: 'rgba(63,181,189,0.20)',
   textPrimary: '#EAF2F6',
   textSecondary: '#9FB3C2',

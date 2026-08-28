@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { GlassSurface } from '../../components/GlassSurface';
 import { CardTitle, Caption, Label, LargeTitle, PriceText } from '../../components/Typography';
@@ -14,6 +14,15 @@ import type { VehicleSearchResult } from './queries';
 function vehicleLabel(vehicle: VehicleSearchResult): string {
   const name = `${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim();
   return name || vehicle.registration_number;
+}
+
+// The hero photo's top corners sit flush against the surrounding
+// GlassSurface card's own corners (the card's only inset is
+// theme.spacing.md on every side) -- concentric radius = outer - padding,
+// not a copy of the outer radius. Only 'hero' uses this; the 'row'
+// thumbnail floats mid-row and never touches its card's corners.
+function photoRadius(theme: ReturnType<typeof useTheme>): number {
+  return theme.radii.card - theme.spacing.md;
 }
 
 /**
@@ -35,7 +44,9 @@ function VehicleIllustration({ size }: { size: 'row' | 'hero' }) {
       style={{
         height,
         width: size === 'hero' ? '100%' : 56,
-        borderRadius: size === 'hero' ? theme.radii.card : theme.radii.control,
+        borderRadius: size === 'hero' ? photoRadius(theme) : theme.radii.control,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: theme.colors.imageOutline,
         alignItems: 'center',
         justifyContent: 'center',
       }}
@@ -73,7 +84,9 @@ function VehiclePhoto({ vehicleId, size }: { vehicleId: string; size: 'row' | 'h
       style={{
         height,
         width: size === 'hero' ? '100%' : 56,
-        borderRadius: size === 'hero' ? theme.radii.card : theme.radii.control,
+        borderRadius: size === 'hero' ? photoRadius(theme) : theme.radii.control,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: theme.colors.imageOutline,
       }}
       contentFit="cover"
       accessibilityLabel="Vehicle photo"

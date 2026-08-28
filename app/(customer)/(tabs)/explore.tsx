@@ -127,6 +127,10 @@ export default function Explore() {
                 accessibilityHint={
                   (unreadCount.data ?? 0) > 0 ? `${unreadCount.data} unread` : 'No unread notifications'
                 }
+                // The visible circle stays 36pt (matches the Ocean Glass
+                // hero sizing); hitSlop pads the tappable area out to the
+                // 44pt minimum without growing what's drawn.
+                hitSlop={4}
                 style={{
                   width: 36,
                   height: 36,
@@ -153,7 +157,14 @@ export default function Explore() {
                       paddingHorizontal: 3,
                     }}
                   >
-                    <Caption style={{ color: theme.colors.textInverse, fontSize: 10, lineHeight: 12 }}>
+                    <Caption
+                      style={{
+                        color: theme.colors.textInverse,
+                        fontSize: 10,
+                        lineHeight: 12,
+                        fontVariant: ['tabular-nums'],
+                      }}
+                    >
                       {(unreadCount.data ?? 0) > 99 ? '99+' : unreadCount.data}
                     </Caption>
                   </View>
@@ -173,7 +184,7 @@ export default function Explore() {
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <SectionTitle>Available near you</SectionTitle>
             {availableCount !== undefined ? (
-              <Caption>
+              <Caption style={{ fontVariant: ['tabular-nums'] }}>
                 {availableCount} ready for the next 2 days
               </Caption>
             ) : null}

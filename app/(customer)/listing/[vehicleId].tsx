@@ -127,6 +127,9 @@ export default function ListingDetail() {
               onPress={() => router.back()}
               accessibilityRole="button"
               accessibilityLabel="Back"
+              // Visible circle stays 36pt; hitSlop pads the tappable area
+              // to the 44pt minimum without growing what's drawn.
+              hitSlop={4}
               style={{
                 margin: theme.spacing.md,
                 width: 36,

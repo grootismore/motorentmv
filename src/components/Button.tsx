@@ -91,6 +91,11 @@ export function Button({
           borderColor: isDisabled && hasContainer ? 'transparent' : palette.border,
           borderRadius: theme.radii.control,
           opacity: !hasContainer && isDisabled ? 0.5 : pressed && variant === 'tertiary' ? 0.6 : 1,
+          // Tactile press feedback -- 0.96 is the floor; anything smaller
+          // reads as exaggerated. Driven directly by Pressable's `pressed`
+          // state (not Animated), so it's inherently interruptible and
+          // snaps back instantly on release, no timing/easing needed.
+          transform: [{ scale: pressed && !isDisabled ? 0.96 : 1 }],
         },
       ]}
       {...pressableProps}
