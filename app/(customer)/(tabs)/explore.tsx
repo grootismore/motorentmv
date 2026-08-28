@@ -73,6 +73,16 @@ export default function Explore() {
     (!isSupabaseConfigured || (!discovery.isLoading && !discovery.isError && discovery.data?.length === 0));
   const showDiscoveryError = discovery.isError && !(isDemoMode && !isSupabaseConfigured);
 
+  // Real count for the section subhead below -- undefined (not 0) while
+  // loading/erroring, so the subhead simply doesn't render rather than
+  // flashing "0 available" before the first fetch resolves.
+  const availableCount =
+    !discovery.isLoading && !discovery.isError && (discovery.data?.length ?? 0) > 0
+      ? discovery.data?.length
+      : showDemoFallback
+        ? DEMO_VEHICLES.length
+        : undefined;
+
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.colors.pearlBackground }}
@@ -153,14 +163,21 @@ export default function Explore() {
           </View>
 
           <LargeTitle color={theme.colors.oceanForeground} style={{ marginBottom: theme.spacing.lg }}>
-            Find your ride
+            Rent a motorbike, island to island
           </LargeTitle>
 
           <SearchForm onSubmit={handleSubmit} submitLabel="Search availability" />
         </LinearGradient>
 
         <View style={{ paddingHorizontal: 20, paddingTop: theme.spacing.xl, gap: theme.spacing.md }}>
-          <SectionTitle>Available near you</SectionTitle>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <SectionTitle>Available near you</SectionTitle>
+            {availableCount !== undefined ? (
+              <Caption>
+                {availableCount} ready for the next 2 days
+              </Caption>
+            ) : null}
+          </View>
 
           {discovery.isLoading ? (
             // A single card matching VehicleResultItem's hero shape, not a
