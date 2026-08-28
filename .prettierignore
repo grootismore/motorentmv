@@ -4,3 +4,5 @@ dist
 android
 ios
 coverage
+.agents/skills
+.revyl
