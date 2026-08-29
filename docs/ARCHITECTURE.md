@@ -43,7 +43,7 @@ supabase/
   migrations/            Ordered SQL schema/RLS/RPC migrations — the single
                         source of truth for the data model
   local-dev/             A Docker-free local Postgres harness + test runner
-  seed.sql               Demo data
+  seed.sql               Intentionally empty (see run-tests.sh)
 docs/                   This documentation set
 .maestro/               On-device E2E flow files (written, not run here)
 ```

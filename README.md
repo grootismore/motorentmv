@@ -150,7 +150,7 @@ scripts/ios/            Unsigned device-IPA build script (see CI below)
 supabase/
   migrations/            Ordered SQL schema/RLS/RPC migrations
   local-dev/             A Docker-free local Postgres harness + test runner
-  seed.sql               Demo data
+  seed.sql               Intentionally empty (see run-tests.sh)
 .maestro/               On-device E2E flow files
 ```
 
